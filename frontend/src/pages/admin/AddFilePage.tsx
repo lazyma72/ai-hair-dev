@@ -1324,10 +1324,7 @@ export default function AddFilePage() {
               onClick={() =>
                 setForm((f) => ({
                   ...f,
-                  染色档位列表: [
-                    ...f.染色档位列表,
-                    染色示例.普通,
-                  ],
+                  染色档位列表: [...f.染色档位列表, 染色示例.普通],
                 }))
               }
             />
