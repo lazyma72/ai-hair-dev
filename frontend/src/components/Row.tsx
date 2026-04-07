@@ -4,7 +4,7 @@
  * 用在 Section 内部展示单条字段。
  *
  * 用法：
- *   <Row label="客户" value="XM" />
+ *   <Row label="客户编号" value="XM" />
  *   <Row label="备注" value={<span className="text-red-500">...</span>} />
  */
 type Props = {

@@ -5,7 +5,7 @@ import { 胶丝比例Frontend } from "../../../shared/frontend/model/model"
 
 export default async function (call: ApiCall<ReqGetDetail, ResGetDetail>) {
   const col = Global.getCollection("胶丝比例")
-  const doc = await col.findOne({ _id: call.req.id })
+  const doc = await col.findOne({ "_id.颜色编号": call.req.id })
   if (!doc) {
     return call.error("找不到对应的胶丝比例", { code: "NOT_FOUND" })
   }

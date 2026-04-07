@@ -7,6 +7,7 @@ import { Db胶丝比例 } from "../../db/Db胶丝比例"
 // ==============================
 export interface 胶丝比例ListItem {
   _id: string
+  发丝种类: string
   线色?: string
 }
 
@@ -19,7 +20,7 @@ export interface 胶丝比例Frontend extends Omit<Db胶丝比例, "颜色图片
 // ==============================
 export interface 沐茵丝假发成品稿ListItem {
   _id: string
-  客户: string
+  客户编号: string
   品名: string
   假发类型: 假发类型
   CAP: string
@@ -35,7 +36,7 @@ export interface 制品规格书Frontend {
   /*---- 标题 ----*/
   title: {
     样品编号: string
-    客户: string
+    客户编号: string
     品名: string
     订单: string
     原料: string
@@ -56,7 +57,6 @@ export interface 制品规格书Frontend {
     整毛: { 加减: number; 数值: number }
     双针: { 加减: number; 数值: number }
     美容: { 加减: number; 数值: number }
-    SKIN: { 加减: number; 数值: number }
     制帽: { 加减: number; 数值: number }
     高针: { 加减: number; 数值: number }
     手织: { 加减: number; 数值: number }
@@ -74,8 +74,8 @@ export interface 制品规格书Frontend {
 export interface 高针指示单Frontend {
   /*---- 标题 ----*/
   title: {
-    客户: string
-    重量: string
+    客户编号: string
+    重量: number
     品名: string
     尺寸: string
     原料: string
@@ -96,7 +96,7 @@ export interface 高针指示单Frontend {
       L?: number
     }
     形态: string
-    管径: string
+    管径: number
     方向: string
     备注: string
   }[]
@@ -108,14 +108,13 @@ export interface 手织指示单Frontend {
   /*---- 标题 ----*/
   title: {
     样品编号: string
-    客户: string
-    尺寸: number
+    客户编号: string
+    尺寸: string
     品名: string
     CAP: string
     重量: number
     原材料: string
     颜色编号: string
-    针法: string
   }
   /*
   ----   人工规格清单_手织图版本 ----
@@ -123,13 +122,14 @@ export interface 手织指示单Frontend {
   */
   人工规格清单_手织图: {
     档位: string
-    整长: string
-    毛长: string
+    整长: number
+    毛长: number
     重量: {
       D: number
       M?: number
       L?: number
     }
+    位置?: string
   }[]
 
   手织图片: string

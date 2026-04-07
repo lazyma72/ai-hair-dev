@@ -32,27 +32,36 @@ async function main() {
 
   for (const file of files) {
     const filePath = path.join(jsonDir, file)
-    const records: Db胶丝比例[] = JSON.parse(fs.readFileSync(filePath, "utf-8"))
-
-    console.log(`\n[${file}] 共 ${records.length} 条`)
-
-    const ops = records.map(record => ({
-      replaceOne: {
-        filter: { _id: record._id } as { _id: string },
-        replacement: record,
-        upsert: true,
-      },
-    }))
-
-    const result = await col.bulkWrite(ops, { ordered: false })
-
-    console.log(
-      `  插入: ${result.upsertedCount}  更新: ${result.modifiedCount}  匹配: ${result.matchedCount}`
+    const 发丝种类 = file.replace(/\.json$/i, "")
+    const raw: (Omit<Db胶丝比例, "_id"> & { _id: string })[] = JSON.parse(
+      fs.readFileSync(filePath, "utf-8")
     )
 
+    console.log(`\n[${file}] 发丝种类=${发丝种类}，共 ${raw.length} 条`)
+
+    const records: Db胶丝比例[] = raw.map(r => ({
+      ...r,
+      _id: { 颜色编号: r._id, 发丝种类 },
+    }))
+
+    let fileUpserted = 0
+    let fileModified = 0
+
+    for (const record of records) {
+      const result = await col.replaceOne({ _id: record._id }, record, { upsert: true })
+      if (result.upsertedCount) {
+        fileUpserted++
+      } else if (result.modifiedCount) {
+        fileModified++
+        console.log(`  [更新] ${JSON.stringify(record._id)}`)
+      }
+    }
+
+    console.log(`  插入: ${fileUpserted}  更新: ${fileModified}`)
+
     totalRecords += records.length
-    totalUpserted += result.upsertedCount
-    totalModified += result.modifiedCount
+    totalUpserted += fileUpserted
+    totalModified += fileModified
   }
 
   console.log(

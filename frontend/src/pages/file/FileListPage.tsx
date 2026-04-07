@@ -49,7 +49,7 @@ export default function FileListPage() {
                     {item.品名}
                   </div>
                   <div className="mt-0.5 text-xs text-slate-500">
-                    {item.客户}
+                    {item.客户编号}
                   </div>
                 </div>
                 <Badge>{item.假发类型}</Badge>

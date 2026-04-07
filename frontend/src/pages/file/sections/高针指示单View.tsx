@@ -33,7 +33,7 @@ export default function 高针指示单View({ data }: Props) {
       <Section title="标题信息">
         <div className="divide-y divide-slate-100">
           <Row label="样品编号" value={title.样品编号} />
-          <Row label="客户" value={title.客户} />
+          <Row label="客户编号" value={title.客户编号} />
           <Row label="品名" value={title.品名} />
           <Row label="尺寸" value={title.尺寸} />
           <Row label="原料" value={title.原料} />

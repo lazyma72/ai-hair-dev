@@ -13,8 +13,9 @@ export default async function (call: ApiCall<ReqGetDetail, ResGetDetail>) {
   }
 
   const 比例Col = Global.getCollection("胶丝比例")
-  const 颜色编号List = 稿.制品规格书.胶丝比例列表.map(item => item.颜色编号)
-  const 胶丝比例列表 = await 比例Col.find({ _id: { $in: 颜色编号List } }).toArray()
+  const 胶丝比例列表 = await 比例Col
+    .find({ "_id.颜色编号": 稿.制品规格书.胶丝比例id.颜色编号 })
+    .toArray()
 
   call.succ({
     file: {

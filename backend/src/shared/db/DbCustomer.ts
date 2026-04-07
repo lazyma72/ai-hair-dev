@@ -1,6 +1,4 @@
-import { ObjectId } from "mongodb"
-
 export interface DbCustomer {
-  _id: ObjectId
-  code: string
+  _id: string;
+  客户编号: string;
 }

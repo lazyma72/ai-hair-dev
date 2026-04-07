@@ -58,7 +58,7 @@ export default function RatioDetailPage() {
 
   return (
     <PageShell
-      title={ratio ? `颜色：${ratio._id}` : "胶丝比例详情"}
+      title={ratio ? `颜色：${ratio._id.颜色编号}` : "胶丝比例详情"}
       onBack={() => navigate(-1)}
     >
       <StatusView loading={loading} error={error}>
@@ -67,7 +67,7 @@ export default function RatioDetailPage() {
             {/* 基本信息 */}
             <Section title="基本信息">
               <div className="divide-y divide-slate-100">
-                <Row label="颜色编号" value={ratio._id} />
+                <Row label="颜色编号" value={ratio._id.颜色编号} />
                 <Row label="线色" value={ratio.线色 ?? "—"} />
                 <Row label="备注" value={ratio.备注 ?? "—"} />
               </div>

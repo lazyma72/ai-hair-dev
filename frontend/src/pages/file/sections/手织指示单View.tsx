@@ -30,14 +30,13 @@ export default function 手织指示单View({ data }: Props) {
       <Section title="标题信息">
         <div className="divide-y divide-slate-100">
           <Row label="样品编号" value={title.样品编号} />
-          <Row label="客户" value={title.客户} />
+          <Row label="客户编号" value={title.客户编号} />
           <Row label="品名" value={title.品名} />
           <Row label="CAP" value={title.CAP} />
           <Row label="尺寸" value={`${title.尺寸}`} />
           <Row label="重量" value={`${title.重量}g`} />
           <Row label="原材料" value={title.原材料} />
           <Row label="颜色编号" value={title.颜色编号} />
-          <Row label="针法" value={title.针法 || "—"} />
         </div>
       </Section>
 

@@ -1,12 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { callApi } from "../api/callApi";
 import type {
   DML重量,
   制品规格书,
   裁断重量项,
+  染色档位,
   沐茵丝假发成品稿,
 } from "../shared/db/Db沐茵丝假发成品稿";
 import { 假发类型 } from "../shared/db/Db沐茵丝假发成品稿";
+import type { 胶丝比例ListItem } from "../shared/frontend/model/model";
+import {
+  普通染色档位,
+  对折染色档位,
+  错位染色档位,
+} from "../shared/models/染色档位示例";
 
 type Props = {
   open: boolean;
@@ -22,16 +29,14 @@ const empty机器档位 = (): 制品规格书["机器规格清单"][number] => (
   整毛: { 拉尖: 0 },
   双针: { 毛长: 0, 尺数: { D: 0 }, 密度: 0 },
   美容: { 铝管: 0, 方向: "", 层数: 0 },
-  染色: { 比例: 0, 对折: false },
 });
 
 const empty人工档位 = (): 制品规格书["人工规格清单"][number] => ({
   档位: "",
-  裁断: 0,
-  整毛: 0,
+  裁断与重量: [],
+  整毛: { 拉尖: 0 },
   双针: { 毛长: 0, 磅发: 0 },
   美容: { 铝管: 0 },
-  染色: { 比例: 0, 对折: false },
 });
 
 const empty工艺说明 = (): 制品规格书["工艺说明"][number] => ({
@@ -46,14 +51,10 @@ const empty工艺说明 = (): 制品规格书["工艺说明"][number] => ({
   包装: "",
 });
 
-const empty染色档位映射图 = (): 制品规格书["染色档位映射图"][number] => ({
-  档位映射: [],
-});
-
 const emptyFile = (): 沐茵丝假发成品稿 => ({
   _id: "",
   假发类型: 假发类型.纯色,
-  客户: "",
+  客户编号: "",
   品名: "",
   原材料: "",
   CAP: "",
@@ -61,15 +62,12 @@ const emptyFile = (): 沐茵丝假发成品稿 => ({
   制品规格书: {
     机器规格清单: [],
     人工规格清单: [],
-    胶丝比例列表: [],
-    尺寸: "",
+    胶丝比例id: { 颜色编号: "", 发丝种类: "" },
     制帽: { 帽围: 0, 帽深: 0, 前后: 0, 唛头: "", 号码: "" },
     工艺说明: [],
     工程重量: {},
-    染色档位映射图: [],
   },
   高针指示单: {
-    尺寸: "",
     注意事项: "",
     高针图: {
       底图: {
@@ -85,8 +83,9 @@ const emptyFile = (): 沐茵丝假发成品稿 => ({
   手织指示单: {
     尺寸: 0,
     注意事项: "",
-    手织图: { 底图: { svg: "", 可定制项: [] } },
+    手织图: { svg: "" },
   },
+  染色档位列表: [],
 });
 
 // ── 辅助组件 ───────────────────────────────────────────
@@ -402,41 +401,14 @@ function 机器档位编辑器({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Field label="染色·比例">
-          <NumInput
-            value={value.染色?.比例 ?? 0}
-            onChange={(n) =>
-              p("染色", {
-                ...(value.染色 ?? { 比例: 0, 对折: false }),
-                比例: n,
-              })
-            }
+        <Field label="备注">
+          <TextInput
+            value={value.备注 ?? ""}
+            onChange={(v) => p("备注", v || undefined)}
+            placeholder="可选"
           />
         </Field>
-        <Field label="染色·对折">
-          <select
-            className={inputCls}
-            value={value.染色?.对折 ? "是" : "否"}
-            onChange={(e) =>
-              p("染色", {
-                ...(value.染色 ?? { 比例: 0, 对折: false }),
-                对折: e.target.value === "是",
-              })
-            }
-          >
-            <option>否</option>
-            <option>是</option>
-          </select>
-        </Field>
       </div>
-
-      <Field label="备注">
-        <TextInput
-          value={value.备注 ?? ""}
-          onChange={(v) => p("备注", v || undefined)}
-          placeholder="可选"
-        />
-      </Field>
     </div>
   );
 }
@@ -473,16 +445,27 @@ function 人工档位编辑器({
           />
         </Field>
       </div>
+      <div>
+        <p className="mb-1 text-[10px] font-medium text-slate-500">
+          裁断与重量
+        </p>
+        <裁断重量编辑器
+          value={value.裁断与重量}
+          onChange={(v) => p("裁断与重量", v)}
+        />
+      </div>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="裁断">
+        <Field label="整毛·拉尖">
           <NumInput
-            value={value.裁断}
-            onChange={(n) => p("裁断", n)}
-            step="1"
+            value={value.整毛.拉尖}
+            onChange={(n) => p("整毛", { ...value.整毛, 拉尖: n })}
           />
         </Field>
-        <Field label="整毛">
-          <NumInput value={value.整毛} onChange={(n) => p("整毛", n)} />
+        <Field label="整毛·对裁">
+          <NumInput
+            value={value.整毛.对裁 ?? 0}
+            onChange={(n) => p("整毛", { ...value.整毛, 对裁: n || undefined })}
+          />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -508,40 +491,14 @@ function 人工档位编辑器({
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="染色·比例">
-          <NumInput
-            value={value.染色?.比例 ?? 0}
-            onChange={(n) =>
-              p("染色", {
-                ...(value.染色 ?? { 比例: 0, 对折: false }),
-                比例: n,
-              })
-            }
+        <Field label="备注">
+          <TextInput
+            value={value.备注 ?? ""}
+            onChange={(v) => p("备注", v || undefined)}
+            placeholder="可选"
           />
         </Field>
-        <Field label="染色·对折">
-          <select
-            className={inputCls}
-            value={value.染色?.对折 ? "是" : "否"}
-            onChange={(e) =>
-              p("染色", {
-                ...(value.染色 ?? { 比例: 0, 对折: false }),
-                对折: e.target.value === "是",
-              })
-            }
-          >
-            <option>否</option>
-            <option>是</option>
-          </select>
-        </Field>
       </div>
-      <Field label="备注">
-        <TextInput
-          value={value.备注 ?? ""}
-          onChange={(v) => p("备注", v || undefined)}
-          placeholder="可选"
-        />
-      </Field>
     </div>
   );
 }
@@ -585,125 +542,238 @@ function 工艺说明编辑器({
   );
 }
 
-// ── 染色档位映射图编辑器 ────────────────────────────────
+// ── SVG 预览辅助 ────────────────────────────────────────
 
-type 染色项 = 制品规格书["染色档位映射图"][number];
+function updateSvgTextNode(svg: string, nodeId: string, text: string): string {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svg, "image/svg+xml");
+    const el = doc.getElementById(nodeId);
+    if (!el) return svg;
+    const firstTspan = el.querySelector("tspan");
+    if (firstTspan) {
+      firstTspan.textContent = text;
+    } else {
+      el.textContent = text;
+    }
+    return new XMLSerializer().serializeToString(doc);
+  } catch {
+    return svg;
+  }
+}
+
+function buildPreviewSvg(item: 染色档位): string {
+  let svg = item.染色图.svg;
+  const 档位文字 = item.染色图.档位标注.档位列表.join("/") || "?";
+  svg = updateSvgTextNode(svg, item.染色图.档位标注.textNodeId, 档位文字);
+  svg = updateSvgTextNode(
+    svg,
+    item.染色图.染色尺寸标注.textNodeId,
+    `${item.染色图.染色尺寸标注.尺寸}"`,
+  );
+  if (item.type === "错位") {
+    svg = updateSvgTextNode(
+      svg,
+      item.染色图.长尺寸标注.textNodeId,
+      `${item.染色图.长尺寸标注.尺寸}"`,
+    );
+    if (item.染色图.短尺寸标注) {
+      svg = updateSvgTextNode(
+        svg,
+        item.染色图.短尺寸标注.textNodeId,
+        `${item.染色图.短尺寸标注.尺寸}"`,
+      );
+    }
+  }
+  return svg;
+}
+
+// 注意：示例文件中的变量名与 type 字段顺序对调，按 type 字段情就映射
+const 染色示例 = {
+  普通: 对折染色档位, // 对折染色档位.type === "普通"
+  对折: 普通染色档位, // 普通染色档位.type === "对折"
+  错位: 错位染色档位, // 错位染色档位.type === "错位"
+} satisfies Record<染色档位["type"], 染色档位>;
 
 function 染色档位编辑器({
   value,
   onChange,
+  全部档位名,
 }: {
-  value: 染色项;
-  onChange: (v: 染色项) => void;
+  value: 染色档位;
+  onChange: (v: 染色档位) => void;
+  全部档位名: string[];
 }) {
-  const { 档位映射 } = value;
+  const previewSvg = useMemo(() => buildPreviewSvg(value), [value]);
 
-  function updateRow(i: number, patch: Partial<染色项["档位映射"][number]>) {
-    const next = 档位映射.map((r, j) => (j === i ? { ...r, ...patch } : r));
-    onChange({ ...value, 档位映射: next });
+  function changeType(type: 染色档位["type"]) {
+    const 基 = {
+      svg: value.染色图.svg,
+      档位标注: value.染色图.档位标注,
+      染色尺寸标注: value.染色图.染色尺寸标注,
+      文本替换: value.染色图.文本替换,
+    };
+    if (type === "错位") {
+      if (value.type === "错位") {
+        onChange({
+          type,
+          染色图: {
+            ...基,
+            长尺寸标注: value.染色图.长尺寸标注,
+            短尺寸标注:
+              value.染色图.短尺寸标注 ?? 染色示例.错位.染色图.短尺寸标注,
+          },
+        });
+      } else {
+        onChange({
+          type,
+          染色图: {
+            ...基,
+            长尺寸标注: 染色示例.错位.染色图.长尺寸标注,
+            短尺寸标注: 染色示例.错位.染色图.短尺寸标注,
+          },
+        });
+      }
+    } else {
+      onChange({ type: type as "普通" | "对折", 染色图: 基 });
+    }
+  }
+
+  function toggleArchive(名: string) {
+    const 列表 = value.染色图.档位标注.档位列表;
+    const next = 列表.includes(名)
+      ? 列表.filter((d: string) => d !== 名)
+      : [...列表, 名];
+    const newDs = { ...value.染色图.档位标注, 档位列表: next };
+    if (value.type === "错位") {
+      onChange({ type: "错位", 染色图: { ...value.染色图, 档位标注: newDs } });
+    } else {
+      onChange({
+        type: value.type,
+        染色图: { ...value.染色图, 档位标注: newDs },
+      });
+    }
   }
 
   return (
-    <div className="space-y-2 rounded border border-slate-200 bg-white p-3">
-      {档位映射.map((row, i) => (
-        <div key={i} className="space-y-2 rounded bg-slate-50 p-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-medium text-slate-500">
-              映射 {i + 1}
-            </span>
-            <DelBtn
-              onClick={() =>
-                onChange({
-                  ...value,
-                  档位映射: 档位映射.filter((_, j) => j !== i),
-                })
-              }
-            />
-          </div>
-          <Field label="档位数组（逗号分隔）">
-            <TextInput
-              value={row.档位数组.join(",")}
-              onChange={(v) =>
-                updateRow(i, {
-                  档位数组: v
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                })
-              }
-              placeholder="例如: 1,2,3,H1"
-            />
-          </Field>
-          <Field label="染色尺寸">
-            <TextInput
-              value={row.染色尺寸}
-              onChange={(v) => updateRow(i, { 染色尺寸: v })}
-              placeholder="例如: 2.5"
-            />
+    <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="w-24">
+          <Field label="类型">
+            <select
+              className={inputCls}
+              value={value.type}
+              onChange={(e) => changeType(e.target.value as 染色档位["type"])}
+            >
+              <option value="普通">普通</option>
+              <option value="对折">对折</option>
+              <option value="错位">错位</option>
+            </select>
           </Field>
         </div>
-      ))}
-      <AddBtn
-        onClick={() =>
-          onChange({
-            ...value,
-            档位映射: [
-              ...档位映射,
-              { 档位数组: [], 染色尺寸: "", 染色尺寸图片: "" },
-            ],
-          })
-        }
-      />
-    </div>
-  );
-}
-
-// ── 可定制项编辑器（手织图） ─────────────────────────────
-
-type 可定制项 = { lineId: string; 尺数: number };
-
-function 可定制项编辑器({
-  value,
-  onChange,
-}: {
-  value: 可定制项[];
-  onChange: (v: 可定制项[]) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      {value.map((row, i) => (
-        <div key={i} className="flex items-end gap-2">
-          <div className="flex-1">
-            <label className="mb-1 block text-[10px] text-slate-500">
-              lineId
-            </label>
-            <TextInput
-              value={row.lineId}
-              onChange={(v) => {
-                const next = [...value];
-                next[i] = { ...next[i], lineId: v };
-                onChange(next);
-              }}
-            />
-          </div>
-          <div className="w-20">
-            <label className="mb-1 block text-[10px] text-slate-500">
-              尺数
-            </label>
+        <div className="w-24">
+          <Field label="尺寸 (寸)">
             <NumInput
-              value={row.尺数}
+              value={value.染色图.染色尺寸标注.尺寸}
               onChange={(n) => {
-                const next = [...value];
-                next[i] = { ...next[i], 尺数: n };
-                onChange(next);
+                if (value.type === "错位") {
+                  onChange({
+                    type: "错位",
+                    染色图: {
+                      ...value.染色图,
+                      染色尺寸标注: { ...value.染色图.染色尺寸标注, 尺寸: n },
+                    },
+                  });
+                } else {
+                  onChange({
+                    type: value.type,
+                    染色图: {
+                      ...value.染色图,
+                      染色尺寸标注: { ...value.染色图.染色尺寸标注, 尺寸: n },
+                    },
+                  });
+                }
               }}
-              step="1"
+              step="0.5"
             />
-          </div>
-          <DelBtn onClick={() => onChange(value.filter((_, j) => j !== i))} />
+          </Field>
         </div>
-      ))}
-      <AddBtn onClick={() => onChange([...value, { lineId: "", 尺数: 0 }])} />
+        {value.type === "错位" && (
+          <>
+            <div className="w-24">
+              <Field label="长尺寸 (寸)">
+                <NumInput
+                  value={value.染色图.长尺寸标注.尺寸}
+                  onChange={(n) => {
+                    if (value.type !== "错位") return;
+                    onChange({
+                      type: "错位",
+                      染色图: {
+                        ...value.染色图,
+                        长尺寸标注: { ...value.染色图.长尺寸标注, 尺寸: n },
+                      },
+                    });
+                  }}
+                  step="0.5"
+                />
+              </Field>
+            </div>
+            <div className="w-24">
+              <Field label="短尺寸 (寸)">
+                <NumInput
+                  value={value.染色图.短尺寸标注?.尺寸 ?? 0}
+                  onChange={(n) => {
+                    if (value.type !== "错位") return;
+                    onChange({
+                      type: "错位",
+                      染色图: {
+                        ...value.染色图,
+                        短尺寸标注: {
+                          textNodeId:
+                            value.染色图.短尺寸标注?.textNodeId ??
+                            染色示例.错位.染色图.短尺寸标注.textNodeId,
+                          尺寸: n,
+                        },
+                      },
+                    });
+                  }}
+                  step="0.5"
+                />
+              </Field>
+            </div>
+          </>
+        )}
+      </div>
+      {全部档位名.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-[11px] font-medium text-slate-500">
+            适用档位
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {全部档位名.map((名) => (
+              <label
+                key={名}
+                className="flex cursor-pointer items-center gap-1 rounded border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={value.染色图.档位标注.档位列表.includes(名)}
+                  onChange={() => toggleArchive(名)}
+                />
+                {名}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      {previewSvg && (
+        <div className="overflow-x-auto rounded border border-slate-100 bg-white p-3">
+          <div
+            className="max-w-full"
+            dangerouslySetInnerHTML={{ __html: previewSvg }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -714,6 +784,36 @@ export default function AddFileModal({ open, onClose, onSuccess }: Props) {
   const [form, setForm] = useState(emptyFile);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [ratioList, setRatioList] = useState<胶丝比例ListItem[]>([]);
+
+  useEffect(() => {
+    callApi("admin/ratio/GetList", {}).then((r) => {
+      if (r.isSucc) setRatioList(r.res.list);
+    });
+  }, []);
+
+  const 发丝种类选项 = useMemo(
+    () => [...new Set(ratioList.map((r) => r.发丝种类))].sort(),
+    [ratioList],
+  );
+
+  const 当前发丝种类颜色编号列表 = useMemo(
+    () =>
+      ratioList
+        .filter((r) => r.发丝种类 === form.制品规格书.胶丝比例id.发丝种类)
+        .map((r) => r._id),
+    [ratioList, form.制品规格书.胶丝比例id.发丝种类],
+  );
+
+  const 全部档位名 = useMemo(() => {
+    const 机器 = form.制品规格书.机器规格清单
+      .map((d) => d.档位)
+      .filter(Boolean);
+    const 人工 = form.制品规格书.人工规格清单
+      .map((d) => d.档位)
+      .filter(Boolean);
+    return [...机器, ...人工];
+  }, [form.制品规格书.机器规格清单, form.制品规格书.人工规格清单]);
 
   if (!open) return null;
 
@@ -824,7 +924,7 @@ export default function AddFileModal({ open, onClose, onSuccess }: Props) {
             </Field>
             {(
               [
-                { key: "客户", placeholder: "例如: XM" },
+                { key: "客户编号", placeholder: "例如: XM" },
                 { key: "品名", placeholder: "例如: Michelle BB TBOB080" },
                 { key: "原材料", placeholder: "例如: FU:50%+HL:50%" },
                 { key: "CAP", placeholder: "例如: P-025(侧分雪花网L)" },
@@ -869,52 +969,56 @@ export default function AddFileModal({ open, onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          {/* ── 胶丝比例列表 ── */}
+          {/* ── 胶丝比例 ── */}
           <div className={sectionCls}>
-            <div className="flex items-center justify-between">
-              <SectionTitle>胶丝比例列表</SectionTitle>
-              <AddBtn
-                onClick={() =>
-                  set规格书("胶丝比例列表", [
-                    ...form.制品规格书.胶丝比例列表,
-                    { 颜色编号: "", 线色: "" },
-                  ])
-                }
-              />
-            </div>
-            {form.制品规格书.胶丝比例列表.length === 0 && (
-              <p className="text-xs text-slate-400">暂无</p>
-            )}
-            {form.制品规格书.胶丝比例列表.map((row, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <TextInput
-                  value={row.颜色编号}
-                  placeholder="颜色编号"
-                  onChange={(v) => {
-                    const next = [...form.制品规格书.胶丝比例列表];
-                    next[i] = { ...next[i], 颜色编号: v };
-                    set规格书("胶丝比例列表", next);
-                  }}
-                />
-                <TextInput
-                  value={row.线色}
-                  placeholder="线色"
-                  onChange={(v) => {
-                    const next = [...form.制品规格书.胶丝比例列表];
-                    next[i] = { ...next[i], 线色: v };
-                    set规格书("胶丝比例列表", next);
-                  }}
-                />
-                <DelBtn
-                  onClick={() =>
-                    set规格书(
-                      "胶丝比例列表",
-                      form.制品规格书.胶丝比例列表.filter((_, j) => j !== i),
-                    )
+            <SectionTitle>胶丝比例</SectionTitle>
+            <div className="grid grid-cols-[200px_1fr] gap-2">
+              <Field label="发丝种类">
+                <select
+                  className={inputCls}
+                  value={form.制品规格书.胶丝比例id.发丝种类}
+                  onChange={(e) =>
+                    set规格书("胶丝比例id", {
+                      颜色编号: "",
+                      发丝种类: e.target.value,
+                    })
                   }
-                />
-              </div>
-            ))}
+                >
+                  <option value="">— 选择发丝种类 —</option>
+                  {发丝种类选项.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="颜色编号">
+                <>
+                  <input
+                    list="modal-颜色编号列表"
+                    className={inputCls}
+                    placeholder={
+                      form.制品规格书.胶丝比例id.发丝种类
+                        ? "输入或选择颜色编号"
+                        : "请先选择发丝种类"
+                    }
+                    disabled={!form.制品规格书.胶丝比例id.发丝种类}
+                    value={form.制品规格书.胶丝比例id.颜色编号}
+                    onChange={(e) =>
+                      set规格书("胶丝比例id", {
+                        ...form.制品规格书.胶丝比例id,
+                        颜色编号: e.target.value,
+                      })
+                    }
+                  />
+                  <datalist id="modal-颜色编号列表">
+                    {当前发丝种类颜色编号列表.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </>
+              </Field>
+            </div>
           </div>
 
           {/* ── 工程重量 ── */}
@@ -926,7 +1030,6 @@ export default function AddFileModal({ open, onClose, onSuccess }: Props) {
                   "整毛",
                   "双针",
                   "美容",
-                  "SKIN",
                   "制帽",
                   "高针",
                   "手织",
@@ -1079,66 +1182,9 @@ export default function AddFileModal({ open, onClose, onSuccess }: Props) {
             ))}
           </div>
 
-          {/* ── 染色档位映射图 ── */}
-          <div className={sectionCls}>
-            <div className="flex items-center justify-between">
-              <SectionTitle>染色档位映射图</SectionTitle>
-              <AddBtn
-                onClick={() =>
-                  set规格书("染色档位映射图", [
-                    ...form.制品规格书.染色档位映射图,
-                    empty染色档位映射图(),
-                  ])
-                }
-              />
-            </div>
-            {form.制品规格书.染色档位映射图.length === 0 && (
-              <p className="text-xs text-slate-400">暂无</p>
-            )}
-            {form.制品规格书.染色档位映射图.map((项, i) => (
-              <div key={i}>
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[10px] font-medium text-slate-500">
-                    映射图 {i + 1}
-                  </span>
-                  <DelBtn
-                    onClick={() =>
-                      set规格书(
-                        "染色档位映射图",
-                        form.制品规格书.染色档位映射图.filter(
-                          (_, j) => j !== i,
-                        ),
-                      )
-                    }
-                  />
-                </div>
-                <染色档位编辑器
-                  value={项}
-                  onChange={(v) => {
-                    const next = [...form.制品规格书.染色档位映射图];
-                    next[i] = v;
-                    set规格书("染色档位映射图", next);
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-
           {/* ── 高针指示单 ── */}
           <div className={sectionCls}>
             <SectionTitle>高针指示单</SectionTitle>
-            <Field label="尺寸">
-              <TextInput
-                value={form.高针指示单.尺寸 ?? ""}
-                onChange={(v) =>
-                  setForm((f) => ({
-                    ...f,
-                    高针指示单: { ...f.高针指示单, 尺寸: v },
-                  }))
-                }
-                placeholder='例如: 15"~18"'
-              />
-            </Field>
             <Field label="注意事项">
               <textarea
                 rows={3}
@@ -1186,23 +1232,78 @@ export default function AddFileModal({ open, onClose, onSuccess }: Props) {
             </Field>
             <div>
               <p className="mb-1 text-xs font-medium text-slate-700">
-                手织图·可定制项
+                手织图 SVG
               </p>
-              <可定制项编辑器
-                value={form.手织指示单.手织图.底图.可定制项}
+              <TextInput
+                value={form.手织指示单.手织图.svg}
                 onChange={(v) =>
                   setForm((f) => ({
                     ...f,
                     手织指示单: {
                       ...f.手织指示单,
-                      手织图: {
-                        底图: { ...f.手织指示单.手织图.底图, 可定制项: v },
-                      },
+                      手织图: { svg: v },
                     },
+                  }))
+                }
+                placeholder="SVG 内容"
+              />
+            </div>
+          </div>
+
+          {/* ── 染色档位列表 ── */}
+          <div className={sectionCls}>
+            <div className="flex items-center justify-between">
+              <SectionTitle>染色档位列表</SectionTitle>
+              <AddBtn
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    染色档位列表: [
+                      ...f.染色档位列表,
+                      染色示例.普通,
+                    ],
                   }))
                 }
               />
             </div>
+            {form.染色档位列表.length === 0 ? (
+              <p className="text-xs text-slate-400">
+                暂无染色档位，点击右上角添加
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {form.染色档位列表.map((项, i) => (
+                  <div key={i}>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-500">
+                        染色档位 {i + 1}（{项.type}）
+                      </span>
+                      <DelBtn
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            染色档位列表: f.染色档位列表.filter(
+                              (_, j) => j !== i,
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                    <染色档位编辑器
+                      value={项}
+                      全部档位名={全部档位名}
+                      onChange={(v) =>
+                        setForm((f) => {
+                          const next = [...f.染色档位列表];
+                          next[i] = v;
+                          return { ...f, 染色档位列表: next };
+                        })
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {error && (

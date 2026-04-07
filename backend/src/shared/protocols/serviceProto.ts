@@ -44,7 +44,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 3,
+    "version": 9,
     "services": [
         {
             "id": 2,
@@ -152,8 +152,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 2,
-                    "name": "客户",
+                    "id": 11,
+                    "name": "客户编号",
                     "type": {
                         "type": "String"
                     }
@@ -177,6 +177,17 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "CAP",
                     "type": {
                         "type": "String"
+                    }
+                },
+                {
+                    "id": 12,
+                    "name": "染色档位列表",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../db/Db沐茵丝假发成品稿/染色档位"
+                        }
                     }
                 },
                 {
@@ -232,16 +243,394 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 }
             ]
         },
+        "../db/Db沐茵丝假发成品稿/染色档位": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "type",
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "普通"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "染色图",
+                                "type": {
+                                    "type": "Interface",
+                                    "properties": [
+                                        {
+                                            "id": 0,
+                                            "name": "svg",
+                                            "type": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        {
+                                            "id": 1,
+                                            "name": "档位标注",
+                                            "type": {
+                                                "type": "Interface",
+                                                "properties": [
+                                                    {
+                                                        "id": 0,
+                                                        "name": "档位列表",
+                                                        "type": {
+                                                            "type": "Array",
+                                                            "elementType": {
+                                                                "type": "String"
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "id": 1,
+                                                        "name": "textNodeId",
+                                                        "type": {
+                                                            "type": "String"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "id": 2,
+                                            "name": "染色尺寸标注",
+                                            "type": {
+                                                "type": "Interface",
+                                                "properties": [
+                                                    {
+                                                        "id": 0,
+                                                        "name": "尺寸",
+                                                        "type": {
+                                                            "type": "Number"
+                                                        }
+                                                    },
+                                                    {
+                                                        "id": 1,
+                                                        "name": "textNodeId",
+                                                        "type": {
+                                                            "type": "String"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "id": 3,
+                                            "name": "文本替换",
+                                            "type": {
+                                                "type": "Interface",
+                                                "indexSignature": {
+                                                    "keyType": "String",
+                                                    "type": {
+                                                        "type": "Interface",
+                                                        "properties": [
+                                                            {
+                                                                "id": 0,
+                                                                "name": "textNodeId",
+                                                                "type": {
+                                                                    "type": "String"
+                                                                }
+                                                            },
+                                                            {
+                                                                "id": 1,
+                                                                "name": "fontStyle",
+                                                                "type": {
+                                                                    "type": "Interface"
+                                                                },
+                                                                "optional": true
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "type",
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "对折"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "染色图",
+                                "type": {
+                                    "type": "Interface",
+                                    "properties": [
+                                        {
+                                            "id": 0,
+                                            "name": "svg",
+                                            "type": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        {
+                                            "id": 1,
+                                            "name": "档位标注",
+                                            "type": {
+                                                "type": "Interface",
+                                                "properties": [
+                                                    {
+                                                        "id": 0,
+                                                        "name": "档位列表",
+                                                        "type": {
+                                                            "type": "Array",
+                                                            "elementType": {
+                                                                "type": "String"
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "id": 1,
+                                                        "name": "textNodeId",
+                                                        "type": {
+                                                            "type": "String"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "id": 2,
+                                            "name": "染色尺寸标注",
+                                            "type": {
+                                                "type": "Interface",
+                                                "properties": [
+                                                    {
+                                                        "id": 0,
+                                                        "name": "尺寸",
+                                                        "type": {
+                                                            "type": "Number"
+                                                        }
+                                                    },
+                                                    {
+                                                        "id": 1,
+                                                        "name": "textNodeId",
+                                                        "type": {
+                                                            "type": "String"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "id": 3,
+                                            "name": "文本替换",
+                                            "type": {
+                                                "type": "Interface",
+                                                "indexSignature": {
+                                                    "keyType": "String",
+                                                    "type": {
+                                                        "type": "Interface",
+                                                        "properties": [
+                                                            {
+                                                                "id": 0,
+                                                                "name": "textNodeId",
+                                                                "type": {
+                                                                    "type": "String"
+                                                                }
+                                                            },
+                                                            {
+                                                                "id": 1,
+                                                                "name": "fontStyle",
+                                                                "type": {
+                                                                    "type": "Interface"
+                                                                },
+                                                                "optional": true
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 2,
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "type",
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "错位"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "染色图",
+                                "type": {
+                                    "type": "Interface",
+                                    "properties": [
+                                        {
+                                            "id": 0,
+                                            "name": "svg",
+                                            "type": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        {
+                                            "id": 1,
+                                            "name": "档位标注",
+                                            "type": {
+                                                "type": "Interface",
+                                                "properties": [
+                                                    {
+                                                        "id": 0,
+                                                        "name": "档位列表",
+                                                        "type": {
+                                                            "type": "Array",
+                                                            "elementType": {
+                                                                "type": "String"
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "id": 1,
+                                                        "name": "textNodeId",
+                                                        "type": {
+                                                            "type": "String"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "id": 2,
+                                            "name": "染色尺寸标注",
+                                            "type": {
+                                                "type": "Interface",
+                                                "properties": [
+                                                    {
+                                                        "id": 0,
+                                                        "name": "尺寸",
+                                                        "type": {
+                                                            "type": "Number"
+                                                        }
+                                                    },
+                                                    {
+                                                        "id": 1,
+                                                        "name": "textNodeId",
+                                                        "type": {
+                                                            "type": "String"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "id": 3,
+                                            "name": "长尺寸标注",
+                                            "type": {
+                                                "type": "Interface",
+                                                "properties": [
+                                                    {
+                                                        "id": 0,
+                                                        "name": "尺寸",
+                                                        "type": {
+                                                            "type": "Number"
+                                                        }
+                                                    },
+                                                    {
+                                                        "id": 1,
+                                                        "name": "textNodeId",
+                                                        "type": {
+                                                            "type": "String"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "id": 4,
+                                            "name": "短尺寸标注",
+                                            "type": {
+                                                "type": "Interface",
+                                                "properties": [
+                                                    {
+                                                        "id": 0,
+                                                        "name": "尺寸",
+                                                        "type": {
+                                                            "type": "Number"
+                                                        }
+                                                    },
+                                                    {
+                                                        "id": 1,
+                                                        "name": "textNodeId",
+                                                        "type": {
+                                                            "type": "String"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "optional": true
+                                        },
+                                        {
+                                            "id": 5,
+                                            "name": "文本替换",
+                                            "type": {
+                                                "type": "Interface",
+                                                "indexSignature": {
+                                                    "keyType": "String",
+                                                    "type": {
+                                                        "type": "Interface",
+                                                        "properties": [
+                                                            {
+                                                                "id": 0,
+                                                                "name": "textNodeId",
+                                                                "type": {
+                                                                    "type": "String"
+                                                                }
+                                                            },
+                                                            {
+                                                                "id": 1,
+                                                                "name": "fontStyle",
+                                                                "type": {
+                                                                    "type": "Interface"
+                                                                },
+                                                                "optional": true
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
         "../db/Db沐茵丝假发成品稿/制品规格书": {
             "type": "Interface",
             "properties": [
-                {
-                    "id": 7,
-                    "name": "尺寸",
-                    "type": {
-                        "type": "String"
-                    }
-                },
                 {
                     "id": 0,
                     "name": "机器规格清单",
@@ -425,30 +814,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                         "type": "String"
                                     },
                                     "optional": true
-                                },
-                                {
-                                    "id": 8,
-                                    "name": "染色",
-                                    "type": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 0,
-                                                "name": "比例",
-                                                "type": {
-                                                    "type": "Number"
-                                                }
-                                            },
-                                            {
-                                                "id": 1,
-                                                "name": "对折",
-                                                "type": {
-                                                    "type": "Boolean"
-                                                }
-                                            }
-                                        ]
-                                    },
-                                    "optional": true
                                 }
                             ]
                         }
@@ -470,17 +835,38 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                     }
                                 },
                                 {
-                                    "id": 1,
-                                    "name": "裁断",
-                                    "type": {
-                                        "type": "Number"
-                                    }
-                                },
-                                {
                                     "id": 2,
                                     "name": "整毛",
                                     "type": {
-                                        "type": "Number"
+                                        "type": "Interface",
+                                        "properties": [
+                                            {
+                                                "id": 0,
+                                                "name": "拉尖",
+                                                "type": {
+                                                    "type": "Number"
+                                                }
+                                            },
+                                            {
+                                                "id": 1,
+                                                "name": "对裁",
+                                                "type": {
+                                                    "type": "Number"
+                                                },
+                                                "optional": true
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "id": 8,
+                                    "name": "裁断与重量",
+                                    "type": {
+                                        "type": "Array",
+                                        "elementType": {
+                                            "type": "Reference",
+                                            "target": "../db/Db沐茵丝假发成品稿/裁断重量项"
+                                        }
                                     }
                                 },
                                 {
@@ -539,26 +925,10 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                     "optional": true
                                 },
                                 {
-                                    "id": 7,
-                                    "name": "染色",
+                                    "id": 9,
+                                    "name": "位置",
                                     "type": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 0,
-                                                "name": "比例",
-                                                "type": {
-                                                    "type": "Number"
-                                                }
-                                            },
-                                            {
-                                                "id": 1,
-                                                "name": "对折",
-                                                "type": {
-                                                    "type": "Boolean"
-                                                }
-                                            }
-                                        ]
+                                        "type": "String"
                                     },
                                     "optional": true
                                 }
@@ -567,28 +937,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 2,
-                    "name": "胶丝比例列表",
+                    "id": 8,
+                    "name": "胶丝比例id",
                     "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Interface",
-                            "properties": [
-                                {
-                                    "id": 0,
-                                    "name": "颜色编号",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 1,
-                                    "name": "线色",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                }
-                            ]
+                        "type": "IndexedAccess",
+                        "index": "_id",
+                        "objectType": {
+                            "type": "Reference",
+                            "target": "../db/Db胶丝比例/Db胶丝比例"
                         }
                     }
                 },
@@ -775,23 +1131,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "optional": true
                             },
                             {
-                                "id": 3,
-                                "name": "SKIN",
-                                "type": {
-                                    "type": "Interface",
-                                    "properties": [
-                                        {
-                                            "id": 0,
-                                            "name": "加减",
-                                            "type": {
-                                                "type": "Number"
-                                            }
-                                        }
-                                    ]
-                                },
-                                "optional": true
-                            },
-                            {
                                 "id": 4,
                                 "name": "制帽",
                                 "type": {
@@ -809,8 +1148,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "optional": true
                             },
                             {
-                                "id": 5,
-                                "name": "高针",
+                                "id": 6,
+                                "name": "手织",
                                 "type": {
                                     "type": "Interface",
                                     "properties": [
@@ -826,8 +1165,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "optional": true
                             },
                             {
-                                "id": 6,
-                                "name": "手织",
+                                "id": 5,
+                                "name": "高针",
                                 "type": {
                                     "type": "Interface",
                                     "properties": [
@@ -877,54 +1216,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "optional": true
                             }
                         ]
-                    }
-                },
-                {
-                    "id": 6,
-                    "name": "染色档位映射图",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Interface",
-                            "properties": [
-                                {
-                                    "id": 0,
-                                    "name": "档位映射",
-                                    "type": {
-                                        "type": "Array",
-                                        "elementType": {
-                                            "type": "Interface",
-                                            "properties": [
-                                                {
-                                                    "id": 0,
-                                                    "name": "档位数组",
-                                                    "type": {
-                                                        "type": "Array",
-                                                        "elementType": {
-                                                            "type": "String"
-                                                        }
-                                                    }
-                                                },
-                                                {
-                                                    "id": 1,
-                                                    "name": "染色尺寸",
-                                                    "type": {
-                                                        "type": "String"
-                                                    }
-                                                },
-                                                {
-                                                    "id": 2,
-                                                    "name": "染色尺寸图片",
-                                                    "type": {
-                                                        "type": "String"
-                                                    }
-                                                }
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
-                        }
                     }
                 }
             ]
@@ -978,16 +1269,123 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 }
             ]
         },
-        "../db/Db沐茵丝假发成品稿/高针指示单": {
+        "../db/Db胶丝比例/Db胶丝比例": {
             "type": "Interface",
             "properties": [
                 {
+                    "id": 0,
+                    "name": "_id",
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "颜色编号",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "发丝种类",
+                                "type": {
+                                    "type": "String"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "线色",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
                     "id": 2,
-                    "name": "尺寸",
+                    "name": "D",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../db/Db胶丝比例/KLS胶丝比例"
+                        }
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "M",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../db/Db胶丝比例/KLS胶丝比例"
+                        }
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "L",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../db/Db胶丝比例/KLS胶丝比例"
+                        }
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 5,
+                    "name": "颜色图片参考",
+                    "type": {
+                        "type": "Buffer",
+                        "arrayType": "Uint8Array"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 6,
+                    "name": "备注",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "../db/Db胶丝比例/KLS胶丝比例": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "发丝种类",
                     "type": {
                         "type": "String"
                     }
                 },
+                {
+                    "id": 1,
+                    "name": "色号",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "比例",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../db/Db沐茵丝假发成品稿/高针指示单": {
+            "type": "Interface",
+            "properties": [
                 {
                     "id": 0,
                     "name": "注意事项",
@@ -1239,26 +1637,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "id": 1,
                     "name": "手织图",
                     "type": {
-                        "type": "Reference",
-                        "target": "../models/手织图/手织图"
-                    }
-                },
-                {
-                    "id": 2,
-                    "name": "注意事项",
-                    "type": {
-                        "type": "String"
-                    }
-                }
-            ]
-        },
-        "../models/手织图/手织图": {
-            "type": "Interface",
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "底图",
-                    "type": {
                         "type": "Interface",
                         "properties": [
                             {
@@ -1267,34 +1645,15 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "type": {
                                     "type": "String"
                                 }
-                            },
-                            {
-                                "id": 1,
-                                "name": "可定制项",
-                                "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 0,
-                                                "name": "lineId",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 1,
-                                                "name": "尺数",
-                                                "type": {
-                                                    "type": "Number"
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
                             }
                         ]
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "注意事项",
+                    "type": {
+                        "type": "String"
                     }
                 }
             ]
@@ -1418,118 +1777,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 }
             ]
         },
-        "../db/Db胶丝比例/Db胶丝比例": {
-            "type": "Interface",
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "_id",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 1,
-                    "name": "线色",
-                    "type": {
-                        "type": "String"
-                    },
-                    "optional": true
-                },
-                {
-                    "id": 2,
-                    "name": "D",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../db/Db胶丝比例/KLS胶丝比例"
-                        }
-                    }
-                },
-                {
-                    "id": 3,
-                    "name": "M",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../db/Db胶丝比例/KLS胶丝比例"
-                        }
-                    },
-                    "optional": true
-                },
-                {
-                    "id": 4,
-                    "name": "L",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../db/Db胶丝比例/KLS胶丝比例"
-                        }
-                    },
-                    "optional": true
-                },
-                {
-                    "id": 5,
-                    "name": "颜色图片参考",
-                    "type": {
-                        "type": "Buffer",
-                        "arrayType": "Uint8Array"
-                    },
-                    "optional": true
-                },
-                {
-                    "id": 6,
-                    "name": "备注",
-                    "type": {
-                        "type": "String"
-                    },
-                    "optional": true
-                }
-            ]
-        },
-        "../db/Db胶丝比例/KLS胶丝比例": {
-            "type": "Interface",
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "发丝种类",
-                    "type": {
-                        "type": "Reference",
-                        "target": "../db/Db胶丝比例/Brand"
-                    }
-                },
-                {
-                    "id": 1,
-                    "name": "色号",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 2,
-                    "name": "比例",
-                    "type": {
-                        "type": "Number"
-                    }
-                }
-            ]
-        },
-        "../db/Db胶丝比例/Brand": {
-            "type": "Enum",
-            "members": [
-                {
-                    "id": 0,
-                    "value": "KL'S"
-                },
-                {
-                    "id": 1,
-                    "value": "FU"
-                }
-            ]
-        },
         "admin/ratio/PtlGetList/ReqGetList": {
             "type": "Interface",
             "extends": [
@@ -1573,6 +1820,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 0,
                     "name": "_id",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "发丝种类",
                     "type": {
                         "type": "String"
                     }
@@ -1707,8 +1961,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 }
                             },
                             {
-                                "id": 1,
-                                "name": "客户",
+                                "id": 6,
+                                "name": "客户编号",
                                 "type": {
                                     "type": "String"
                                 }
@@ -1853,29 +2107,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                             {
                                 "id": 2,
                                 "name": "美容",
-                                "type": {
-                                    "type": "Interface",
-                                    "properties": [
-                                        {
-                                            "id": 0,
-                                            "name": "加减",
-                                            "type": {
-                                                "type": "Number"
-                                            }
-                                        },
-                                        {
-                                            "id": 1,
-                                            "name": "数值",
-                                            "type": {
-                                                "type": "Number"
-                                            }
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                "id": 3,
-                                "name": "SKIN",
                                 "type": {
                                     "type": "Interface",
                                     "properties": [
@@ -2078,8 +2309,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Interface",
                         "properties": [
                             {
-                                "id": 0,
-                                "name": "客户",
+                                "id": 8,
+                                "name": "客户编号",
                                 "type": {
                                     "type": "String"
                                 }
@@ -2088,7 +2319,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "id": 1,
                                 "name": "重量",
                                 "type": {
-                                    "type": "String"
+                                    "type": "Number"
                                 }
                             },
                             {
@@ -2099,7 +2330,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 }
                             },
                             {
-                                "id": 3,
+                                "id": 9,
                                 "name": "尺寸",
                                 "type": {
                                     "type": "String"
@@ -2201,7 +2432,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                     "id": 4,
                                     "name": "管径",
                                     "type": {
-                                        "type": "String"
+                                        "type": "Number"
                                     }
                                 },
                                 {
@@ -2258,17 +2489,17 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 }
                             },
                             {
-                                "id": 1,
-                                "name": "客户",
+                                "id": 9,
+                                "name": "客户编号",
                                 "type": {
                                     "type": "String"
                                 }
                             },
                             {
-                                "id": 2,
+                                "id": 11,
                                 "name": "尺寸",
                                 "type": {
-                                    "type": "Number"
+                                    "type": "String"
                                 }
                             },
                             {
@@ -2305,13 +2536,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "type": {
                                     "type": "String"
                                 }
-                            },
-                            {
-                                "id": 8,
-                                "name": "针法",
-                                "type": {
-                                    "type": "String"
-                                }
                             }
                         ]
                     }
@@ -2335,14 +2559,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                     "id": 1,
                                     "name": "整长",
                                     "type": {
-                                        "type": "String"
+                                        "type": "Number"
                                     }
                                 },
                                 {
                                     "id": 2,
                                     "name": "毛长",
                                     "type": {
-                                        "type": "String"
+                                        "type": "Number"
                                     }
                                 },
                                 {
@@ -2376,6 +2600,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                             }
                                         ]
                                     }
+                                },
+                                {
+                                    "id": 4,
+                                    "name": "位置",
+                                    "type": {
+                                        "type": "String"
+                                    },
+                                    "optional": true
                                 }
                             ]
                         }
@@ -2438,8 +2670,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 1,
-                    "name": "客户",
+                    "id": 5,
+                    "name": "客户编号",
                     "type": {
                         "type": "String"
                     }

@@ -18,7 +18,7 @@ export default function AdminFileListPage() {
         <button
           type="button"
           className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-          onClick={() => navigate("/admin/files/add")}
+          onClick={() => navigate("/admin/add")}
         >
           + 添加成品稿
         </button>
@@ -41,7 +41,7 @@ export default function AdminFileListPage() {
               <div className="text-sm font-semibold text-slate-900">
                 {item._id}
               </div>
-              <div className="mt-1 text-xs text-slate-500">{item.客户}</div>
+              <div className="mt-1 text-xs text-slate-500">{item.客户编号}</div>
               <div className="mt-0.5 text-xs text-slate-400">{item.品名}</div>
             </button>
           ))}
