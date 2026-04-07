@@ -1,0 +1,9 @@
+node_modules/
+docs/
+dist/
+html/
+
+*.md
+youngo/
+.env
+
