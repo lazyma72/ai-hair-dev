@@ -8,6 +8,7 @@
  *
  * 注意：需要安装 dompurify：npm install dompurify @types/dompurify
  */
+import * as React from "react";
 import DOMPurify from "dompurify";
 
 type Props = {
@@ -21,7 +22,7 @@ export default function InlineSvg({ svg, className, height = 200 }: Props) {
   return (
     <div
       className={className}
-      style={{ height, overflow: "hidden" }}
+      style={{ height, overflow: "visible" }}
       // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: clean }}
     />

@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import PageShell from "../../components/PageShell";
@@ -36,7 +37,7 @@ export default function AdminFileListPage() {
               key={item._id}
               type="button"
               className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:shadow-md"
-              onClick={() => navigate(`/files/${item._id}`)}
+              onClick={() => navigate(`/file/${item._id}`)}
             >
               <div className="text-sm font-semibold text-slate-900">
                 {item._id}

@@ -11,6 +11,7 @@
  *   - 增加列：在 columns 数组里加一项
  *   - 改卡片样式：修改 card 区块内的 className
  */
+import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import Badge from "../../components/Badge";
@@ -40,7 +41,7 @@ export default function FileListPage() {
               key={item._id}
               type="button"
               className="block rounded-xl bg-white p-4 text-left ring-1 ring-slate-200 transition hover:ring-slate-400"
-              onClick={() => navigate(`/files/${item._id}`)}
+              onClick={() => navigate(`/file/${item._id}`)}
             >
               {/* 标题行 */}
               <div className="flex items-start justify-between gap-3">

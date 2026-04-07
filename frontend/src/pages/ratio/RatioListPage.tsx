@@ -7,6 +7,7 @@
  *   - 增加搜索：在 filteredList 做字符串 filter
  *   - 改表格列：修改 columns 数组
  */
+import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import { type Column } from "../../components/DataTable";
@@ -46,7 +47,7 @@ export default function RatioListPage() {
         <button
           type="button"
           className="rounded bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-slate-200"
-          onClick={() => navigate(`/ratios/${r._id}`)}
+          onClick={() => navigate(`/ratio/${r._id}`)}
         >
           查看
         </button>
