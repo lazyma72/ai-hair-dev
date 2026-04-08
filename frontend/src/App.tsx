@@ -9,6 +9,8 @@ import {
 import AdminFileListPage from "./pages/admin/AdminFileListPage";
 import CustomerListPage from "./pages/admin/CustomerListPage";
 import AddFilePage from "./pages/admin/AddFilePage";
+import HighNeedleAnnotatorDemoPage from "./pages/dev/HighNeedleAnnotatorDemo";
+import HighNeedlePreviewPage from "./pages/dev/HighNeedlePreviewPage";
 import FileDetailPage from "./pages/file/FileDetailPage";
 import FileListPage from "./pages/file/FileListPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -21,6 +23,11 @@ function FileDetailRedirect() {
 }
 
 function RatioDetailRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/ratio/${id}`} replace />;
+}
+
+function AdminRatioDetailRedirect() {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={`/ratio/${id}`} replace />;
 }
@@ -45,6 +52,24 @@ function App() {
         <Route path="/admin/files" element={<AdminFileListPage />} />
         <Route path="/admin/add" element={<AddFilePage />} />
         <Route path="/admin/customers" element={<CustomerListPage />} />
+        <Route path="/admin/ratio" element={<Navigate to="/ratio" replace />} />
+        <Route path="/admin/ratio/:id" element={<AdminRatioDetailRedirect />} />
+        <Route
+          path="/admin/high-needle-annotator"
+          element={<HighNeedleAnnotatorDemoPage />}
+        />
+        <Route
+          path="/admin/high-needle-preview"
+          element={<HighNeedlePreviewPage />}
+        />
+        <Route
+          path="/dev/high-needle-annotator"
+          element={<Navigate to="/admin/high-needle-annotator" replace />}
+        />
+        <Route
+          path="/dev/high-needle-preview"
+          element={<Navigate to="/admin/high-needle-preview" replace />}
+        />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

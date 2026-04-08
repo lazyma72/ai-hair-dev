@@ -11,8 +11,10 @@ const NAV_ITEMS = [
   { label: "首页", to: "/" },
   { label: "管理后台", to: "/admin/files" },
   { label: "客户", to: "/admin/customers" },
-  { label: "染色配置", to: "/admin/add#dye-levels" },
-  { label: "胶丝比例", to: "/ratio" },
+  { label: "数据导入", to: "/admin/add" },
+  { label: "胶丝比例", to: "/admin/ratio" },
+  { label: "高针标注", to: "/admin/high-needle-annotator" },
+  { label: "高针预览", to: "/admin/high-needle-preview" },
 ];
 
 type Props = {
