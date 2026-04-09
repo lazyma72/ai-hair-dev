@@ -12,6 +12,7 @@ import Row from "../../../components/Row";
 import Section from "../../../components/Section";
 import type { KLS胶丝比例 } from "../../../shared/db/Db胶丝比例";
 import type { 制品规格书Frontend } from "../../../shared/frontend/model/model";
+import { 数字转分数字符串 } from "../../../shared/models/分数转换";
 
 type Props = { data: 制品规格书Frontend };
 
@@ -28,7 +29,7 @@ const 机器规格列: Column<制品规格书Frontend["机器规格清单"][numb
     key: "整毛",
     title: "整毛(拉尖/对裁)",
     render: (r) =>
-      `${r.整毛.拉尖}${r.整毛.对裁 != null ? " / " + r.整毛.对裁 : ""}`,
+      `${数字转分数字符串(r.整毛.拉尖)}${r.整毛.对裁 != null ? " / " + 数字转分数字符串(r.整毛.对裁) : ""}`,
   },
   {
     key: "形态",
@@ -38,7 +39,8 @@ const 机器规格列: Column<制品规格书Frontend["机器规格清单"][numb
   {
     key: "双针",
     title: "双针 毛长/尺D/密度",
-    render: (r) => `${r.双针.毛长}寸 · D:${r.双针.尺数.D} · ${r.双针.密度}`,
+    render: (r) =>
+      `${数字转分数字符串(r.双针.毛长)}寸 · D:${r.双针.尺数.D} · ${r.双针.密度}`,
   },
   {
     key: "美容",
@@ -61,7 +63,7 @@ const 人工规格列: Column<制品规格书Frontend["人工规格清单"][numb
     key: "整毛",
     title: "整毛(拉尖/对裁)",
     render: (r) =>
-      `${r.整毛.拉尖}${r.整毛.对裁 != null ? " / " + r.整毛.对裁 : ""}`,
+      `${数字转分数字符串(r.整毛.拉尖)}${r.整毛.对裁 != null ? " / " + 数字转分数字符串(r.整毛.对裁) : ""}`,
   },
   {
     key: "形态",
@@ -71,7 +73,7 @@ const 人工规格列: Column<制品规格书Frontend["人工规格清单"][numb
   {
     key: "双针",
     title: "双针 毛长/磅发",
-    render: (r) => `${r.双针.毛长}寸 / ${r.双针.磅发}g`,
+    render: (r) => `${数字转分数字符串(r.双针.毛长)}寸 / ${r.双针.磅发}g`,
   },
   { key: "美容", title: "美容 铝管", render: (r) => `${r.美容.铝管}mm` },
   { key: "位置", title: "位置", render: (r) => r.位置 ?? "—" },
@@ -126,7 +128,7 @@ export default function 规格书View({ data }: Props) {
 
       {/* ── 制帽规格 ── */}
       <Section title="制帽规格">
-        <div className="grid grid-cols-3 gap-px bg-slate-100 text-xs sm:grid-cols-5">
+        <div className="divide-y divide-slate-100">
           {(
             [
               ["帽围", `${制帽.帽围} cm`],
@@ -136,17 +138,14 @@ export default function 规格书View({ data }: Props) {
               ["号码", 制帽.号码],
             ] as const
           ).map(([k, v]) => (
-            <div key={k} className="bg-white px-4 py-3">
-              <div className="text-[10px] text-slate-400">{k}</div>
-              <div className="mt-0.5 font-semibold text-slate-900">{v}</div>
-            </div>
+            <Row key={k} label={k} value={v} />
           ))}
         </div>
       </Section>
 
       {/* ── 工程重量 ── */}
       <Section title={`工程重量（当前重量：${当前重量}g）`}>
-        <div className="grid grid-cols-5 gap-px bg-slate-100 text-xs sm:grid-cols-10">
+        <div className="divide-y divide-slate-100">
           {(
             Object.entries(工程重量) as [
               string,
@@ -157,16 +156,11 @@ export default function 规格书View({ data }: Props) {
             .map(([k, v]) => {
               if (typeof v === "string") return null;
               return (
-                <div key={k} className="bg-white px-2 py-3 text-center">
-                  <div className="text-[10px] text-slate-400">{k}</div>
-                  <div className="mt-0.5 font-semibold text-slate-800">
-                    {v.数值}g
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    {v.加减 >= 0 ? "+" : ""}
-                    {v.加减}
-                  </div>
-                </div>
+                <Row
+                  key={k}
+                  label={k}
+                  value={`${v.数值}g (${v.加减 >= 0 ? "+" : ""}${v.加减})`}
+                />
               );
             })}
         </div>
@@ -206,30 +200,13 @@ export default function 规格书View({ data }: Props) {
               key={`${item._id.颜色编号}-${item._id.发丝种类}`}
               className="mb-4"
             >
-              <div className="flex items-center gap-4 px-4 py-2 text-xs text-slate-500">
-                <span>
-                  颜色编号：
-                  <span className="font-medium text-slate-900">
-                    {item._id.颜色编号}
-                  </span>
-                </span>
-                <span>
-                  发丝种类：
-                  <span className="font-medium text-slate-900">
-                    {item._id.发丝种类}
-                  </span>
-                </span>
-                {item.线色 && (
-                  <span>
-                    线色：
-                    <span className="font-medium text-slate-900">
-                      {item.线色}
-                    </span>
-                  </span>
-                )}
-                {item.备注 && <span>备注：{item.备注}</span>}
+              <div className="divide-y divide-slate-100 px-4 py-2 text-xs">
+                <Row label="颜色编号" value={item._id.颜色编号} />
+                <Row label="发丝种类" value={item._id.发丝种类} />
+                {item.线色 ? <Row label="线色" value={item.线色} /> : null}
+                {item.备注 ? <Row label="备注" value={item.备注} /> : null}
               </div>
-              <div className="grid gap-2 px-4 sm:grid-cols-3">
+              <div className="space-y-2 px-4">
                 {item.D.length > 0 && (
                   <div>
                     <div className="mb-1 text-xs font-medium text-slate-500">
@@ -274,13 +251,9 @@ export default function 规格书View({ data }: Props) {
 
       {/* ── 工艺说明 ── */}
       <Section title="工艺说明">
-        <div className="divide-y divide-slate-100">
-          {工艺说明.map((item, i) => (
-            <div key={i} className="px-4 py-3 text-xs">
-              {(Object.entries(item) as [string, string][]).map(([k, v]) => (
-                <Row key={k} label={k} value={v} />
-              ))}
-            </div>
+        <div className="px-4 py-3 text-xs">
+          {(Object.entries(工艺说明) as [string, string][]).map(([k, v]) => (
+            <Row key={k} label={k} value={v} />
           ))}
         </div>
       </Section>

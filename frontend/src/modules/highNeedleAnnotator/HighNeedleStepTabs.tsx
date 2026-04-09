@@ -29,10 +29,9 @@ export default function HighNeedleStepTabs({
   onSelect,
 }: Props) {
   return (
-    <div className="mt-4 grid grid-cols-6 gap-2 text-xs">
+    <div className="mt-4 flex flex-wrap gap-1.5">
       {STEP_TAB_LIST.map((s) => {
         const active = step === s.key;
-        // 只允许跳转到当前阶段及之前已完成的阶段，不能越级跳到后面
         const futureLocked =
           stepToIndex(s.key) > stepToIndex(step) ||
           stepToIndex(s.key) > progress;
@@ -48,10 +47,10 @@ export default function HighNeedleStepTabs({
             disabled={disabled}
             className={
               active
-                ? "rounded bg-slate-900 px-2 py-1 text-white"
+                ? "rounded-full bg-slate-900 px-3.5 py-1 text-xs font-semibold text-white shadow-sm"
                 : disabled
-                  ? "cursor-not-allowed rounded bg-slate-50 px-2 py-1 text-slate-300"
-                  : "rounded bg-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-200"
+                  ? "cursor-not-allowed rounded-full border border-slate-100 bg-slate-50 px-3.5 py-1 text-xs text-slate-300"
+                  : "rounded-full border border-slate-200 bg-white px-3.5 py-1 text-xs text-slate-600 shadow-sm hover:bg-slate-50"
             }
             onClick={() => {
               if (disabled) return;

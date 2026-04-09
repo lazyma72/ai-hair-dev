@@ -66,7 +66,8 @@ type DragState = {
   textEl: SVGTextElement;
   svgRoot: SVGSVGElement;
   startSvgPoint: { x: number; y: number };
-  startTextPos: { x: number; y: number };
+  /** 拖拽开始时文本元素在 SVG 用户坐标系中的真实位置（通过 CTM 获取，考虑 transform）*/
+  startTextSvgPos: { x: number; y: number };
 };
 
 function readNumberAttr(value: string | null | undefined): number | null {
@@ -75,26 +76,34 @@ function readNumberAttr(value: string | null | undefined): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
-function getTextPos(el: SVGTextElement): { x: number; y: number } {
-  const xAttr = readNumberAttr(el.getAttribute("x"));
-  const yAttr = readNumberAttr(el.getAttribute("y"));
+/**
+ * 返回文本元素在 SVG 用户坐标系中的视觉位置（考虑 transform）。
+ * 通过 CTM 将屏幕左上角映射回 SVG 坐标。
+ */
+function getTextPosByCTM(
+  el: SVGTextElement,
+  svgRoot: SVGSVGElement,
+): { x: number; y: number } | null {
+  const elCTM = (el as unknown as SVGGraphicsElement).getScreenCTM?.();
+  const rootCTM = svgRoot.getScreenCTM?.();
+  if (!elCTM || !rootCTM) return null;
 
-  if (xAttr !== null && yAttr !== null) return { x: xAttr, y: yAttr };
+  // elCTM maps local (0,0) → screen; rootCTM.inverse maps screen → SVG user space
+  const rootInv = rootCTM.inverse();
+  const combined = rootInv.multiply(elCTM);
 
-  const bbox = el.getBBox?.();
-  if (bbox && Number.isFinite(bbox.x) && Number.isFinite(bbox.y)) {
-    return { x: bbox.x, y: bbox.y };
-  }
-
-  return { x: 0, y: 0 };
+  // The translation part of the combined matrix is the position of local (0,0)
+  return { x: combined.e, y: combined.f };
 }
 
-function setTextPos(el: SVGTextElement, pos: { x: number; y: number }) {
-  el.setAttribute("x", String(pos.x));
-  el.setAttribute("y", String(pos.y));
-
-  const tspans = Array.from(el.querySelectorAll("tspan"));
-  tspans.forEach((t) => t.setAttribute("x", String(pos.x)));
+/**
+ * 通过 transform 属性移动文本元素（不修改 x/y/tspan，保留行间距结构）。
+ */
+function setTextDragTransform(
+  el: SVGTextElement,
+  offset: { dx: number; dy: number },
+) {
+  el.setAttribute("transform", `translate(${offset.dx},${offset.dy})`);
 }
 
 function clientToSvgPoint(
@@ -169,9 +178,13 @@ export default function HighNeedleSvgAnnotatorCanvas({
   }, [canvasEpoch, resetBrushState]);
 
   useEffect(() => {
+    let hasMoved = false;
+
     const onMove = (e: MouseEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
+
+      hasMoved = true;
 
       const curSvg = clientToSvgPoint(drag.svgRoot, e.clientX, e.clientY);
       if (!curSvg) return;
@@ -179,20 +192,24 @@ export default function HighNeedleSvgAnnotatorCanvas({
       const dx = curSvg.x - drag.startSvgPoint.x;
       const dy = curSvg.y - drag.startSvgPoint.y;
 
-      const next = {
-        x: Math.round((drag.startTextPos.x + dx) * 100) / 100,
-        y: Math.round((drag.startTextPos.y + dy) * 100) / 100,
-      };
-
-      setTextPos(drag.textEl, next);
+      // 通过 transform 移动，不触碰 tspan 结构，保留多行行间距
+      setTextDragTransform(drag.textEl, { dx, dy });
     };
 
     const onUp = () => {
       const drag = dragRef.current;
       if (!drag) return;
 
-      const pos = getTextPos(drag.textEl);
-      onTextPositionCommit(drag.textNodeId, pos);
+      if (hasMoved) {
+        // 拖拽结束：读取当前视觉位置（含 transform），提交给父组件写入 SVG
+        const finalPos = getTextPosByCTM(drag.textEl, drag.svgRoot);
+        if (finalPos) {
+          onTextPositionCommit(drag.textNodeId, finalPos);
+        }
+        // 清除临时 transform（commitTextNodePosition 会用 x/y 正规化位置）
+        drag.textEl.removeAttribute("transform");
+      }
+      hasMoved = false;
       dragRef.current = null;
     };
 
@@ -406,7 +423,10 @@ export default function HighNeedleSvgAnnotatorCanvas({
               textEl,
               svgRoot,
               startSvgPoint,
-              startTextPos: getTextPos(textEl),
+              startTextSvgPos: getTextPosByCTM(textEl, svgRoot) ?? {
+                x: 0,
+                y: 0,
+              },
             };
 
             return;

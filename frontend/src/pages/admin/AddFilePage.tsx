@@ -28,6 +28,8 @@ function normalizeName(s: string): string {
   return s.trim();
 }
 
+const MAX_CUT_WEIGHT_ITEMS = 3;
+
 export default function AddFilePage() {
   const navigate = useNavigate();
   const [form, setForm] = useState<沐茵丝假发成品稿>(emptyFile);
@@ -100,6 +102,18 @@ export default function AddFilePage() {
       return;
     }
 
+    const hasTooManyCutWeights = [
+      ...form.制品规格书.机器规格清单,
+      ...form.制品规格书.人工规格清单,
+    ].some((item) => item.裁断与重量.length > MAX_CUT_WEIGHT_ITEMS);
+
+    if (hasTooManyCutWeights) {
+      const msg = `裁断重量项最多 ${MAX_CUT_WEIGHT_ITEMS} 个`;
+      setError(msg);
+      message.error(msg);
+      return;
+    }
+
     setError("");
     setLoading(true);
     try {
@@ -146,7 +160,11 @@ export default function AddFilePage() {
         onSubmit={(e) => void handleSubmit(e)}
         className="space-y-5"
       >
-        <BasicInfoSection form={form} setForm={setForm} customerList={customerList} />
+        <BasicInfoSection
+          form={form}
+          setForm={setForm}
+          customerList={customerList}
+        />
 
         <CapSpecSection
           value={form.制品规格书.制帽}
@@ -168,7 +186,7 @@ export default function AddFilePage() {
         <MachineSpecSection
           list={form.制品规格书.机器规格清单}
           onChange={(v) => set规格书("机器规格清单", v)}
-          是间色={form.假发类型 === 假发类型.间色}
+          假发类型={form.假发类型}
         />
 
         <ManualSpecSection

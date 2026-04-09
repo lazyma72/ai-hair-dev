@@ -10,15 +10,21 @@ type Props = {
 export default function CapSpecSection({ value, onChange }: Props) {
   return (
     <Section title="制帽规格">
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {(["帽围", "帽深", "前后"] as const).map((k) => (
           <Field key={k} label={`${k} (cm)`}>
-            <NumInput value={value[k]} onChange={(n) => onChange({ ...value, [k]: n })} />
+            <NumInput
+              value={value[k]}
+              onChange={(n) => onChange({ ...value, [k]: n })}
+            />
           </Field>
         ))}
         {(["唛头", "号码"] as const).map((k) => (
           <Field key={k} label={k} required>
-            <TextInput value={value[k]} onChange={(v) => onChange({ ...value, [k]: v })} />
+            <TextInput
+              value={value[k]}
+              onChange={(v) => onChange({ ...value, [k]: v })}
+            />
           </Field>
         ))}
       </div>

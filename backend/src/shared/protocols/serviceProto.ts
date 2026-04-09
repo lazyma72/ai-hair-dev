@@ -54,7 +54,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 7,
+    "version": 8,
     "services": [
         {
             "id": 9,
@@ -1131,79 +1131,76 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "id": 4,
                     "name": "工艺说明",
                     "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Interface",
-                            "properties": [
-                                {
-                                    "id": 0,
-                                    "name": "作业方法",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 1,
-                                    "name": "整毛",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 2,
-                                    "name": "双针",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 3,
-                                    "name": "美容",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 4,
-                                    "name": "制帽",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 5,
-                                    "name": "手织",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 6,
-                                    "name": "高针",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 7,
-                                    "name": "完成",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 8,
-                                    "name": "包装",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                }
-                            ],
-                            "indexSignature": {
-                                "keyType": "String",
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "作业方法",
                                 "type": {
                                     "type": "String"
                                 }
+                            },
+                            {
+                                "id": 1,
+                                "name": "整毛",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 2,
+                                "name": "双针",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 3,
+                                "name": "美容",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 4,
+                                "name": "制帽",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 5,
+                                "name": "手织",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 6,
+                                "name": "高针",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 7,
+                                "name": "完成",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 8,
+                                "name": "包装",
+                                "type": {
+                                    "type": "String"
+                                }
+                            }
+                        ],
+                        "indexSignature": {
+                            "keyType": "String",
+                            "type": {
+                                "type": "String"
                             }
                         }
                     }

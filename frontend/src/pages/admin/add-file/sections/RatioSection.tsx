@@ -20,7 +20,7 @@ export default function RatioSection({
 }: Props) {
   return (
     <Section title="胶丝比例">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-[200px_1fr]">
+      <div className="grid grid-cols-1 gap-3">
         <Field label="发丝种类">
           <Select
             className="w-full"
@@ -51,14 +51,18 @@ export default function RatioSection({
 
       {!!value.发丝种类 && !!value.颜色编号 ? (
         <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
-          <div className="flex flex-wrap gap-4">
-            <span>
-              已选择：
+          <div className="space-y-1.5">
+            <div>
+              已选择发丝种类：
               <span className="ml-1 font-medium">{value.发丝种类}</span>
-              <span className="mx-1 text-slate-300">/</span>
-              <span className="font-mono font-medium">{value.颜色编号}</span>
-            </span>
-            <span className="text-slate-400">详情可在“胶丝比例”页面查看</span>
+            </div>
+            <div>
+              已选择颜色编号：
+              <span className="ml-1 font-mono font-medium">
+                {value.颜色编号}
+              </span>
+            </div>
+            <div className="text-slate-400">详情可在“胶丝比例”页面查看</div>
           </div>
         </div>
       ) : null}

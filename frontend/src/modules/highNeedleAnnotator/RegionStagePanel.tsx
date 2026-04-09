@@ -121,33 +121,35 @@ export default function RegionStagePanel({
         <button
           type="button"
           disabled={draftSelected.length === 0}
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => finishRegion()}
         >
-          保存并开始下一区域
+          保存 · 下一区域
         </button>
 
         {draftSelected.length > 0 && (
           <button
             type="button"
-            className="rounded bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-600"
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-500"
             onClick={() => finishRegion({ gotoNextStage: true })}
           >
-            保存并开启下一阶段
+            保存 · 下一阶段
           </button>
         )}
 
         <button
           type="button"
-          className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
           onClick={() => goNextStep()}
         >
-          开启下一阶段
+          跳至下一阶段
         </button>
+      </div>
 
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="rounded bg-slate-100 px-4 py-2 text-sm text-slate-700 hover:bg-slate-200"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
           onClick={() => {
             if (draftSelected.length === 0) {
               message.info("当前没有选中的线条");
@@ -163,7 +165,7 @@ export default function RegionStagePanel({
 
         <button
           type="button"
-          className="rounded bg-slate-100 px-4 py-2 text-sm text-slate-700 hover:bg-slate-200"
+          className="rounded-lg border border-red-100 bg-red-50 px-3 py-1.5 text-xs text-red-500 transition-colors hover:bg-red-100"
           onClick={clearRegionStage}
         >
           清空区域阶段

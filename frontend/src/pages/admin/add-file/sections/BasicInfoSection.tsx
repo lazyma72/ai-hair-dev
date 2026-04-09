@@ -11,10 +11,14 @@ type Props = {
   customerList: DbCustomer[];
 };
 
-export default function BasicInfoSection({ form, setForm, customerList }: Props) {
+export default function BasicInfoSection({
+  form,
+  setForm,
+  customerList,
+}: Props) {
   return (
     <Section title="基本信息">
-      <div className="grid grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <Field label="样品编号" required>
           <input
             type="text"
@@ -59,7 +63,10 @@ export default function BasicInfoSection({ form, setForm, customerList }: Props)
           <Select
             className="w-full"
             value={form.客户编号 || undefined}
-            options={customerList.map((c) => ({ label: c.客户编号, value: c.客户编号 }))}
+            options={customerList.map((c) => ({
+              label: c.客户编号,
+              value: c.客户编号,
+            }))}
             placeholder="选择客户编号"
             allowClear
             showSearch
@@ -68,11 +75,13 @@ export default function BasicInfoSection({ form, setForm, customerList }: Props)
           />
         </Field>
 
-        {([
-          { key: "品名" as const, placeholder: "Michelle BB TBOB080" },
-          { key: "原材料" as const, placeholder: "FU:50%+HL:50%" },
-          { key: "CAP" as const, placeholder: "P-025(侧分雪花网L)" },
-        ] as const).map(({ key, placeholder }) => (
+        {(
+          [
+            { key: "品名" as const, placeholder: "Michelle BB TBOB080" },
+            { key: "原材料" as const, placeholder: "FU:50%+HL:50%" },
+            { key: "CAP" as const, placeholder: "P-025(侧分雪花网L)" },
+          ] as const
+        ).map(({ key, placeholder }) => (
           <Field key={key} label={key} required>
             <input
               type="text"
@@ -80,7 +89,9 @@ export default function BasicInfoSection({ form, setForm, customerList }: Props)
               placeholder={placeholder}
               className={inputCls}
               value={form[key]}
-              onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, [key]: e.target.value }))
+              }
             />
           </Field>
         ))}

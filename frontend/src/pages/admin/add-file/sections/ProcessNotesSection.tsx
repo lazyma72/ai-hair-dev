@@ -1,7 +1,7 @@
 import * as React from "react";
 import type { 制品规格书 } from "../../../../shared/db/Db沐茵丝假发成品稿";
-import { AddBtn, DelBtn, Section, inputCls } from "../components/ui";
-import { empty工艺说明, 工艺说明Keys } from "../defaults";
+import { AddBtn, DelBtn, Field, Section, inputCls } from "../components/ui";
+import { 工艺说明Keys } from "../defaults";
 
 type Props = {
   list: 制品规格书["工艺说明"];
@@ -9,47 +9,121 @@ type Props = {
 };
 
 export default function ProcessNotesSection({ list, onChange }: Props) {
-  return (
-    <Section
-      title="工艺说明"
-      action={<AddBtn onClick={() => onChange([...list, empty工艺说明()])} />}
-    >
-      {list.length === 0 ? (
-        <p className="text-xs text-slate-400">暂无</p>
-      ) : (
-        <div className="space-y-2">
-          <div className="grid grid-cols-[repeat(9,1fr)_auto] gap-3 px-4">
-            {[...工艺说明Keys, ""].map((h) => (
-              <div key={h || "action"} className="text-[10px] font-medium text-slate-400">
-                {h}
-              </div>
-            ))}
-          </div>
+  const [customKey, setCustomKey] = React.useState("");
+  const [customValue, setCustomValue] = React.useState("");
+  const [customError, setCustomError] = React.useState("");
 
-          {list.map((行, i) => (
-            <div
-              key={JSON.stringify(行)}
-              className="grid grid-cols-[repeat(9,1fr)_auto] items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2"
-            >
-              {工艺说明Keys.map((k) => (
+  const fixedKeySet = React.useMemo(() => new Set<string>(工艺说明Keys), []);
+  const customEntries = React.useMemo(
+    () =>
+      (Object.entries(list) as [string, string][]).filter(
+        ([k]) => !fixedKeySet.has(k),
+      ),
+    [fixedKeySet, list],
+  );
+
+  const addCustom = React.useCallback(() => {
+    const key = customKey.trim();
+    if (!key) {
+      setCustomError("自定义工艺名称不能为空");
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(list, key)) {
+      setCustomError("工艺名称不能重复");
+      return;
+    }
+    onChange({ ...list, [key]: customValue });
+    setCustomKey("");
+    setCustomValue("");
+    setCustomError("");
+  }, [customKey, customValue, list, onChange]);
+
+  return (
+    <Section title="工艺说明">
+      <div className="space-y-3">
+        {工艺说明Keys.map((k) => (
+          <Field key={k} label={k}>
+            <input
+              type="text"
+              className={inputCls}
+              value={list[k] ?? ""}
+              onChange={(e) => {
+                onChange({ ...list, [k]: e.target.value });
+              }}
+            />
+          </Field>
+        ))}
+
+        <div className="border-t border-slate-200 pt-2">
+          <p className="mb-3 text-xs font-semibold text-slate-500">
+            自定义工艺说明
+          </p>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Field label="工艺名称">
                 <input
-                  key={k}
                   type="text"
                   className={inputCls}
-                  value={行[k] ?? ""}
+                  placeholder="例如：包装补充"
+                  value={customKey}
                   onChange={(e) => {
-                    const next = [...list];
-                    next[i] = { ...next[i], [k]: e.target.value };
-                    onChange(next);
+                    setCustomKey(e.target.value);
+                    if (customError) setCustomError("");
                   }}
                 />
-              ))}
-
-              <DelBtn onClick={() => onChange(list.filter((_, j) => j !== i))} />
+              </Field>
+              <Field label="说明内容">
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder="请输入说明"
+                  value={customValue}
+                  onChange={(e) => {
+                    setCustomValue(e.target.value);
+                    if (customError) setCustomError("");
+                  }}
+                />
+              </Field>
             </div>
-          ))}
+
+            <div className="flex items-center gap-3">
+              <AddBtn label="+ 添加自定义项" onClick={addCustom} />
+              {customError ? (
+                <p className="text-xs text-rose-500">{customError}</p>
+              ) : null}
+            </div>
+
+            {customEntries.length > 0 ? (
+              <div className="space-y-3">
+                {customEntries.map(([k, v]) => (
+                  <div key={k} className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Field label={k}>
+                        <input
+                          type="text"
+                          className={inputCls}
+                          value={v}
+                          onChange={(e) =>
+                            onChange({ ...list, [k]: e.target.value })
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <DelBtn
+                      onClick={() => {
+                        const next: 制品规格书["工艺说明"] = { ...list };
+                        delete next[k];
+                        onChange(next);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
-      )}
+      </div>
     </Section>
   );
 }

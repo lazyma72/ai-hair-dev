@@ -21,12 +21,14 @@ const WEIGHT_KEYS = [
 export default function EngineeringWeightSection({ value, onChange }: Props) {
   return (
     <Section title="工程重量（加减值 g）">
-      <div className="grid grid-cols-8 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {WEIGHT_KEYS.map((k) => (
           <Field key={k} label={k}>
             <NumInput
               value={value[k]?.加减 ?? 0}
-              onChange={(n) => onChange({ ...value, [k]: n === 0 ? undefined : { 加减: n } })}
+              onChange={(n) =>
+                onChange({ ...value, [k]: n === 0 ? undefined : { 加减: n } })
+              }
             />
           </Field>
         ))}

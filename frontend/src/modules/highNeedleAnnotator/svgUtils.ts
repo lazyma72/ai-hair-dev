@@ -374,9 +374,21 @@ export function setSvgTextNodePosition(
 
     el.setAttribute("x", String(pos.x));
     el.setAttribute("y", String(pos.y));
+    // 清除 transform，用 x/y 属性正规化定位
+    el.removeAttribute("transform");
 
     for (const tspan of Array.from(el.querySelectorAll("tspan"))) {
+      // 始终更新 x，使多行文本水平对齐到新位置
       tspan.setAttribute("x", String(pos.x));
+      // 如果 tspan 用 dy 表达行间距（相对偏移），不要写入绝对 y，
+      // 否则 dy 与绝对 y 叠加会导致各行重叠在同一位置。
+      // 只有第一个不带 dy（或第一行 dy=0）的 tspan 才需要设置 y。
+      const dyAttr = tspan.getAttribute("dy");
+      const hasDy =
+        dyAttr !== null && dyAttr.trim() !== "" && dyAttr.trim() !== "0";
+      if (!hasDy) {
+        tspan.setAttribute("y", String(pos.y));
+      }
     }
 
     return serializeSvg(doc);

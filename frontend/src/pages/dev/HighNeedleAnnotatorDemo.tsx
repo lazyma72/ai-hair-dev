@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import PageShell from "../../components/PageShell";
 import HighNeedleSvgAnnotator from "../../modules/highNeedleAnnotator/HighNeedleSvgAnnotator";
 
@@ -30,30 +30,81 @@ const SAMPLE_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 
 export default function HighNeedleAnnotatorDemoPage() {
   const [svg, setSvg] = useState(SAMPLE_SVG);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result;
+      if (typeof text === "string") {
+        setSvg(text);
+        setFileName(file.name);
+      }
+    };
+    reader.readAsText(file, "utf-8");
+    // reset so the same file can be re-selected
+    e.target.value = "";
+  }
 
   const header = useMemo(
     () => (
       <div className="text-xs text-slate-500">
-        入口：导航栏「高针标注」或直接访问 /admin/high-needle-annotator。JSON 导入/导出已拆到「高针预览」。
+        入口：导航栏「高针标注」或直接访问 /admin/high-needle-annotator。JSON
+        导入/导出已拆到「高针预览」。
       </div>
     ),
     [],
   );
 
   return (
-    <PageShell title="高针图标注 Demo" onBack={() => window.history.back()} actions={header}>
+    <PageShell
+      title="高针图标注 Demo"
+      onBack={() => window.history.back()}
+      actions={header}
+    >
       <div className="space-y-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-2 text-sm font-semibold text-slate-900">输入 SVG</div>
-          <textarea
-            rows={8}
-            className="w-full rounded border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-slate-300"
-            value={svg}
-            onChange={(e) => setSvg(e.target.value)}
+          <div className="mb-2 text-sm font-semibold text-slate-900">
+            选择 SVG 文件
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="rounded border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              选择文件…
+            </button>
+            <span className="text-xs text-slate-500">
+              {fileName ?? "未选择文件，当前使用内置 Demo SVG"}
+            </span>
+            {fileName ? (
+              <button
+                type="button"
+                className="text-xs text-slate-400 hover:text-red-500"
+                onClick={() => {
+                  setSvg(SAMPLE_SVG);
+                  setFileName(null);
+                }}
+              >
+                重置
+              </button>
+            ) : null}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".svg,image/svg+xml"
+            className="hidden"
+            onChange={handleFileChange}
           />
           <div className="mt-2 text-[11px] text-slate-500">
-            默认可点选元素 selector 为：line/path/polyline/polygon 且必须有 id。若你的真实 SVG
-            线条有固定 class 或 id 前缀，可通过组件 props 调整。
+            默认可点选元素 selector 为：line/path/polyline/polygon 且必须有
+            id。若你的真实 SVG 线条有固定 class 或 id 前缀，可通过组件 props
+            调整。
           </div>
         </div>
 
