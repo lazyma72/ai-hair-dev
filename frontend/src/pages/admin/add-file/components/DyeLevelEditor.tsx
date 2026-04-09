@@ -14,7 +14,8 @@ type SvgTextUpdateOptions = {
   /** 默认只替换第一个 tspan（保留模板里其它文字，比如“档”）。 */
   replaceAllTspans?: boolean;
   /** 多行文本：会清空并重建 tspans。 */
-  lines?: string[];
+  lines?: string[]; /** 指定字体大小（px），会同步更新 text 元素和所有 tspan 的 font-size。 */
+  fontSize?: number;
 };
 
 function updateSvgTextNode(
@@ -36,6 +37,10 @@ function updateSvgTextNode(
 
     const tspans = Array.from(el.querySelectorAll("tspan"));
     const lines = options?.lines?.map((s) => s.trim()).filter(Boolean);
+    const fontSize = options?.fontSize;
+    if (fontSize) {
+      el.setAttribute("font-size", `${fontSize}px`);
+    }
 
     if (lines && lines.length > 0) {
       const ns = "http://www.w3.org/2000/svg";
@@ -51,6 +56,7 @@ function updateSvgTextNode(
         const tspan = doc.createElementNS(ns, "tspan");
         if (baseX) tspan.setAttribute("x", baseX);
         if (i > 0) tspan.setAttribute("dy", "1.2em");
+        if (fontSize) tspan.setAttribute("font-size", `${fontSize}px`);
         tspan.textContent = line;
         el.appendChild(tspan);
       });
@@ -62,9 +68,11 @@ function updateSvgTextNode(
       if (options?.replaceAllTspans) {
         tspans.forEach((t) => {
           t.textContent = text;
+          if (fontSize) t.setAttribute("font-size", `${fontSize}px`);
         });
       } else {
         tspans[0].textContent = text;
+        if (fontSize) tspans[0].setAttribute("font-size", `${fontSize}px`);
       }
     } else {
       el.textContent = text;
@@ -87,7 +95,7 @@ function format档位文字(list: string[]): string {
   return unique.join(",") || "?";
 }
 
-function build档位行(list: string[]): string[] {
+function build档位行(list: string[], maxPerLine = 3, maxRows = 2): string[] {
   const normalized = list
     .map((s) => s.replace(/档$/, ""))
     .map((s) => s.trim())
@@ -101,7 +109,6 @@ function build档位行(list: string[]): string[] {
 
   const lines: string[] = [];
   const pushChunks = (arr: string[]) => {
-    const maxPerLine = 3;
     for (let i = 0; i < arr.length; i += maxPerLine) {
       lines.push(arr.slice(i, i + maxPerLine).join(","));
     }
@@ -110,14 +117,26 @@ function build档位行(list: string[]): string[] {
   if (normalSlots.length) pushChunks(normalSlots);
   if (hSlots.length) pushChunks(hSlots);
 
-  // 最多两行：超出则合并最后一行，避免无限增高
-  if (lines.length > 2) {
-    const head = lines.slice(0, 1);
-    const tail = lines.slice(1).join(",");
+  // 超出 maxRows 行时，把尾部合并到最后一行
+  if (lines.length > maxRows) {
+    const head = lines.slice(0, maxRows - 1);
+    const tail = lines.slice(maxRows - 1).join(",");
     return [...head, tail];
   }
 
   return lines;
+}
+
+/** 根据档位数量自动计算最佳字号和行布局，避免文字与图形重叠。 */
+function compute档位字体配置(count: number): {
+  fontSize: number;
+  maxPerLine: number;
+  maxRows: number;
+} {
+  if (count <= 3) return { fontSize: 18, maxPerLine: 3, maxRows: 1 };
+  if (count <= 6) return { fontSize: 15, maxPerLine: 3, maxRows: 2 };
+  if (count <= 9) return { fontSize: 12, maxPerLine: 3, maxRows: 3 };
+  return { fontSize: 10, maxPerLine: 4, maxRows: 3 };
 }
 
 type InchFraction = "¼" | "½" | "¾" | "";
@@ -144,10 +163,17 @@ export function formatInchText(n: number): string {
 function buildPreviewSvg(item: 染色档位): string {
   let svg = item.染色图.svg;
 
-  const slotLines = build档位行(item.染色图.档位标注.档位列表);
+  const slotCount = item.染色图.档位标注.档位列表.length;
+  const { fontSize, maxPerLine, maxRows } = compute档位字体配置(slotCount);
+  const slotLines = build档位行(
+    item.染色图.档位标注.档位列表,
+    maxPerLine,
+    maxRows,
+  );
   const slotText = format档位文字(item.染色图.档位标注.档位列表);
   svg = updateSvgTextNode(svg, item.染色图.档位标注.textNodeId, slotText, {
-    lines: slotLines.length > 1 ? slotLines : undefined,
+    lines: slotLines,
+    fontSize,
   });
 
   svg = updateSvgTextNode(
@@ -210,7 +236,8 @@ export function validate染色档位列表(
     if (unique.length < 1) {
       return {
         ok: false,
-        message: "每张染色图至少选择一个适用档位（且一个档位最多对应一张染色图）",
+        message:
+          "每张染色图至少选择一个适用档位（且一个档位最多对应一张染色图）",
       };
     }
 
@@ -279,7 +306,7 @@ export function DyeLevelEditor({
           尺寸:
             value.type === "错位"
               ? (value.染色图.短尺寸标注?.尺寸 ??
-                  template.染色图.短尺寸标注.尺寸)
+                template.染色图.短尺寸标注.尺寸)
               : template.染色图.短尺寸标注.尺寸,
         };
       }
@@ -293,7 +320,10 @@ export function DyeLevelEditor({
     if (value.type === "错位") {
       onChange({ type: "错位", 染色图: { ...value.染色图, 档位标注: newDs } });
     } else {
-      onChange({ type: value.type, 染色图: { ...value.染色图, 档位标注: newDs } });
+      onChange({
+        type: value.type,
+        染色图: { ...value.染色图, 档位标注: newDs },
+      });
     }
   }
 
@@ -421,7 +451,9 @@ export function DyeLevelEditor({
 
       {全部档位名.length > 0 ? (
         <div>
-          <p className="mb-1.5 text-[11px] font-medium text-slate-500">适用档位</p>
+          <p className="mb-1.5 text-[11px] font-medium text-slate-500">
+            适用档位
+          </p>
           <div className="flex flex-wrap gap-2">
             {全部档位名.map((rawName) => {
               const 名 = normalizeSlotName(rawName);

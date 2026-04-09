@@ -3,6 +3,7 @@ import CustomTextStagePanel from "./CustomTextStagePanel";
 import DoneStagePanel from "./DoneStagePanel";
 import LevelStagePanel from "./LevelStagePanel";
 import MarkStagePanel from "./MarkStagePanel";
+import type { DmlAutoConfig } from "./dmlAuto";
 import RegionStagePanel from "./RegionStagePanel";
 import HighNeedleStepTabs from "./HighNeedleStepTabs";
 
@@ -49,6 +50,17 @@ type Props = {
 
   clearDmlStage: () => void;
   clearDoubleStage: () => void;
+
+  dmlAutoConfigs: DmlAutoConfig[];
+  addDmlAutoConfig: () => void;
+  updateDmlAutoConfig: (
+    configId: string,
+    patch: Partial<
+      Pick<DmlAutoConfig, "regionName" | "pattern" | "rangeStart" | "rangeEnd">
+    >,
+  ) => void;
+  removeDmlAutoConfig: (configId: string) => void;
+  resetDmlAutoConfigs: () => void;
 
   goNextStep: () => void;
 
@@ -98,6 +110,12 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     clearDmlStage,
     clearDoubleStage,
 
+    dmlAutoConfigs,
+    addDmlAutoConfig,
+    updateDmlAutoConfig,
+    removeDmlAutoConfig,
+    resetDmlAutoConfigs,
+
     goNextStep,
     requestCanvasReset,
 
@@ -120,7 +138,9 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-sm font-semibold text-slate-900">高针图 SVG 标注</div>
+          <div className="text-sm font-semibold text-slate-900">
+            高针图 SVG 标注
+          </div>
           <div className="mt-1 text-xs text-slate-500">{stepTips}</div>
         </div>
         <button
@@ -128,7 +148,7 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
           className="rounded bg-slate-100 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200"
           onClick={confirmExit}
         >
-          退出
+          重新开始
         </button>
       </div>
 
@@ -180,6 +200,12 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
           clearDmlStage={clearDmlStage}
           clearDoubleStage={clearDoubleStage}
           goNextStep={goNextStep}
+          regionNames={value.底图?.区域名 ?? []}
+          dmlAutoConfigs={dmlAutoConfigs}
+          addDmlAutoConfig={addDmlAutoConfig}
+          updateDmlAutoConfig={updateDmlAutoConfig}
+          removeDmlAutoConfig={removeDmlAutoConfig}
+          resetDmlAutoConfigs={resetDmlAutoConfigs}
         />
       ) : null}
 
@@ -199,7 +225,9 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
         />
       ) : null}
 
-      {step === "完成" ? <DoneStagePanel value={value} clearRegionStage={clearRegionStage} /> : null}
+      {step === "完成" ? (
+        <DoneStagePanel value={value} clearRegionStage={clearRegionStage} />
+      ) : null}
     </div>
   );
 }

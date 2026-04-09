@@ -46,6 +46,8 @@ type Props = {
     { regionNo?: number; levelNo?: number; dml?: DmlValue; isDouble?: boolean }
   >;
 
+  regionLabels?: Array<{ name: string; color: string; lineIds: string[] }>;
+
   // 交互
   toggleSelect: (id: string, options?: { silent?: boolean }) => void;
   handleLineAction: (id: string) => void;
@@ -53,7 +55,10 @@ type Props = {
   // 文本阶段
   activeTextNodeId: string;
   onTextActivate: (textNodeId: string) => void;
-  onTextPositionCommit: (textNodeId: string, pos: { x: number; y: number }) => void;
+  onTextPositionCommit: (
+    textNodeId: string,
+    pos: { x: number; y: number },
+  ) => void;
 };
 
 type DragState = {
@@ -118,6 +123,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
   previewValue,
   canvasEpoch,
   visibleMarkerById,
+  regionLabels,
   toggleSelect,
   handleLineAction,
   activeTextNodeId,
@@ -133,18 +139,19 @@ export default function HighNeedleSvgAnnotatorCanvas({
   const dragRef = useRef<DragState | null>(null);
 
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
-  const [anchorById, setAnchorById] = useState<Map<string, { x: number; y: number }>>(
-    () => new Map(),
-  );
-  const [activeTextBox, setActiveTextBox] = useState<
-    | {
-        left: number;
-        top: number;
-        width: number;
-        height: number;
-      }
-    | null
-  >(null);
+  const [anchorById, setAnchorById] = useState<
+    Map<string, { x: number; y: number }>
+  >(() => new Map());
+  const [regionLabelPosByName, setRegionLabelPosByName] = useState<
+    Map<string, { x: number; y: number }>
+  >(() => new Map());
+
+  const [activeTextBox, setActiveTextBox] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   const resetBrushState = React.useCallback(() => {
     brushRef.current = false;
@@ -209,11 +216,37 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
     const raf = window.requestAnimationFrame(() => {
       const wrapRect = wrap.getBoundingClientRect();
+      const svgRoot = wrap.querySelector<SVGSVGElement>("svg");
       const next = new Map<string, { x: number; y: number }>();
 
       for (const id of ids) {
-        const el = wrap.querySelector<SVGGraphicsElement>(`#${cssEscapeId(id)}`);
+        const el = wrap.querySelector<SVGGraphicsElement>(
+          `#${cssEscapeId(id)}`,
+        );
         if (!el) continue;
+
+        // Use getPointAtLength midpoint for path/polyline/polygon/line so that
+        // arc-shaped elements get a marker that sits ON the curve, not at the
+        // bounding-box centre (which floats inside the arc).
+        const geom = el as unknown as SVGGeometryElement;
+        if (svgRoot && typeof geom.getTotalLength === "function") {
+          const mid = geom.getPointAtLength(geom.getTotalLength() / 2);
+          // mid is in SVG-user-space; convert to screen then to canvas-relative
+          const ctm = (el as SVGGraphicsElement).getScreenCTM?.();
+          if (ctm) {
+            const pt = svgRoot.createSVGPoint();
+            pt.x = mid.x;
+            pt.y = mid.y;
+            const screen = pt.matrixTransform(ctm);
+            next.set(id, {
+              x: screen.x - wrapRect.left,
+              y: screen.y - wrapRect.top,
+            });
+            continue;
+          }
+        }
+
+        // Fallback: bounding-box centre for elements without path geometry
         const rect = el.getBoundingClientRect();
         next.set(id, {
           x: rect.left - wrapRect.left + rect.width / 2,
@@ -231,6 +264,45 @@ export default function HighNeedleSvgAnnotatorCanvas({
     const wrap = canvasWrapRef.current;
     if (!wrap) return;
 
+    if (step !== "DML" || !regionLabels || regionLabels.length === 0) {
+      setRegionLabelPosByName(new Map());
+      return;
+    }
+
+    const raf = window.requestAnimationFrame(() => {
+      const wrapRect = wrap.getBoundingClientRect();
+      const next = new Map<string, { x: number; y: number }>();
+
+      regionLabels.forEach((label) => {
+        const points: Array<{ x: number; y: number }> = [];
+        label.lineIds.forEach((id) => {
+          const el = wrap.querySelector<SVGGraphicsElement>(
+            `#${cssEscapeId(id)}`,
+          );
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          points.push({
+            x: rect.left - wrapRect.left + rect.width / 2,
+            y: rect.top - wrapRect.top + rect.height / 2,
+          });
+        });
+
+        if (points.length === 0) return;
+        const x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+        const y = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+        next.set(label.name, { x, y });
+      });
+
+      setRegionLabelPosByName(next);
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [renderSvg, regionLabels, step]);
+
+  useEffect(() => {
+    const wrap = canvasWrapRef.current;
+    if (!wrap) return;
+
     if (!activeTextNodeId || step !== "自定义文本") {
       setActiveTextBox(null);
       return;
@@ -238,7 +310,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
     const raf = window.requestAnimationFrame(() => {
       const wrapRect = wrap.getBoundingClientRect();
-      const el = wrap.querySelector<SVGGraphicsElement>(`#${cssEscapeId(activeTextNodeId)}`);
+      const el = wrap.querySelector<SVGGraphicsElement>(
+        `#${cssEscapeId(activeTextNodeId)}`,
+      );
       if (!el) {
         setActiveTextBox(null);
         return;
@@ -273,14 +347,32 @@ export default function HighNeedleSvgAnnotatorCanvas({
     return "";
   }
 
+  // Stagger ±14 px vertically based on the marker's own annotation number
+  // (odd → above, even → below).  Using the annotation number instead of
+  // x-sorted position ensures sequence 1,2,3 always alternates up/down
+  // regardless of the physical left-right arrangement of lines in the SVG,
+  // preventing the visual "213" ordering confusion.
+  const staggerOffsetById = useMemo(() => {
+    const m = new Map<string, number>();
+    visibleMarkerById.forEach((marks, id) => {
+      const no = marks.regionNo ?? marks.levelNo ?? 0;
+      m.set(id, no % 2 === 1 ? -14 : 14); // odd → above, even → below
+    });
+    return m;
+  }, [visibleMarkerById]);
+
   const wrapExtraClass =
-    step === "自定义文本" ? "[&_text]:cursor-move [&_text]:pointer-events-auto" : "";
+    step === "自定义文本"
+      ? "[&_text]:cursor-move [&_text]:pointer-events-auto"
+      : "";
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-slate-900">SVG 画布</div>
-        <div className="text-xs text-slate-500">拖拽批量选择：按住鼠标拖动经过线条（区域/档位步骤）</div>
+        <div className="text-xs text-slate-500">
+          拖拽批量选择：按住鼠标拖动经过线条（区域/档位步骤）
+        </div>
       </div>
 
       <div
@@ -297,10 +389,16 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
             const wrap = canvasWrapRef.current;
             const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
-            const textEl = wrap?.querySelector<SVGTextElement>(`#${cssEscapeId(id)}`);
+            const textEl = wrap?.querySelector<SVGTextElement>(
+              `#${cssEscapeId(id)}`,
+            );
             if (!svgRoot || !textEl) return;
 
-            const startSvgPoint = clientToSvgPoint(svgRoot, e.clientX, e.clientY);
+            const startSvgPoint = clientToSvgPoint(
+              svgRoot,
+              e.clientX,
+              e.clientY,
+            );
             if (!startSvgPoint) return;
 
             dragRef.current = {
@@ -331,7 +429,8 @@ export default function HighNeedleSvgAnnotatorCanvas({
         onMouseLeave={resetBrushState}
         onMouseMove={(e) => {
           if (!brushRef.current) return;
-          if (step === "DML" || step === "单双" || step === "自定义文本") return;
+          if (step === "DML" || step === "单双" || step === "自定义文本")
+            return;
           if ((e.buttons & 1) === 0) return;
 
           const prev = brushLastPointRef.current;
@@ -341,7 +440,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
           const dx = prev ? cur.x - prev.x : 0;
           const dy = prev ? cur.y - prev.y : 0;
           const dist = prev ? Math.hypot(dx, dy) : 0;
-          const steps = prev ? Math.min(60, Math.max(1, Math.ceil(dist / 6))) : 1;
+          const steps = prev
+            ? Math.min(60, Math.max(1, Math.ceil(dist / 6)))
+            : 1;
 
           for (let i = 0; i <= steps; i += 1) {
             const x = prev ? prev.x + (dx * i) / steps : cur.x;
@@ -362,7 +463,12 @@ export default function HighNeedleSvgAnnotatorCanvas({
         }}
       >
         <div ref={canvasWrapRef} className="relative inline-block">
-          <InlineSvg key={canvasEpoch} svg={renderSvg} className="max-w-full" height="auto" />
+          <InlineSvg
+            key={canvasEpoch}
+            svg={renderSvg}
+            className="max-w-full"
+            height="auto"
+          />
 
           {activeTextBox ? (
             <div
@@ -377,15 +483,38 @@ export default function HighNeedleSvgAnnotatorCanvas({
           ) : null}
 
           <div className="pointer-events-none absolute inset-0">
+            {step === "DML"
+              ? (regionLabels ?? []).map((label) => {
+                  const pos = regionLabelPosByName.get(label.name);
+                  if (!pos) return null;
+
+                  return (
+                    <div
+                      key={`region_${label.name}`}
+                      className="absolute -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: pos.x, top: pos.y }}
+                    >
+                      <div
+                        className="rounded px-2 py-0.5 text-[11px] font-semibold text-white shadow"
+                        style={{ backgroundColor: label.color }}
+                      >
+                        {label.name}
+                      </div>
+                    </div>
+                  );
+                })
+              : null}
+
             {Array.from(visibleMarkerById.entries()).map(([id, marks]) => {
               const pos = anchorById.get(id);
               if (!pos) return null;
+              const staggerY = staggerOffsetById.get(id) ?? 0;
 
               return (
                 <div
                   key={id}
                   className="absolute -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: pos.x, top: pos.y }}
+                  style={{ left: pos.x, top: pos.y + staggerY }}
                 >
                   <div className="flex flex-col items-center gap-1">
                     {typeof marks.regionNo === "number" ? (
@@ -417,7 +546,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
       </div>
 
       <div className="mt-4">
-        <div className="mb-1 text-xs font-medium text-slate-600">结构化数据预览</div>
+        <div className="mb-1 text-xs font-medium text-slate-600">
+          结构化数据预览
+        </div>
         <pre className="max-h-[280px] overflow-auto rounded-xl bg-slate-950 p-3 text-[11px] text-slate-100">
           {JSON.stringify(previewValue, null, 2)}
         </pre>

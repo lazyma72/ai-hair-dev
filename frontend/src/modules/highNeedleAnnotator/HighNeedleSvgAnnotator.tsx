@@ -39,6 +39,7 @@ export default function HighNeedleSvgAnnotator(props: Props) {
         previewValue={state.previewValue}
         canvasEpoch={state.canvasEpoch}
         visibleMarkerById={state.visibleMarkerById}
+        regionLabels={state.regionLabelItems}
         toggleSelect={state.toggleSelect}
         handleLineAction={state.handleLineAction}
         activeTextNodeId={activeTextNodeId}

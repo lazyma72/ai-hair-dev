@@ -32,9 +32,14 @@ export default function HighNeedleStepTabs({
     <div className="mt-4 grid grid-cols-6 gap-2 text-xs">
       {STEP_TAB_LIST.map((s) => {
         const active = step === s.key;
-        const futureLocked = stepToIndex(s.key) > progress;
+        // 只允许跳转到当前阶段及之前已完成的阶段，不能越级跳到后面
+        const futureLocked =
+          stepToIndex(s.key) > stepToIndex(step) ||
+          stepToIndex(s.key) > progress;
         const disabled =
-          futureLocked || (s.key === "DML" && !enableDml) || (s.key === "单双" && !enableDouble);
+          futureLocked ||
+          (s.key === "DML" && !enableDml) ||
+          (s.key === "单双" && !enableDouble);
 
         return (
           <button

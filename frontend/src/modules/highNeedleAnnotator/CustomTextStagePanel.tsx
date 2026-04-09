@@ -67,11 +67,14 @@ export default function CustomTextStagePanel({
   return (
     <div className="mt-4 space-y-4">
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-        文本阶段：已自动清理 D/M/L/单/双 文本节点，其余文本已加入“已保留文本节点”；可拖动文字调整位置；不需要的文本可在列表中删除。
+        文本阶段：已自动清理 D/M/L/单/双
+        文本节点，其余文本已加入“已保留文本节点”；可拖动文字调整位置；不需要的文本可在列表中删除。
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-3">
-        <div className="mb-2 text-xs font-medium text-slate-700">新增文本节点</div>
+        <div className="mb-2 text-xs font-medium text-slate-700">
+          新增文本节点
+        </div>
 
         <div className="grid grid-cols-2 gap-2">
           <label className="space-y-1">
@@ -108,7 +111,9 @@ export default function CustomTextStagePanel({
             <select
               className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
               value={newTextDraft.fill}
-              onChange={(e) => setNewTextDraft((d: any) => ({ ...d, fill: e.target.value }))}
+              onChange={(e) =>
+                setNewTextDraft((d: any) => ({ ...d, fill: e.target.value }))
+              }
             >
               {COLOR_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -172,9 +177,11 @@ export default function CustomTextStagePanel({
         </div>
 
         {textNodeEntries.length === 0 ? (
-          <div className="text-xs text-slate-500">还没有保留文本。点击画布中的文字即可加入。</div>
+          <div className="text-xs text-slate-500">
+            还没有保留文本。点击画布中的文字即可加入。
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
             {textNodeEntries.map(([k, v]) => {
               const active = k === activeTextKey;
               return (
@@ -189,21 +196,36 @@ export default function CustomTextStagePanel({
                   <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"
-                      className="min-w-0 flex-1 truncate text-left text-xs text-slate-700"
+                      className="min-w-0 flex-1 text-left"
                       onClick={() => setActiveTextKey(k)}
                     >
-                      <span className="font-semibold">{k}</span>
-                      <span className="ml-2 text-slate-500">{v.textNodeId}</span>
-                      {v.created ? (
-                        <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
-                          新建
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="shrink-0 text-[10px] font-semibold text-slate-400">
+                          {k}
                         </span>
-                      ) : null}
+                        <span className="truncate text-xs text-slate-800">
+                          {v.text ? (
+                            v.text
+                          ) : (
+                            <span className="italic text-slate-400">
+                              （空文本）
+                            </span>
+                          )}
+                        </span>
+                        {v.created ? (
+                          <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
+                            新建
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-0.5 truncate text-[10px] text-slate-400">
+                        {v.textNodeId}
+                      </div>
                     </button>
 
                     <button
                       type="button"
-                      className="text-xs text-red-600 hover:text-red-700"
+                      className="shrink-0 text-xs text-red-600 hover:text-red-700"
                       onClick={() => removeTextNode(k)}
                     >
                       删除
@@ -217,7 +239,9 @@ export default function CustomTextStagePanel({
                         <input
                           className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
                           value={v.text ?? ""}
-                          onChange={(e) => updateTextNodeText(k, e.target.value)}
+                          onChange={(e) =>
+                            updateTextNodeText(k, e.target.value)
+                          }
                         />
                       </label>
 
@@ -239,8 +263,12 @@ export default function CustomTextStagePanel({
                         <div className="text-[11px] text-slate-500">颜色</div>
                         <select
                           className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
-                          value={readFontStyle(v.fontStyle, "fill") || "#111827"}
-                          onChange={(e) => updateTextNodeStyle(k, { fill: e.target.value })}
+                          value={
+                            readFontStyle(v.fontStyle, "fill") || "#111827"
+                          }
+                          onChange={(e) =>
+                            updateTextNodeStyle(k, { fill: e.target.value })
+                          }
                         >
                           {COLOR_OPTIONS.map((o) => (
                             <option key={o.value} value={o.value}>
@@ -254,8 +282,14 @@ export default function CustomTextStagePanel({
                         <div className="text-[11px] text-slate-500">粗细</div>
                         <select
                           className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
-                          value={readFontStyle(v.fontStyle, "fontWeight") || "700"}
-                          onChange={(e) => updateTextNodeStyle(k, { fontWeight: e.target.value })}
+                          value={
+                            readFontStyle(v.fontStyle, "fontWeight") || "700"
+                          }
+                          onChange={(e) =>
+                            updateTextNodeStyle(k, {
+                              fontWeight: e.target.value,
+                            })
+                          }
                         >
                           {WEIGHT_OPTIONS.map((o) => (
                             <option key={o.value} value={o.value}>

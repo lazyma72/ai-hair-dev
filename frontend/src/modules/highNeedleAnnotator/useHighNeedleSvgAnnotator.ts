@@ -28,6 +28,12 @@ import {
   uniquePreserveOrder,
   type RegionDraft,
 } from "./helpers";
+import {
+  computeAutoDml,
+  normalizePattern,
+  type DmlAutoConfig,
+  type RegionLineItem,
+} from "./dmlAuto";
 import { 高针图系统预置区域列表 } from "../../shared/models/高针图";
 
 const DEFAULT_LINE_SELECTOR = "line, path, polyline, polygon";
@@ -44,6 +50,26 @@ const STEP_ORDER = [
 ] as const;
 
 const AUTO_REMOVE_TEXT_SET = new Set(["D", "M", "L", "单", "双"]);
+
+const REGION_COLOR_PALETTE = [
+  "#ef4444",
+  "#f59e0b",
+  "#10b981",
+  "#3b82f6",
+  "#a855f7",
+  "#ec4899",
+  "#14b8a6",
+  "#f97316",
+] as const;
+
+function allocLocalId(prefix: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cryptoAny: any = (globalThis as any).crypto;
+  const uuid =
+    typeof cryptoAny?.randomUUID === "function" ? cryptoAny.randomUUID() : "";
+  if (uuid) return `${prefix}_${uuid}`;
+  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+}
 
 function stepToIndex(step: 标注步骤): number {
   return STEP_ORDER.indexOf(step);
@@ -98,6 +124,14 @@ export default function useHighNeedleSvgAnnotator({
   const [levelNo, setLevelNo] = useState(1);
   const [draftSelected, setDraftSelected] = useState<string[]>([]);
 
+  const [dmlAutoConfigs, setDmlAutoConfigs] = useState<DmlAutoConfig[]>([]);
+  const manualDmlOverridesRef = useRef<Record<string, DmlValue>>({});
+  const autoDmlAssignmentsRef = useRef<Map<string, DmlValue>>(new Map());
+  const autoDmlManagedIdsRef = useRef<Set<string>>(new Set());
+  const autoDmlSlotByLineIdRef = useRef<
+    Map<string, { configId: string; slotIndex: number }>
+  >(new Map());
+
   const [activeTextKey, setActiveTextKey] = useState<string>("");
   const [newTextDraft, setNewTextDraft] = useState<{
     text: string;
@@ -113,6 +147,11 @@ export default function useHighNeedleSvgAnnotator({
 
   const autoTextPreparedRef = useRef(false);
 
+  // 保存初始化后的干净 SVG 及线条/文本 id，用于「清空区域阶段」真正回滚到初始状态。
+  const cleanSvgRef = useRef<string>("");
+  const initialLineIdsRef = useRef<string[]>([]);
+  const initialTextIdsRef = useRef<string[]>([]);
+
   const [dirty, setDirty] = useState(false);
   const [canvasEpoch, setCanvasEpoch] = useState(0);
 
@@ -121,12 +160,22 @@ export default function useHighNeedleSvgAnnotator({
     const ensuredLine = ensureLineIds(initialSvg, lineSelector);
     const ensuredText = ensureTextIds(ensuredLine.svg);
 
+    cleanSvgRef.current = ensuredText.svg;
+    initialLineIdsRef.current = ensuredLine.lineIds;
+    initialTextIdsRef.current = ensuredText.textIds;
+
     setAllLineIds(ensuredLine.lineIds);
     setAllTextIds(ensuredText.textIds);
     setValue((v) => ({ ...v, 底图: { ...v.底图, svg: ensuredText.svg } }));
 
     if (!initialValue) {
       autoTextPreparedRef.current = false;
+      manualDmlOverridesRef.current = {};
+      autoDmlAssignmentsRef.current = new Map();
+      autoDmlManagedIdsRef.current = new Set();
+      autoDmlSlotByLineIdRef.current = new Map();
+      setDmlAutoConfigs([]);
+
       setStep("区域");
       setProgress(0);
     }
@@ -150,6 +199,22 @@ export default function useHighNeedleSvgAnnotator({
       lineLength: presets[0]?.lineLength ?? 0,
     });
     setLevelNo(1);
+
+    setDmlAutoConfigs([]);
+    manualDmlOverridesRef.current = {};
+    (initialValue.自定义数据?.DML标注 ?? []).forEach((d) => {
+      const id = String(d?.lineNodeId ?? "").trim();
+      const v = String(d?.标注DML ?? "")
+        .trim()
+        .toUpperCase();
+      if (!id) return;
+      if (v === "D" || v === "M" || v === "L") {
+        manualDmlOverridesRef.current[id] = v as DmlValue;
+      }
+    });
+    autoDmlAssignmentsRef.current = new Map();
+    autoDmlManagedIdsRef.current = new Set();
+    autoDmlSlotByLineIdRef.current = new Map();
 
     setAllLineIds(ensuredLine.lineIds);
     setAllTextIds(ensuredText.textIds);
@@ -212,6 +277,63 @@ export default function useHighNeedleSvgAnnotator({
     () => makeDoubleSet(value.自定义数据.单双标注),
     [value.自定义数据.单双标注],
   );
+
+  const regionLineItems = useMemo<RegionLineItem[]>(() => {
+    const out: RegionLineItem[] = [];
+    value.底图.区域线条.forEach((d) => {
+      const name = String(d.区域名 ?? "").trim();
+      const ratio =
+        typeof d.区域内位置占比 === "number" ? d.区域内位置占比 : 0.5;
+      (d.lineNodeIds ?? []).forEach((id) => {
+        const lineId = String(id ?? "").trim();
+        if (!lineId) return;
+        out.push({ lineId, regionName: name, posRatio: ratio });
+      });
+    });
+    return out;
+  }, [value.底图.区域线条]);
+
+  const regionColorByName = useMemo(() => {
+    const map = new Map<string, string>();
+    value.底图.区域名.forEach((name, idx) => {
+      map.set(name, REGION_COLOR_PALETTE[idx % REGION_COLOR_PALETTE.length]);
+    });
+    return map;
+  }, [value.底图.区域名]);
+
+  const regionStrokeById = useMemo(() => {
+    if (step !== "DML") return undefined;
+    const map = new Map<string, string>();
+    value.底图.区域线条.forEach((d) => {
+      const color = regionColorByName.get(d.区域名);
+      if (!color) return;
+      d.lineNodeIds.forEach((id) => map.set(id, color));
+    });
+    return map;
+  }, [regionColorByName, step, value.底图.区域线条]);
+
+  const regionLabelItems = useMemo(() => {
+    if (step !== "DML") return [];
+
+    const byName = new Map<string, string[]>();
+    value.底图.区域线条.forEach((d) => {
+      const name = String(d.区域名 ?? "").trim();
+      if (!name) return;
+      const list = byName.get(name) ?? [];
+      d.lineNodeIds.forEach((id) => {
+        const lineId = String(id ?? "").trim();
+        if (!lineId) return;
+        list.push(lineId);
+      });
+      byName.set(name, list);
+    });
+
+    return Array.from(byName.entries()).map(([name, lineIds]) => ({
+      name,
+      color: regionColorByName.get(name) ?? "#ef4444",
+      lineIds: uniquePreserveOrder(lineIds),
+    }));
+  }, [regionColorByName, step, value.底图.区域线条]);
 
   const regionNoById = useMemo(() => {
     const map = new Map<string, number>();
@@ -307,7 +429,7 @@ export default function useHighNeedleSvgAnnotator({
       return archived;
     }
 
-    return new Set(value.底图.档位标注.flatMap((d) => d.lineNodeIds));
+    return new Set(allLineIds);
   }, [
     allLineIds,
     progress,
@@ -331,13 +453,15 @@ export default function useHighNeedleSvgAnnotator({
   }, [allLineIds, availableForStep, draftSelected, step]);
 
   const renderSvg = useMemo(() => {
-    const selectedStroke = step === "档位" ? "#f59e0b" : "#ef4444";
+    const selectedStroke =
+      step === "档位" ? "#f59e0b" : step === "区域" ? "#3b82f6" : "#ef4444";
 
     return decorateLines(value.底图.svg, {
       touchIds: allLineIds,
       selected: new Set(draftSelected),
       disabled: disabledForStep,
       regionNoById,
+      regionStrokeById: step === "DML" ? regionStrokeById : undefined,
       levelNoById,
       dmlById: step === "DML" ? dmlById : undefined,
       doubleById: step === "单双" ? doubleById : undefined,
@@ -354,6 +478,91 @@ export default function useHighNeedleSvgAnnotator({
     step,
     value.底图.svg,
   ]);
+
+  function commitMergedDml(
+    autoAssignments: Map<string, DmlValue>,
+    managedLineIds: Set<string>,
+  ) {
+    autoDmlAssignmentsRef.current = autoAssignments;
+    autoDmlManagedIdsRef.current = managedLineIds;
+
+    // 手动覆盖优先级高于自动规律，不删除任何手动覆盖
+    const manual = manualDmlOverridesRef.current;
+
+    const merged = new Map<string, DmlValue>();
+    autoAssignments.forEach((v, id) => merged.set(id, v));
+    Object.entries(manual).forEach(([id, v]) => {
+      const vv = String(v).trim() as DmlValue;
+      if (vv === "D" || vv === "M" || vv === "L") {
+        merged.set(id, vv);
+      } else {
+        // 手动标记为空（""）时，明确清除该线条的自动规律赋值
+        merged.delete(id);
+      }
+    });
+
+    setValue((cur) => ({
+      ...cur,
+      自定义数据: {
+        ...cur.自定义数据,
+        DML标注: Array.from(merged.entries()).map(([lineNodeId, 标注DML]) => ({
+          lineNodeId,
+          标注DML,
+        })),
+      },
+    }));
+  }
+
+  function recomputeAutoDml(configs: DmlAutoConfig[]) {
+    if (step !== "DML") return;
+
+    const allowedLineIdSet = new Set(
+      value.底图.档位标注.flatMap((d) => d.lineNodeIds),
+    );
+    const { assignments, managedLineIds, slotByLineId } = computeAutoDml(
+      configs,
+      regionLineItems,
+      {
+        allowedLineIdSet,
+      },
+    );
+
+    autoDmlSlotByLineIdRef.current = slotByLineId;
+    commitMergedDml(assignments, managedLineIds);
+  }
+
+  useEffect(() => {
+    if (step !== "DML") return;
+
+    setDmlAutoConfigs((prev) => {
+      const regionNames = value.底图.区域名;
+      if (regionNames.length === 0) return prev;
+
+      const regionSet = new Set(regionNames);
+      const next: DmlAutoConfig[] = (prev.length > 0 ? prev : []).filter((c) =>
+        regionSet.has(c.regionName),
+      );
+
+      regionNames.forEach((name) => {
+        if (next.some((c) => c.regionName === name)) return;
+        next.push({
+          id: allocLocalId("dml_cfg"),
+          regionName: name,
+          pattern: "",
+          rangeStart: 0,
+          rangeEnd: 100,
+        });
+      });
+
+      return next;
+    });
+  }, [step, value.底图.区域名]);
+
+  useEffect(() => {
+    if (step !== "DML") return;
+    recomputeAutoDml(dmlAutoConfigs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dmlAutoConfigs, regionLineItems, step, value.底图.档位标注]);
 
   function toggleSelect(id: string, options?: { silent?: boolean }) {
     if (!id) return;
@@ -375,26 +584,21 @@ export default function useHighNeedleSvgAnnotator({
     if (step === "DML") {
       if (!availableForStep.has(id)) return;
 
+      // Click always writes a per-line manual override; the auto pattern is never modified.
+      // Priority: existing manual override > auto assignment > empty.
       setDirty(true);
-      setValue((v) => {
-        const prev = makeDmlMap(v.自定义数据.DML标注);
-        const next = nextDml(prev.get(id) ?? "");
-
-        const entries = Array.from(prev.entries()).filter(([k]) => k !== id);
-        if (next) entries.push([id, next]);
-
-        return {
-          ...v,
-          自定义数据: {
-            ...v.自定义数据,
-            DML标注: entries.map(([lineNodeId, 标注DML]) => ({
-              lineNodeId,
-              标注DML,
-            })),
-          },
-        };
-      });
-
+      const currentManual = manualDmlOverridesRef.current[id];
+      const currentAuto = autoDmlAssignmentsRef.current.get(id) ?? "";
+      const currentEffective: DmlValue =
+        currentManual !== undefined ? currentManual : (currentAuto as DmlValue);
+      const next = nextDml(currentEffective);
+      // 无论 next 是否为空，都写入 manual override。
+      // 空字符串 ("") 是"明确清除"信号，commitMergedDml 会据此删除自动规律赋值。
+      manualDmlOverridesRef.current[id] = next;
+      commitMergedDml(
+        autoDmlAssignmentsRef.current,
+        autoDmlManagedIdsRef.current,
+      );
       return;
     }
 
@@ -427,29 +631,38 @@ export default function useHighNeedleSvgAnnotator({
   }
 
   function confirmExit() {
-    if (!dirty) {
-      message.info("未产生变更");
-      return;
-    }
-
     // eslint-disable-next-line no-alert
-    const ok = window.confirm("当前标注尚未确认保存，确定要退出吗？");
-    if (ok) {
-      autoTextPreparedRef.current = false;
-      setStep("区域");
-      setProgress(0);
-      setRegionIndex(0);
-      setRegionPresetValue(presets[0]?.name ?? CUSTOM_REGION_PRESET_VALUE);
-      setRegionDraft({
-        name: presets[0]?.name ?? "",
-        lineLength: presets[0]?.lineLength ?? 0,
-      });
-      setLevelNo(1);
-      setDraftSelected([]);
-      setActiveTextKey("");
-      setDirty(false);
-      message.success("已退出（未保存到后端）");
-    }
+    const ok = window.confirm("将清空所有标注并重新开始，确定吗？");
+    if (!ok) return;
+
+    autoTextPreparedRef.current = false;
+    manualDmlOverridesRef.current = {};
+    autoDmlAssignmentsRef.current = new Map();
+    autoDmlManagedIdsRef.current = new Set();
+    autoDmlSlotByLineIdRef.current = new Map();
+    setDmlAutoConfigs([]);
+
+    requestCanvasReset();
+
+    const cleanSvg = cleanSvgRef.current || "";
+    setAllLineIds(initialLineIdsRef.current);
+    setAllTextIds(initialTextIdsRef.current);
+
+    setStep("区域");
+    setProgress(0);
+    setRegionIndex(0);
+    setRegionPresetValue(presets[0]?.name ?? CUSTOM_REGION_PRESET_VALUE);
+    setRegionDraft({
+      name: presets[0]?.name ?? "",
+      lineLength: presets[0]?.lineLength ?? 0,
+    });
+    setLevelNo(1);
+    setDraftSelected([]);
+    setActiveTextKey("");
+    setDirty(false);
+
+    setValue(createEmpty高针图(cleanSvg));
+    message.success("已重新开始");
   }
 
   function requestCanvasReset() {
@@ -457,12 +670,33 @@ export default function useHighNeedleSvgAnnotator({
   }
 
   function clearRegionStage() {
+    if (
+      value.底图.区域线条.length === 0 &&
+      draftSelected.length === 0 &&
+      progress === 0
+    ) {
+      message.info("当前没有区域数据可清空");
+      return;
+    }
+
     // eslint-disable-next-line no-alert
     const ok = window.confirm("将清空【区域】以及后续所有标注，确定吗？");
     if (!ok) return;
 
     autoTextPreparedRef.current = false;
+    manualDmlOverridesRef.current = {};
+    autoDmlAssignmentsRef.current = new Map();
+    autoDmlManagedIdsRef.current = new Set();
+    autoDmlSlotByLineIdRef.current = new Map();
+    setDmlAutoConfigs([]);
+
     requestCanvasReset();
+
+    // 恢复为初始化时保存的干净 SVG 及 id 列表，确保自定义文本阶段注入的
+    // <text> 节点和 allTextIds 也被完整清除。
+    const cleanSvg = cleanSvgRef.current || "";
+    setAllLineIds(initialLineIdsRef.current);
+    setAllTextIds(initialTextIdsRef.current);
 
     setDirty(true);
     setStep("区域");
@@ -477,7 +711,7 @@ export default function useHighNeedleSvgAnnotator({
     setDraftSelected([]);
     setActiveTextKey("");
 
-    setValue((v) => createEmpty高针图(v.底图.svg));
+    setValue(createEmpty高针图(cleanSvg));
     message.success("已清空区域阶段");
   }
 
@@ -512,6 +746,12 @@ export default function useHighNeedleSvgAnnotator({
     requestCanvasReset();
 
     setDirty(true);
+    manualDmlOverridesRef.current = {};
+    autoDmlAssignmentsRef.current = new Map();
+    autoDmlManagedIdsRef.current = new Set();
+    autoDmlSlotByLineIdRef.current = new Map();
+    setDmlAutoConfigs((prev) => prev.map((c) => ({ ...c, pattern: "" })));
+
     setValue((v) => ({
       ...v,
       自定义数据: {
@@ -519,7 +759,7 @@ export default function useHighNeedleSvgAnnotator({
         DML标注: [],
       },
     }));
-    message.success("已清空 DML 标注");
+    message.success("已清空 DML 标注（并关闭自动规律）");
   }
 
   function clearDoubleStage() {
@@ -534,6 +774,75 @@ export default function useHighNeedleSvgAnnotator({
       },
     }));
     message.success("已清空 单双 标注");
+  }
+
+  function clampPercent(v: unknown): number {
+    const num = typeof v === "number" ? v : Number(v);
+    if (!Number.isFinite(num)) return 0;
+    return Math.max(0, Math.min(100, Math.round(num)));
+  }
+
+  function addDmlAutoConfig() {
+    setDirty(true);
+    const defaultRegion = value.底图.区域名[0] ?? "";
+    setDmlAutoConfigs((prev) => [
+      ...prev,
+      {
+        id: allocLocalId("dml_cfg"),
+        regionName: defaultRegion,
+        pattern: "",
+        rangeStart: 0,
+        rangeEnd: 100,
+      },
+    ]);
+  }
+
+  function updateDmlAutoConfig(
+    configId: string,
+    patch: Partial<
+      Pick<DmlAutoConfig, "regionName" | "pattern" | "rangeStart" | "rangeEnd">
+    >,
+  ) {
+    setDirty(true);
+    setDmlAutoConfigs((prev) =>
+      prev.map((c) => {
+        if (c.id !== configId) return c;
+
+        return {
+          ...c,
+          ...(patch.regionName !== undefined
+            ? { regionName: patch.regionName }
+            : {}),
+          ...(patch.pattern !== undefined
+            ? { pattern: normalizePattern(patch.pattern) }
+            : {}),
+          ...(patch.rangeStart !== undefined
+            ? { rangeStart: clampPercent(patch.rangeStart) }
+            : {}),
+          ...(patch.rangeEnd !== undefined
+            ? { rangeEnd: clampPercent(patch.rangeEnd) }
+            : {}),
+        };
+      }),
+    );
+  }
+
+  function removeDmlAutoConfig(configId: string) {
+    setDirty(true);
+    setDmlAutoConfigs((prev) => prev.filter((c) => c.id !== configId));
+  }
+
+  function resetDmlAutoConfigs() {
+    setDirty(true);
+    setDmlAutoConfigs(
+      value.底图.区域名.map((name) => ({
+        id: allocLocalId("dml_cfg"),
+        regionName: name,
+        pattern: "",
+        rangeStart: 0,
+        rangeEnd: 100,
+      })),
+    );
   }
 
   function finishRegion(options?: { gotoNextStage?: boolean }) {
@@ -722,24 +1031,28 @@ export default function useHighNeedleSvgAnnotator({
 
   function goNextStep() {
     if (step === "区域") {
-      if (draftSelected.length > 0) {
-        message.error("请先保存当前区域，或点击“清空本次已选”");
-        return;
-      }
       if (value.底图.区域线条.length === 0) {
         message.error("请至少保存一个区域后再进入下一阶段");
         return;
       }
 
-      // eslint-disable-next-line no-alert
-      const ok = window.confirm(
-        "进入下一阶段后，将无法继续新增区域线条（顺序会影响后续 DML 排列）。确定要进入【档位标记】吗？",
-      );
-      if (!ok) return;
+      const proceed = () => {
+        requestCanvasReset();
+        setStep("档位");
+        setProgress(1);
+        setDraftSelected([]);
+      };
 
-      setStep("档位");
-      setProgress(1);
-      setDraftSelected([]);
+      if (draftSelected.length > 0) {
+        // eslint-disable-next-line no-alert
+        const ok = window.confirm(
+          `当前区域有 ${draftSelected.length} 条线条未保存，直接开启下一阶段将放弃这些选中。确定继续吗？`,
+        );
+        if (ok) proceed();
+        return;
+      }
+
+      proceed();
       return;
     }
 
@@ -1080,6 +1393,7 @@ export default function useHighNeedleSvgAnnotator({
     levelNo,
     draftSelected,
     setDraftSelected,
+    dmlAutoConfigs,
     activeTextKey,
     setActiveTextKey,
     newTextDraft,
@@ -1089,6 +1403,7 @@ export default function useHighNeedleSvgAnnotator({
     renderSvg,
     previewValue,
     visibleMarkerById,
+    regionLabelItems,
     disabledForStep,
     stepTips,
 
@@ -1102,6 +1417,10 @@ export default function useHighNeedleSvgAnnotator({
     clearLevelStage,
     clearDmlStage,
     clearDoubleStage,
+    addDmlAutoConfig,
+    updateDmlAutoConfig,
+    removeDmlAutoConfig,
+    resetDmlAutoConfigs,
     finishRegion,
     finishLevel,
     goNextStep,

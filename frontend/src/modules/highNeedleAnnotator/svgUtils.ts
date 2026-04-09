@@ -47,7 +47,6 @@ export function ensureLineIds(
       idCounts.set(id, 1);
     }
 
-
     used.add(id);
     return id;
   });
@@ -92,7 +91,10 @@ export function ensureTextIds(
   return { svg: serializeSvg(doc), textIds };
 }
 
-export function pruneSvgTextNodes(svg: string, keepTextNodeIds: string[]): string {
+export function pruneSvgTextNodes(
+  svg: string,
+  keepTextNodeIds: string[],
+): string {
   const doc = parseSvg(svg);
   if (!doc) return svg;
 
@@ -153,7 +155,8 @@ export function updateSvgTextNode(
     if (lines && lines.length > 0) {
       clearCompressAttrs();
 
-      const baseX = tspans[0]?.getAttribute("x") ?? el.getAttribute("x") ?? undefined;
+      const baseX =
+        tspans[0]?.getAttribute("x") ?? el.getAttribute("x") ?? undefined;
 
       while (el.firstChild) {
         el.removeChild(el.firstChild);
@@ -214,7 +217,10 @@ function parseInlineStyle(styleText: string): Record<string, string> {
   return map;
 }
 
-export function getSvgTextNodeFontStyle(svg: string, nodeId: string): Record<string, unknown> {
+export function getSvgTextNodeFontStyle(
+  svg: string,
+  nodeId: string,
+): Record<string, unknown> {
   if (!svg || !nodeId) return {};
   const doc = parseSvg(svg);
   if (!doc) return {};
@@ -390,7 +396,12 @@ function getDefaultTextPos(root: SVGSVGElement): { x: number; y: number } {
 
   const width = Number(root.getAttribute("width"));
   const height = Number(root.getAttribute("height"));
-  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+  if (
+    Number.isFinite(width) &&
+    Number.isFinite(height) &&
+    width > 0 &&
+    height > 0
+  ) {
     return { x: width * 0.5, y: height * 0.5 };
   }
 
@@ -428,7 +439,11 @@ export function appendSvgTextNode(
     root.appendChild(textEl);
 
     if (options.fontStyle) {
-      return setSvgTextNodeStyle(serializeSvg(doc), options.nodeId, options.fontStyle);
+      return setSvgTextNodeStyle(
+        serializeSvg(doc),
+        options.nodeId,
+        options.fontStyle,
+      );
     }
 
     return serializeSvg(doc);
@@ -446,6 +461,8 @@ export function decorateLines(
     disabled?: Set<string>;
     /** 区域节点序号（用于渲染 1、2、3…） */
     regionNoById?: Map<string, number>;
+    /** 区域线条自定义颜色（DML 阶段用于按区域上色） */
+    regionStrokeById?: Map<string, string>;
     /** 档位号（用于渲染 1档、2档…） */
     levelNoById?: Map<string, number>;
     dmlById?: Map<string, DmlValue>;
@@ -462,6 +479,7 @@ export function decorateLines(
     selected,
     disabled,
     regionNoById,
+    regionStrokeById,
     levelNoById,
     dmlById,
     doubleById,
@@ -475,6 +493,7 @@ export function decorateLines(
   (selected ?? new Set()).forEach((id) => allIds.add(id));
   (disabled ?? new Set()).forEach((id) => allIds.add(id));
   regionNoById?.forEach((_, id) => allIds.add(id));
+  regionStrokeById?.forEach((_, id) => allIds.add(id));
   levelNoById?.forEach((_, id) => allIds.add(id));
   dmlById?.forEach((_, id) => allIds.add(id));
   doubleById?.forEach((id) => allIds.add(id));
@@ -486,27 +505,30 @@ export function decorateLines(
     const isSelected = selected?.has(id);
     const isDisabled = disabled?.has(id);
     const regionNo = regionNoById?.get(id);
+    const regionStroke = regionStrokeById?.get(id);
     const levelNo = levelNoById?.get(id);
     const dml = dmlById?.get(id);
     const isDouble = doubleById?.has(id);
 
     const nextStroke = isSelected
-      ? selectedStroke ?? "#ef4444"
+      ? (selectedStroke ?? "#ef4444")
       : typeof levelNo === "number"
         ? "#f59e0b"
-        : typeof regionNo === "number"
-          ? "#ef4444"
-          : dml === "D"
+        : regionStroke
+          ? regionStroke
+          : typeof regionNo === "number"
             ? "#ef4444"
-            : dml === "M"
-              ? "#f59e0b"
-              : dml === "L"
-                ? "#eab308"
-                : isDouble
-                  ? "#f59e0b"
-                  : isDisabled
-                    ? "#cbd5e1"
-                    : undefined;
+            : dml === "D"
+              ? "#ef4444"
+              : dml === "M"
+                ? "#f59e0b"
+                : dml === "L"
+                  ? "#eab308"
+                  : isDouble
+                    ? "#a855f7"
+                    : isDisabled
+                      ? "#cbd5e1"
+                      : undefined;
 
     const style = (el as unknown as SVGElement).style;
 
@@ -523,14 +545,15 @@ export function decorateLines(
 
     let nextWidth = baseWidth;
     if (isSelected) {
-      nextWidth = Math.max(baseWidth, 4);
+      nextWidth = Math.max(baseWidth, 2.5);
     } else if (
+      regionStroke ||
       typeof regionNo === "number" ||
       typeof levelNo === "number" ||
       (dml ?? "").trim() ||
       isDouble
     ) {
-      nextWidth = Math.max(baseWidth, 3);
+      nextWidth = Math.max(baseWidth, 2);
     }
 
     if (isDouble) {

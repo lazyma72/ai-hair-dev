@@ -18,10 +18,5 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },
-  "include": [
-    "src/main.tsx",
-    "src/App.tsx",
-    "src/index.css",
-    "src/vite-env.d.ts"
-  ]
+  "include": ["src"]
 }
