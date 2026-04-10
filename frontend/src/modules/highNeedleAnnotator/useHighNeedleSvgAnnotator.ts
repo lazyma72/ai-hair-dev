@@ -294,20 +294,40 @@ export default function useHighNeedleSvgAnnotator({
   }, [value.底图.区域线条]);
 
   const regionColorByName = useMemo(() => {
+    const fromRegionNameList = value.底图.区域名
+      .map((n) => String(n ?? "").trim())
+      .filter(Boolean);
+
+    const fromLines = value.底图.区域线条
+      .map((d) => String(d.区域名 ?? "").trim())
+      .filter(Boolean);
+
+    const orderedNames = uniquePreserveOrder(
+      fromRegionNameList.length > 0 ? fromRegionNameList : fromLines,
+    );
+
     const map = new Map<string, string>();
-    value.底图.区域名.forEach((name, idx) => {
+    orderedNames.forEach((name, idx) => {
       map.set(name, REGION_COLOR_PALETTE[idx % REGION_COLOR_PALETTE.length]);
     });
     return map;
-  }, [value.底图.区域名]);
+  }, [value.底图.区域名, value.底图.区域线条]);
 
   const regionStrokeById = useMemo(() => {
     const map = new Map<string, string>();
+
     value.底图.区域线条.forEach((d) => {
-      const color = regionColorByName.get(d.区域名);
+      const regionName = String(d.区域名 ?? "").trim();
+      const color = regionColorByName.get(regionName);
       if (!color) return;
-      d.lineNodeIds.forEach((id) => map.set(id, color));
+
+      d.lineNodeIds.forEach((id) => {
+        const lineId = String(id ?? "").trim();
+        if (!lineId) return;
+        map.set(lineId, color);
+      });
     });
+
     return map;
   }, [regionColorByName, value.底图.区域线条]);
 
