@@ -247,7 +247,12 @@ export default function HighNeedleSvgAnnotatorCanvas({
   const filteredMarkerById = useMemo(() => {
     const out = new Map<
       string,
-      { regionNo?: number; levelNo?: number; dml?: DmlValue; isDouble?: boolean }
+      {
+        regionNo?: number;
+        levelNo?: number;
+        dml?: DmlValue;
+        isDouble?: boolean;
+      }
     >();
     visibleMarkerById.forEach((marks, id) => {
       const filtered: typeof marks = {};
@@ -669,21 +674,29 @@ export default function HighNeedleSvgAnnotatorCanvas({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm font-semibold text-slate-900">SVG 画布</div>
         <div className="flex flex-wrap items-center gap-3">
-          {([
-            { key: "region", label: "区域" },
-            { key: "level", label: "档位" },
-            { key: "dml", label: "DML" },
-            { key: "double", label: "单双" },
-            { key: "text", label: "文本" },
-            { key: "rawLines", label: "原线条" },
-          ] as const).map(({ key, label }) => (
-            <label key={key} className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-900 select-none">
+          {(
+            [
+              { key: "region", label: "区域" },
+              { key: "level", label: "档位" },
+              { key: "dml", label: "DML" },
+              { key: "double", label: "单双" },
+              { key: "text", label: "文本" },
+              { key: "rawLines", label: "原线条" },
+            ] as const
+          ).map(({ key, label }) => (
+            <label
+              key={key}
+              className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-900 select-none"
+            >
               <input
                 type="checkbox"
                 className="accent-slate-700"
                 checked={layerToggles[key]}
                 onChange={(e) =>
-                  setLayerToggles((prev) => ({ ...prev, [key]: e.target.checked }))
+                  setLayerToggles((prev) => ({
+                    ...prev,
+                    [key]: e.target.checked,
+                  }))
                 }
               />
               {label}
@@ -781,10 +794,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
             if (brushVisitedRef.current.has(id)) continue;
             for (const [ax, ay, bx, by] of segs) {
               if (
-                segmentsIntersect(
-                  prev.x, prev.y, cur.x, cur.y,
-                  ax, ay, bx, by,
-                )
+                segmentsIntersect(prev.x, prev.y, cur.x, cur.y, ax, ay, bx, by)
               ) {
                 brushVisitedRef.current.add(id);
                 toggleSelect(id, { silent: true });

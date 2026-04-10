@@ -521,7 +521,11 @@ export function decorateLines(
   hiddenIds?.forEach((id) => {
     const el = doc.getElementById(id);
     if (!el) return;
-    (el as unknown as SVGElement).style.setProperty("display", "none", "important");
+    (el as unknown as SVGElement).style.setProperty(
+      "display",
+      "none",
+      "important",
+    );
   });
 
   const allIds = new Set<string>();

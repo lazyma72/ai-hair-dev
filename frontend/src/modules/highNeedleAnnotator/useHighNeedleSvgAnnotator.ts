@@ -511,9 +511,11 @@ export default function useHighNeedleSvgAnnotator({
       hiddenIds: hiddenLineIds,
       regionNoById,
       regionStrokeById: layerToggles.region ? regionStrokeById : undefined,
-      levelNoById: (step === "DML" || !layerToggles.level) ? undefined : levelNoById,
-      dmlById: (step === "DML" && layerToggles.dml) ? dmlById : undefined,
-      doubleById: (step === "单双" && layerToggles.double) ? doubleById : undefined,
+      levelNoById:
+        step === "DML" || !layerToggles.level ? undefined : levelNoById,
+      dmlById: step === "DML" && layerToggles.dml ? dmlById : undefined,
+      doubleById:
+        step === "单双" && layerToggles.double ? doubleById : undefined,
       selectedStroke,
     });
   }, [
