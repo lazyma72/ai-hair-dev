@@ -256,8 +256,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
     >();
     visibleMarkerById.forEach((marks, id) => {
       const filtered: typeof marks = {};
-      if (layerToggles.region && typeof marks.regionNo === "number")
-        filtered.regionNo = marks.regionNo;
+      // 区域只用颜色区分，不展示编号 badge
       if (layerToggles.level && typeof marks.levelNo === "number")
         filtered.levelNo = marks.levelNo;
       if (layerToggles.dml && marks.dml) filtered.dml = marks.dml;
@@ -627,7 +626,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
     const unnumbered: Array<{ id: string }> = [];
 
     filteredMarkerById.forEach((marks, id) => {
-      const no = marks.regionNo ?? marks.levelNo;
+      const no = marks.levelNo;
       if (typeof no === "number") {
         numbered.push({ id, no });
       } else {
@@ -872,11 +871,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
                   style={{ left: pos.x + stagger.dx, top: pos.y + stagger.dy }}
                 >
                   <div className="flex flex-col items-center gap-1">
-                    {typeof marks.regionNo === "number" ? (
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-semibold text-white shadow">
-                        {marks.regionNo}
-                      </div>
-                    ) : null}
+
                     {typeof marks.levelNo === "number" ? (
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[11px] font-semibold text-white shadow">
                         {marks.levelNo}

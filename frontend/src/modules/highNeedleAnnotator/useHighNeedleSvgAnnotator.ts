@@ -413,37 +413,25 @@ export default function useHighNeedleSvgAnnotator({
       }
     >();
 
-    if (step === "区域") {
-      regionNoById.forEach((no, id) => {
-        map.set(id, { regionNo: no });
-      });
-      return map;
-    }
+    regionNoById.forEach((no, id) => {
+      map.set(id, { ...map.get(id), regionNo: no });
+    });
 
-    if (step === "档位") {
-      levelNoById.forEach((no, id) => {
-        map.set(id, { levelNo: no });
-      });
-      return map;
-    }
+    levelNoById.forEach((no, id) => {
+      map.set(id, { ...map.get(id), levelNo: no });
+    });
 
-    if (step === "DML") {
-      dmlById.forEach((v, id) => {
-        if (!v) return;
-        map.set(id, { dml: v });
-      });
-      return map;
-    }
+    dmlById.forEach((v, id) => {
+      if (!v) return;
+      map.set(id, { ...map.get(id), dml: v });
+    });
 
-    if (step === "单双") {
-      doubleById.forEach((id) => {
-        map.set(id, { isDouble: true });
-      });
-      return map;
-    }
+    doubleById.forEach((id) => {
+      map.set(id, { ...map.get(id), isDouble: true });
+    });
 
     return map;
-  }, [dmlById, doubleById, levelNoById, regionNoById, step]);
+  }, [dmlById, doubleById, levelNoById, regionNoById]);
 
   const availableForStep = useMemo(() => {
     if (step === "完成" || step === "自定义文本") return new Set<string>();
@@ -511,11 +499,9 @@ export default function useHighNeedleSvgAnnotator({
       hiddenIds: hiddenLineIds,
       regionNoById,
       regionStrokeById: layerToggles.region ? regionStrokeById : undefined,
-      levelNoById:
-        step === "DML" || !layerToggles.level ? undefined : levelNoById,
-      dmlById: step === "DML" && layerToggles.dml ? dmlById : undefined,
-      doubleById:
-        step === "单双" && layerToggles.double ? doubleById : undefined,
+      levelNoById: layerToggles.level ? levelNoById : undefined,
+      dmlById: layerToggles.dml ? dmlById : undefined,
+      doubleById: layerToggles.double ? doubleById : undefined,
       selectedStroke,
     });
   }, [
