@@ -79,6 +79,16 @@ function nextDml(v: DmlValue): DmlValue {
   return v === "" ? "D" : v === "D" ? "M" : v === "M" ? "L" : "";
 }
 
+export type LayerToggles = {
+  region: boolean;
+  level: boolean;
+  dml: boolean;
+  double: boolean;
+  text: boolean;
+  /** 展示无区域标记的原始线条（关闭则隐藏未分配区域的线条） */
+  rawLines: boolean;
+};
+
 export type UseHighNeedleSvgAnnotatorParams = {
   initialSvg: string;
   initialValue?: 高针图;
@@ -107,6 +117,15 @@ export default function useHighNeedleSvgAnnotator({
   );
   const [allLineIds, setAllLineIds] = useState<string[]>([]);
   const [allTextIds, setAllTextIds] = useState<string[]>([]);
+
+  const [layerToggles, setLayerToggles] = useState<LayerToggles>({
+    region: true,
+    level: true,
+    dml: true,
+    double: true,
+    text: true,
+    rawLines: true,
+  });
 
   const allLineIdSet = useMemo(() => new Set(allLineIds), [allLineIds]);
 
@@ -332,8 +351,6 @@ export default function useHighNeedleSvgAnnotator({
   }, [regionColorByName, value.底图.区域线条]);
 
   const regionLabelItems = useMemo(() => {
-    if (step !== "DML") return [];
-
     const byName = new Map<string, string[]>();
     value.底图.区域线条.forEach((d) => {
       const name = String(d.区域名 ?? "").trim();
@@ -352,7 +369,7 @@ export default function useHighNeedleSvgAnnotator({
       color: regionColorByName.get(name) ?? "#ef4444",
       lineIds: uniquePreserveOrder(lineIds),
     }));
-  }, [regionColorByName, step, value.底图.区域线条]);
+  }, [regionColorByName, value.底图.区域线条]);
 
   const regionNoById = useMemo(() => {
     const map = new Map<string, number>();
@@ -475,15 +492,28 @@ export default function useHighNeedleSvgAnnotator({
     const selectedStroke =
       step === "档位" ? "#f59e0b" : step === "区域" ? "#3b82f6" : "#ef4444";
 
-    return decorateLines(value.底图.svg, {
+    const baseSvg = layerToggles.text
+      ? value.底图.svg
+      : pruneSvgTextNodes(value.底图.svg, []);
+
+    // 「原线条」关闭时：隐藏没有区域归属的线条
+    const assignedLineIds = new Set(
+      value.底图.区域线条.flatMap((d) => d.lineNodeIds),
+    );
+    const hiddenLineIds = !layerToggles.rawLines
+      ? new Set(allLineIds.filter((id) => !assignedLineIds.has(id)))
+      : undefined;
+
+    return decorateLines(baseSvg, {
       touchIds: allLineIds,
       selected: new Set(draftSelected),
-      disabled: disabledForStep,
+      disabled: new Set<string>(),
+      hiddenIds: hiddenLineIds,
       regionNoById,
-      regionStrokeById,
-      levelNoById: step === "DML" ? undefined : levelNoById,
-      dmlById: step === "DML" ? dmlById : undefined,
-      doubleById: step === "单双" ? doubleById : undefined,
+      regionStrokeById: layerToggles.region ? regionStrokeById : undefined,
+      levelNoById: (step === "DML" || !layerToggles.level) ? undefined : levelNoById,
+      dmlById: (step === "DML" && layerToggles.dml) ? dmlById : undefined,
+      doubleById: (step === "单双" && layerToggles.double) ? doubleById : undefined,
       selectedStroke,
     });
   }, [
@@ -492,11 +522,13 @@ export default function useHighNeedleSvgAnnotator({
     dmlById,
     doubleById,
     draftSelected,
+    layerToggles,
     levelNoById,
     regionNoById,
     regionStrokeById,
     step,
     value.底图.svg,
+    value.底图.区域线条,
   ]);
 
   function commitMergedDml(
@@ -1426,6 +1458,10 @@ export default function useHighNeedleSvgAnnotator({
     regionLabelItems,
     disabledForStep,
     stepTips,
+
+    // 图层控制
+    layerToggles,
+    setLayerToggles,
 
     // 事件/操作
     stepToIndex,

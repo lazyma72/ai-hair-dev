@@ -42,6 +42,8 @@ export default function HighNeedleSvgAnnotator(props: Props) {
         regionLabels={state.regionLabelItems}
         toggleSelect={state.toggleSelect}
         handleLineAction={state.handleLineAction}
+        layerToggles={state.layerToggles}
+        setLayerToggles={state.setLayerToggles}
         activeTextNodeId={activeTextNodeId}
         onTextActivate={state.ensureTextNodeKept}
         onTextPositionCommit={state.commitTextNodePosition}

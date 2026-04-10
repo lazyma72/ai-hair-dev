@@ -487,6 +487,8 @@ export function decorateLines(
     touchIds?: string[];
     selected?: Set<string>;
     disabled?: Set<string>;
+    /** 完全隐藏（display:none）的线条集合。 */
+    hiddenIds?: Set<string>;
     /** 区域节点序号（用于渲染 1、2、3…） */
     regionNoById?: Map<string, number>;
     /** 区域线条自定义颜色（DML 阶段用于按区域上色） */
@@ -506,6 +508,7 @@ export function decorateLines(
     touchIds,
     selected,
     disabled,
+    hiddenIds,
     regionNoById,
     regionStrokeById,
     levelNoById,
@@ -513,6 +516,13 @@ export function decorateLines(
     doubleById,
     selectedStroke,
   } = options;
+
+  // 先处理隐藏元素
+  hiddenIds?.forEach((id) => {
+    const el = doc.getElementById(id);
+    if (!el) return;
+    (el as unknown as SVGElement).style.setProperty("display", "none", "important");
+  });
 
   const allIds = new Set<string>();
 
