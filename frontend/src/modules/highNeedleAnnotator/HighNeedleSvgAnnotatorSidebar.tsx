@@ -135,7 +135,7 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
   >;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="h-full min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm font-semibold text-slate-900">

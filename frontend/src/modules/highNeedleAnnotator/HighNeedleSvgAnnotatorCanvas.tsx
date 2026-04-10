@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import InlineSvg from "../../components/InlineSvg";
 import type { DmlValue } from "./types";
 import type { LayerToggles } from "./useHighNeedleSvgAnnotator";
@@ -41,17 +41,43 @@ type Props = {
   renderSvg: string;
   previewValue: unknown;
   canvasEpoch: number;
+  showPreview?: boolean;
 
   visibleMarkerById: Map<
     string,
-    { regionNo?: number; levelNo?: number; dml?: DmlValue; isDouble?: boolean }
+    {
+      regionNo?: number;
+      regionTextNodeId?: string;
+      levelNo?: number;
+      levelTextNodeId?: string;
+      dml?: DmlValue;
+      dmlTextNodeId?: string;
+      isDouble?: boolean;
+      doubleTextNodeId?: string;
+    }
   >;
+  markerTextIdSet: Set<string>;
+  draggableMarkerTextIdSet: Set<string>;
 
   regionLabels?: Array<{ name: string; color: string; lineIds: string[] }>;
 
   // 交互
-  toggleSelect: (id: string, options?: { silent?: boolean }) => void;
-  handleLineAction: (id: string) => void;
+  toggleSelect: (
+    id: string,
+    options?: { silent?: boolean; markerPos?: { x: number; y: number } },
+  ) => void;
+  handleLineAction: (
+    id: string,
+    options?: { markerPos?: { x: number; y: number } },
+  ) => void;
+  ensureLevelMarkerTextNode: (
+    lineNodeId: string,
+    pos: { x: number; y: number },
+  ) => void;
+  ensureDmlMarkerTextNode: (
+    lineNodeId: string,
+    pos: { x: number; y: number },
+  ) => void;
 
   // 图层
   layerToggles: LayerToggles;
@@ -201,6 +227,35 @@ function segmentsIntersect(
   return t >= -1e-6 && t <= 1 + 1e-6 && u >= -1e-6 && u <= 1 + 1e-6;
 }
 
+function getSegmentIntersectionPoint(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+  dx: number,
+  dy: number,
+): { x: number; y: number } | null {
+  const d1x = bx - ax;
+  const d1y = by - ay;
+  const d2x = dx - cx;
+  const d2y = dy - cy;
+  const denom = d1x * d2y - d1y * d2x;
+  if (Math.abs(denom) < 1e-10) return null;
+
+  const ex = cx - ax;
+  const ey = cy - ay;
+  const t = (ex * d2y - ey * d2x) / denom;
+  const u = (ex * d1y - ey * d1x) / denom;
+  if (t < -1e-6 || t > 1 + 1e-6 || u < -1e-6 || u > 1 + 1e-6) return null;
+
+  return {
+    x: ax + d1x * t,
+    y: ay + d1y * t,
+  };
+}
+
 /**
  * 每根线段的几何缓存：一组折线段坐标（SVG root 用户空间），
  * 格式 [x1, y1, x2, y2]。
@@ -225,6 +280,49 @@ function clientToSvgPoint(
   return { x: result.x, y: result.y };
 }
 
+function scaleSvgViewport(svg: string, scale: number): string {
+  if (!svg || Math.abs(scale - 1) < 1e-6) return svg;
+
+  try {
+    const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+    const root = doc.documentElement;
+    if (root.tagName.toLowerCase() !== "svg") return svg;
+
+    const viewBox = (root.getAttribute("viewBox") ?? "").trim();
+    const viewBoxParts = viewBox
+      .split(/[ ,]+/)
+      .map((part) => Number(part))
+      .filter((part) => Number.isFinite(part));
+    const fallbackWidth = viewBoxParts.length === 4 ? viewBoxParts[2] : null;
+    const fallbackHeight = viewBoxParts.length === 4 ? viewBoxParts[3] : null;
+
+    const scaleAttr = (attr: "width" | "height", fallback: number | null) => {
+      const raw = (root.getAttribute(attr) ?? "").trim();
+      const match = raw.match(/^(-?\d*\.?\d+)([a-zA-Z%]*)$/);
+
+      if (match) {
+        const value = Number(match[1]);
+        const unit = match[2] ?? "";
+        if (Number.isFinite(value) && unit !== "%") {
+          root.setAttribute(attr, `${value * scale}${unit}`);
+          return;
+        }
+      }
+
+      if (fallback && fallback > 0) {
+        root.setAttribute(attr, String(fallback * scale));
+      }
+    };
+
+    scaleAttr("width", fallbackWidth);
+    scaleAttr("height", fallbackHeight);
+
+    return new XMLSerializer().serializeToString(doc);
+  } catch {
+    return svg;
+  }
+}
+
 export default function HighNeedleSvgAnnotatorCanvas({
   step,
   lineSelector,
@@ -233,34 +331,70 @@ export default function HighNeedleSvgAnnotatorCanvas({
   renderSvg,
   previewValue,
   canvasEpoch,
+  showPreview,
   visibleMarkerById,
+  markerTextIdSet,
+  draggableMarkerTextIdSet,
   regionLabels,
   toggleSelect,
   handleLineAction,
+  ensureLevelMarkerTextNode,
+  ensureDmlMarkerTextNode,
   layerToggles,
   setLayerToggles,
   activeTextNodeId,
   onTextActivate,
   onTextPositionCommit,
 }: Props) {
+  const [svgScale, setSvgScale] = useState(1);
+  const scaledRenderSvg = useMemo(
+    () => scaleSvgViewport(renderSvg, svgScale),
+    [renderSvg, svgScale],
+  );
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const zoomAnchorRef = useRef<{
+    contentX: number;
+    contentY: number;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+
   // 根据图层开关过滤标记
   const filteredMarkerById = useMemo(() => {
     const out = new Map<
       string,
       {
         regionNo?: number;
+        regionTextNodeId?: string;
         levelNo?: number;
+        levelTextNodeId?: string;
         dml?: DmlValue;
+        dmlTextNodeId?: string;
         isDouble?: boolean;
+        doubleTextNodeId?: string;
       }
     >();
     visibleMarkerById.forEach((marks, id) => {
       const filtered: typeof marks = {};
-      // 区域只用颜色区分，不展示编号 badge
-      if (layerToggles.level && typeof marks.levelNo === "number")
+      if (
+        layerToggles.region &&
+        typeof marks.regionNo === "number" &&
+        !marks.regionTextNodeId
+      ) {
+        filtered.regionNo = marks.regionNo;
+      }
+      if (
+        layerToggles.level &&
+        typeof marks.levelNo === "number" &&
+        !marks.levelTextNodeId
+      )
         filtered.levelNo = marks.levelNo;
-      if (layerToggles.dml && marks.dml) filtered.dml = marks.dml;
-      if (layerToggles.double && marks.isDouble) filtered.isDouble = true;
+      if (layerToggles.dml && marks.dml && !marks.dmlTextNodeId) {
+        filtered.dml = marks.dml;
+      }
+      if (layerToggles.double && marks.isDouble && !marks.doubleTextNodeId) {
+        filtered.isDouble = true;
+      }
       if (Object.keys(filtered).length > 0) out.set(id, filtered);
     });
     return out;
@@ -278,6 +412,8 @@ export default function HighNeedleSvgAnnotatorCanvas({
   const brushCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const dragRef = useRef<DragState | null>(null);
+  const pendingAutoLevelTextNodeIdsRef = useRef<Set<string>>(new Set());
+  const pendingAutoDmlTextNodeIdsRef = useRef<Set<string>>(new Set());
 
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const [anchorById, setAnchorById] = useState<
@@ -305,6 +441,19 @@ export default function HighNeedleSvgAnnotatorCanvas({
       canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
     }
   }, []);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const anchor = zoomAnchorRef.current;
+    if (!viewport || !anchor) return;
+
+    const rect = viewport.getBoundingClientRect();
+    viewport.scrollLeft =
+      anchor.contentX * svgScale - (anchor.clientX - rect.left);
+    viewport.scrollTop =
+      anchor.contentY * svgScale - (anchor.clientY - rect.top);
+    zoomAnchorRef.current = null;
+  }, [svgScale]);
 
   /**
    * 在 DOM 更新（renderSvg 变化）后，把所有线条元素的几何数据采样到
@@ -355,7 +504,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
     });
 
     return () => cancelAnimationFrame(raf);
-  }, [renderSvg, allLineIdSet]);
+  }, [scaledRenderSvg, allLineIdSet]);
 
   /** 保证 canvas 尺寸始终与内层包裹 div 一致（device-pixel-ratio 无关）。 */
   useEffect(() => {
@@ -521,7 +670,67 @@ export default function HighNeedleSvgAnnotatorCanvas({
     });
 
     return () => window.cancelAnimationFrame(raf);
-  }, [renderSvg, visibleMarkerById]);
+  }, [scaledRenderSvg, visibleMarkerById]);
+
+  useEffect(() => {
+    visibleMarkerById.forEach((marks, id) => {
+      if (typeof marks.levelNo === "number" && marks.levelTextNodeId) {
+        pendingAutoLevelTextNodeIdsRef.current.delete(id);
+      }
+      if (!marks.dml || !marks.dmlTextNodeId) return;
+      pendingAutoDmlTextNodeIdsRef.current.delete(id);
+    });
+  }, [visibleMarkerById]);
+
+  useEffect(() => {
+    const wrap = canvasWrapRef.current;
+    const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+    if (!wrap || !svgRoot) return;
+
+    const wrapRect = wrap.getBoundingClientRect();
+    visibleMarkerById.forEach((marks, id) => {
+      if (typeof marks.levelNo !== "number" || marks.levelTextNodeId) return;
+      if (pendingAutoLevelTextNodeIdsRef.current.has(id)) return;
+
+      const anchor = anchorById.get(id);
+      if (!anchor) return;
+
+      const pos = clientToSvgPoint(
+        svgRoot,
+        wrapRect.left + anchor.x,
+        wrapRect.top + anchor.y,
+      );
+      if (!pos) return;
+
+      pendingAutoLevelTextNodeIdsRef.current.add(id);
+      ensureLevelMarkerTextNode(id, pos);
+    });
+  }, [anchorById, ensureLevelMarkerTextNode, visibleMarkerById]);
+
+  useEffect(() => {
+    const wrap = canvasWrapRef.current;
+    const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+    if (!wrap || !svgRoot) return;
+
+    const wrapRect = wrap.getBoundingClientRect();
+    visibleMarkerById.forEach((marks, id) => {
+      if (!marks.dml || marks.dmlTextNodeId) return;
+      if (pendingAutoDmlTextNodeIdsRef.current.has(id)) return;
+
+      const anchor = anchorById.get(id);
+      if (!anchor) return;
+
+      const pos = clientToSvgPoint(
+        svgRoot,
+        wrapRect.left + anchor.x,
+        wrapRect.top + anchor.y,
+      );
+      if (!pos) return;
+
+      pendingAutoDmlTextNodeIdsRef.current.add(id);
+      ensureDmlMarkerTextNode(id, pos);
+    });
+  }, [anchorById, ensureDmlMarkerTextNode, visibleMarkerById]);
 
   useEffect(() => {
     const wrap = canvasWrapRef.current;
@@ -560,7 +769,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
     });
 
     return () => window.cancelAnimationFrame(raf);
-  }, [renderSvg, regionLabels, layerToggles.region]);
+  }, [scaledRenderSvg, regionLabels, layerToggles.region]);
 
   useEffect(() => {
     const wrap = canvasWrapRef.current;
@@ -590,7 +799,33 @@ export default function HighNeedleSvgAnnotatorCanvas({
     });
 
     return () => window.cancelAnimationFrame(raf);
-  }, [activeTextNodeId, renderSvg, step]);
+  }, [activeTextNodeId, scaledRenderSvg, step]);
+
+  useEffect(() => {
+    const wrap = canvasWrapRef.current;
+    if (!wrap) return;
+
+    const textEls = Array.from(wrap.querySelectorAll<SVGTextElement>("text"));
+    textEls.forEach((el) => {
+      const id = (el.getAttribute("id") ?? "").trim();
+      if (!id) return;
+
+      const canDrag =
+        draggableMarkerTextIdSet.has(id) ||
+        (step === "自定义文本" && !markerTextIdSet.has(id));
+
+      el.style.setProperty(
+        "pointer-events",
+        canDrag ? "auto" : "none",
+        "important",
+      );
+      if (canDrag) {
+        el.style.setProperty("cursor", "move", "important");
+      } else {
+        el.style.removeProperty("cursor");
+      }
+    });
+  }, [draggableMarkerTextIdSet, markerTextIdSet, scaledRenderSvg, step]);
 
   function getLineIdFromPoint(clientX: number, clientY: number): string {
     const elements = document.elementsFromPoint(clientX, clientY);
@@ -626,7 +861,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
     const unnumbered: Array<{ id: string }> = [];
 
     filteredMarkerById.forEach((marks, id) => {
-      const no = marks.levelNo;
+      const no = marks.regionNo ?? marks.levelNo;
       if (typeof no === "number") {
         numbered.push({ id, no });
       } else {
@@ -663,13 +898,10 @@ export default function HighNeedleSvgAnnotatorCanvas({
     return m;
   }, [anchorById, filteredMarkerById]);
 
-  const wrapExtraClass =
-    step === "自定义文本"
-      ? "[&_text]:cursor-move [&_text]:pointer-events-auto"
-      : "";
+  const wrapExtraClass = "";
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm font-semibold text-slate-900">SVG 画布</div>
         <div className="flex flex-wrap items-center gap-3">
@@ -701,24 +933,93 @@ export default function HighNeedleSvgAnnotatorCanvas({
               {label}
             </label>
           ))}
-          <span className="text-xs text-slate-400">拖拽批量勾选</span>
+          <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">
+            <button
+              type="button"
+              className="rounded px-1 font-semibold text-slate-700 hover:bg-slate-200"
+              onClick={() => {
+                zoomAnchorRef.current = null;
+                setSvgScale((prev) => Math.max(1, prev - 0.25));
+              }}
+            >
+              -
+            </button>
+            <span className="min-w-11 text-center font-semibold">
+              {Math.round(svgScale * 100)}%
+            </span>
+            <button
+              type="button"
+              className="rounded px-1 font-semibold text-slate-700 hover:bg-slate-200"
+              onClick={() => {
+                zoomAnchorRef.current = null;
+                setSvgScale((prev) => Math.min(3, prev + 0.25));
+              }}
+            >
+              +
+            </button>
+          </div>
+          <span className="text-xs text-slate-400">
+            拖拽批量勾选 / Ctrl+滚轮缩放
+          </span>
         </div>
       </div>
 
       <div
-        className={`mt-3 select-none overflow-x-auto rounded-xl border border-slate-100 bg-white p-3 ${wrapExtraClass}`}
+        ref={viewportRef}
+        className={`mt-3 min-h-0 flex-1 select-none overflow-auto rounded-xl border border-slate-100 bg-white p-3 ${wrapExtraClass}`}
+        onWheel={(e) => {
+          if (!e.ctrlKey) return;
+          const viewport = viewportRef.current;
+          if (!viewport) return;
+
+          e.preventDefault();
+
+          const rect = viewport.getBoundingClientRect();
+          const contentX =
+            (e.clientX - rect.left + viewport.scrollLeft) /
+            Math.max(svgScale, 0.01);
+          const contentY =
+            (e.clientY - rect.top + viewport.scrollTop) /
+            Math.max(svgScale, 0.01);
+          const zoomFactor = Math.exp(-e.deltaY * 0.0015);
+
+          zoomAnchorRef.current = {
+            contentX,
+            contentY,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          };
+          setSvgScale((prev) => {
+            const next = Math.min(3, Math.max(1, prev * zoomFactor));
+            if (Math.abs(next - prev) < 1e-6) {
+              zoomAnchorRef.current = null;
+            }
+            return next;
+          });
+        }}
         onMouseDown={(e) => {
           if (e.button !== 0) return;
           e.preventDefault();
 
-          if (step === "自定义文本") {
-            const id = getTextIdFromPoint(e.clientX, e.clientY);
+          const wrap = canvasWrapRef.current;
+          const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+          const textId = getTextIdFromPoint(e.clientX, e.clientY);
+          const isMarkerText = textId ? markerTextIdSet.has(textId) : false;
+          const isDraggableMarkerText = textId
+            ? draggableMarkerTextIdSet.has(textId)
+            : false;
+
+          if (
+            textId &&
+            (isDraggableMarkerText || (step === "自定义文本" && !isMarkerText))
+          ) {
+            const id = textId;
             if (!id) return;
 
-            onTextActivate(id);
+            if (step === "自定义文本" && !isMarkerText) {
+              onTextActivate(id);
+            }
 
-            const wrap = canvasWrapRef.current;
-            const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
             const textEl = wrap?.querySelector<SVGTextElement>(
               `#${cssEscapeId(id)}`,
             );
@@ -727,7 +1028,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
             const anchorResult = getAnchorInParentSpace(textEl, svgRoot);
             if (!anchorResult) return;
 
-            dragRef.current = {
+            const nextDragState: DragState = {
               textNodeId: id,
               textEl,
               svgRoot,
@@ -739,11 +1040,14 @@ export default function HighNeedleSvgAnnotatorCanvas({
               originalTransform: textEl.getAttribute("transform"),
             };
 
+            dragRef.current = nextDragState;
+
             return;
           }
 
           // 区域/档位阶段支持“刷选”；DML/单双阶段仅允许点击写入
-          if (step === "DML" || step === "单双") return;
+          if (step === "DML" || step === "单双" || step === "自定义文本")
+            return;
 
           brushRef.current = true;
           brushVisitedRef.current = new Set();
@@ -753,7 +1057,14 @@ export default function HighNeedleSvgAnnotatorCanvas({
           const id = getLineIdFromPoint(e.clientX, e.clientY);
           if (id) {
             brushVisitedRef.current.add(id);
-            toggleSelect(id, { silent: true });
+            toggleSelect(id, {
+              silent: true,
+              markerPos:
+                step === "档位" && svgRoot
+                  ? (clientToSvgPoint(svgRoot, e.clientX, e.clientY) ??
+                    undefined)
+                  : undefined,
+            });
           }
         }}
         onMouseUp={resetBrushState}
@@ -792,11 +1103,30 @@ export default function HighNeedleSvgAnnotatorCanvas({
           for (const [id, segs] of geomCacheRef.current) {
             if (brushVisitedRef.current.has(id)) continue;
             for (const [ax, ay, bx, by] of segs) {
-              if (
-                segmentsIntersect(prev.x, prev.y, cur.x, cur.y, ax, ay, bx, by)
-              ) {
+              const intersection = getSegmentIntersectionPoint(
+                prev.x,
+                prev.y,
+                cur.x,
+                cur.y,
+                ax,
+                ay,
+                bx,
+                by,
+              );
+              if (intersection) {
                 brushVisitedRef.current.add(id);
-                toggleSelect(id, { silent: true });
+                const svgRoot = wrap2?.querySelector<SVGSVGElement>("svg");
+                toggleSelect(id, {
+                  silent: true,
+                  markerPos:
+                    step === "档位" && svgRoot
+                      ? (clientToSvgPoint(
+                          svgRoot,
+                          intersection.x,
+                          intersection.y,
+                        ) ?? undefined)
+                      : undefined,
+                });
                 break;
               }
             }
@@ -804,15 +1134,39 @@ export default function HighNeedleSvgAnnotatorCanvas({
         }}
         onClick={(e) => {
           // DML/单双阶段：点击即写入
-          if (step !== "DML" && step !== "单双") return;
+          if (step !== "单双") return;
           const id = getLineIdFromPoint(e.clientX, e.clientY);
-          if (id) handleLineAction(id);
+          const wrap = canvasWrapRef.current;
+          const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+          if (id) {
+            handleLineAction(id, {
+              markerPos: svgRoot
+                ? (clientToSvgPoint(svgRoot, e.clientX, e.clientY) ?? undefined)
+                : undefined,
+            });
+          }
+        }}
+        onContextMenu={(e) => {
+          if (step !== "DML") return;
+
+          const id = getLineIdFromPoint(e.clientX, e.clientY);
+          if (!id) return;
+
+          e.preventDefault();
+
+          const wrap = canvasWrapRef.current;
+          const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+          handleLineAction(id, {
+            markerPos: svgRoot
+              ? (clientToSvgPoint(svgRoot, e.clientX, e.clientY) ?? undefined)
+              : undefined,
+          });
         }}
       >
         <div ref={canvasWrapRef} className="relative inline-block">
           <InlineSvg
-            key={canvasEpoch}
-            svg={renderSvg}
+            key={`${canvasEpoch}_${svgScale}`}
+            svg={scaledRenderSvg}
             className="max-w-full"
             height="auto"
           />
@@ -871,6 +1225,11 @@ export default function HighNeedleSvgAnnotatorCanvas({
                   style={{ left: pos.x + stagger.dx, top: pos.y + stagger.dy }}
                 >
                   <div className="flex flex-col items-center gap-1">
+                    {typeof marks.regionNo === "number" ? (
+                      <div className="flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-semibold leading-none text-white shadow">
+                        {marks.regionNo}
+                      </div>
+                    ) : null}
                     {typeof marks.levelNo === "number" ? (
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[11px] font-semibold text-white shadow">
                         {marks.levelNo}
@@ -894,14 +1253,16 @@ export default function HighNeedleSvgAnnotatorCanvas({
         </div>
       </div>
 
-      <div className="mt-4">
-        <div className="mb-1 text-xs font-medium text-slate-600">
-          结构化数据预览
+      {showPreview !== false ? (
+        <div className="mt-4 min-h-0 shrink-0">
+          <div className="mb-1 text-xs font-medium text-slate-600">
+            结构化数据预览
+          </div>
+          <pre className="max-h-[220px] overflow-auto rounded-xl bg-slate-950 p-3 text-[11px] text-slate-100">
+            {JSON.stringify(previewValue, null, 2)}
+          </pre>
         </div>
-        <pre className="max-h-[280px] overflow-auto rounded-xl bg-slate-950 p-3 text-[11px] text-slate-100">
-          {JSON.stringify(previewValue, null, 2)}
-        </pre>
-      </div>
+      ) : null}
     </div>
   );
 }

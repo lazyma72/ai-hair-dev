@@ -3,9 +3,15 @@ import { message } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import InlineSvg from "../../components/InlineSvg";
 import PageShell from "../../components/PageShell";
-import { makeDmlMap, makeDoubleSet } from "../../modules/highNeedleAnnotator/helpers";
+import {
+  makeDmlMap,
+  makeDoubleSet,
+} from "../../modules/highNeedleAnnotator/helpers";
 import type { 高针图 } from "../../modules/highNeedleAnnotator/types";
-import { pruneSvgTextNodes } from "../../modules/highNeedleAnnotator/svgUtils";
+import {
+  collectSvgTextNodes,
+  pruneSvgTextNodes,
+} from "../../modules/highNeedleAnnotator/svgUtils";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -29,13 +35,23 @@ function normalize高针图(raw: any): 高针图 {
       svg: raw?.底图?.svg ?? "",
       区域名: raw?.底图?.区域名 ?? [],
       区域线条: raw?.底图?.区域线条 ?? [],
-      档位标注: raw?.底图?.档位标注 ?? [],
+      档位标注: (raw?.底图?.档位标注 ?? []).map((item: any) => ({
+        ...item,
+        lineNodeIds: item?.lineNodeIds ?? [],
+        textNodeIds: item?.textNodeIds ?? [],
+      })),
       文本节点: raw?.底图?.文本节点 ?? {},
     },
     自定义数据: {
       ...raw?.自定义数据,
-      DML标注: raw?.自定义数据?.DML标注 ?? [],
-      单双标注: raw?.自定义数据?.单双标注 ?? [],
+      DML标注: (raw?.自定义数据?.DML标注 ?? []).map((item: any) => ({
+        ...item,
+        textNodeId: item?.textNodeId ?? "",
+      })),
+      单双标注: (raw?.自定义数据?.单双标注 ?? []).map((item: any) => ({
+        ...item,
+        textNodeId: item?.textNodeId ?? "",
+      })),
     },
   } as 高针图;
 }
@@ -46,6 +62,30 @@ type PreviewToggles = {
   double: boolean;
   text: boolean;
 };
+
+function parseLevelNo(levelLabel: string, fallbackNo: number): number {
+  const match = String(levelLabel ?? "")
+    .trim()
+    .match(/\d+/);
+  if (!match) return fallbackNo;
+
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackNo;
+}
+
+function getLevelMarkerText(levelNo: number): string {
+  return String(levelNo);
+}
+
+function isManagedMarkerTextId(textNodeId: string): boolean {
+  const id = String(textNodeId ?? "").trim();
+  return (
+    id.startsWith("region_text_") ||
+    id.startsWith("level_text_") ||
+    id.startsWith("dml_text_") ||
+    id.startsWith("double_text_")
+  );
+}
 
 function cssEscapeId(id: string): string {
   if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
@@ -114,11 +154,18 @@ function transformToSvgRootPoint(
   return { x: out.x, y: out.y };
 }
 
-function getPointAtRatio(svgRoot: SVGSVGElement, el: Element, ratio: number): { x: number; y: number } | null {
+function getPointAtRatio(
+  svgRoot: SVGSVGElement,
+  el: Element,
+  ratio: number,
+): { x: number; y: number } | null {
   // SVGGeometryElement: line/path/polyline/polygon 支持 getTotalLength/getPointAtLength
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const geo: any = el as any;
-  if (typeof geo.getTotalLength === "function" && typeof geo.getPointAtLength === "function") {
+  if (
+    typeof geo.getTotalLength === "function" &&
+    typeof geo.getPointAtLength === "function"
+  ) {
     try {
       const len = geo.getTotalLength();
       if (!Number.isFinite(len) || len <= 0) return null;
@@ -154,61 +201,58 @@ type PreviewLabelItem = {
   fill: string;
 };
 
-function buildPreviewLabels(data: 高针图, toggles: PreviewToggles): PreviewLabelItem[] {
+function buildPreviewLabels(
+  data: 高针图,
+  toggles: PreviewToggles,
+  existingSvgTextIdSet: ReadonlySet<string>,
+): PreviewLabelItem[] {
   const dmlById = makeDmlMap(data.自定义数据.DML标注);
   const doubleSet = makeDoubleSet(data.自定义数据.单双标注);
 
-  const levelNoById = new Map<string, number>();
-  data.底图.档位标注.forEach((d, idx) => {
-    d.lineNodeIds.forEach((id) => levelNoById.set(id, idx + 1));
-  });
-
-  const lineIds = Array.from(
-    new Set([
-      ...Array.from(levelNoById.keys()),
-      ...Array.from(dmlById.keys()),
-      ...Array.from(doubleSet.values()),
-    ]),
-  );
-
   const out: PreviewLabelItem[] = [];
 
-  lineIds.forEach((id) => {
-    if (toggles.level) {
-      const levelNo = levelNoById.get(id);
-      if (typeof levelNo === "number") {
-        out.push({
-          lineId: id,
-          text: `${levelNo}`,
-          ratio: 0.2,
-          fill: "#0f172a",
-        });
-      }
-    }
+  data.底图.档位标注.forEach((item, index) => {
+    if (!toggles.level) return;
+    const levelText = getLevelMarkerText(
+      parseLevelNo(String(item.区域名 ?? ""), index + 1),
+    );
+    item.lineNodeIds.forEach((lineId, lineIndex) => {
+      const textNodeId = String(item.textNodeIds[lineIndex] ?? "").trim();
+      if (textNodeId && existingSvgTextIdSet.has(textNodeId)) return;
+      out.push({
+        lineId,
+        text: levelText,
+        ratio: 0.2,
+        fill: "#0f172a",
+      });
+    });
+  });
 
-    if (toggles.dml) {
-      const v = (dmlById.get(id) ?? "").trim();
-      if (v) {
-        out.push({
-          lineId: id,
-          text: v,
-          ratio: 0.5,
-          fill: "#f59e0b",
-        });
-      }
-    }
+  data.自定义数据.DML标注.forEach((item) => {
+    if (!toggles.dml) return;
+    const textNodeId = String(item.textNodeId ?? "").trim();
+    if (textNodeId && existingSvgTextIdSet.has(textNodeId)) return;
+    const v = (dmlById.get(item.lineNodeId) ?? "").trim();
+    if (!v) return;
+    out.push({
+      lineId: item.lineNodeId,
+      text: v,
+      ratio: 0.5,
+      fill: "#f59e0b",
+    });
+  });
 
-    if (toggles.double) {
-      // 双数标注里只有 true 的记录；预览时仅展示「双」
-      if (doubleSet.has(id)) {
-        out.push({
-          lineId: id,
-          text: "双",
-          ratio: 0.7,
-          fill: "#10b981",
-        });
-      }
-    }
+  data.自定义数据.单双标注.forEach((item) => {
+    if (!toggles.double) return;
+    const textNodeId = String(item.textNodeId ?? "").trim();
+    if (textNodeId && existingSvgTextIdSet.has(textNodeId)) return;
+    if (!doubleSet.has(item.lineNodeId)) return;
+    out.push({
+      lineId: item.lineNodeId,
+      text: "双",
+      ratio: 0.7,
+      fill: "#10b981",
+    });
   });
 
   return out;
@@ -246,15 +290,63 @@ export default function HighNeedlePreviewPage() {
 
   const previewSvg = useMemo(() => {
     if (!loaded?.底图?.svg) return "";
-    if (!toggles.text) {
-      return pruneSvgTextNodes(loaded.底图.svg, []);
+    const allTextIds = collectSvgTextNodes(loaded.底图.svg).map(
+      (item) => item.id,
+    );
+    const existingSvgTextIdSet = new Set(allTextIds);
+    const levelTextIds = loaded.底图.档位标注.flatMap((item) =>
+      (item.textNodeIds ?? []).filter((textNodeId) =>
+        existingSvgTextIdSet.has(String(textNodeId ?? "").trim()),
+      ),
+    );
+    const dmlTextIds = loaded.自定义数据.DML标注.map((item) =>
+      String(item.textNodeId ?? "").trim(),
+    ).filter((textNodeId) => existingSvgTextIdSet.has(textNodeId));
+    const doubleTextIds = loaded.自定义数据.单双标注.map((item) =>
+      String(item.textNodeId ?? "").trim(),
+    );
+    const markerTextIds = new Set(
+      [...levelTextIds, ...dmlTextIds, ...doubleTextIds]
+        .map((id) => String(id ?? "").trim())
+        .filter(Boolean),
+    );
+
+    const visibleTextIds = new Set<string>();
+    if (toggles.text) {
+      allTextIds.forEach((id) => {
+        if (!markerTextIds.has(id) && !isManagedMarkerTextId(id)) {
+          visibleTextIds.add(id);
+        }
+      });
     }
-    return loaded.底图.svg;
-  }, [loaded, toggles.text]);
+    if (toggles.level) {
+      levelTextIds.forEach((id) => {
+        const nextId = String(id ?? "").trim();
+        if (nextId) visibleTextIds.add(nextId);
+      });
+    }
+    if (toggles.dml) {
+      dmlTextIds.forEach((id) => {
+        const nextId = String(id ?? "").trim();
+        if (nextId) visibleTextIds.add(nextId);
+      });
+    }
+    if (toggles.double) {
+      doubleTextIds.forEach((id) => {
+        const nextId = String(id ?? "").trim();
+        if (nextId) visibleTextIds.add(nextId);
+      });
+    }
+
+    return pruneSvgTextNodes(loaded.底图.svg, Array.from(visibleTextIds));
+  }, [loaded, toggles]);
 
   const previewLabels = useMemo(() => {
     if (!loaded) return [];
-    return buildPreviewLabels(loaded, toggles);
+    const existingSvgTextIdSet = new Set(
+      collectSvgTextNodes(loaded.底图.svg).map((item) => item.id),
+    );
+    return buildPreviewLabels(loaded, toggles, existingSvgTextIdSet);
   }, [loaded, toggles]);
 
   const svgWrapRef = useRef<HTMLDivElement | null>(null);
@@ -282,7 +374,9 @@ export default function HighNeedlePreviewPage() {
     previewLabels.forEach((item) => {
       if (!item.text) return;
 
-      const lineEl = svgRoot.querySelector<SVGGraphicsElement>(`#${cssEscapeId(item.lineId)}`);
+      const lineEl = svgRoot.querySelector<SVGGraphicsElement>(
+        `#${cssEscapeId(item.lineId)}`,
+      );
       if (!lineEl) return;
 
       const pt = getPointAtRatio(svgRoot, lineEl, item.ratio);
@@ -306,10 +400,16 @@ export default function HighNeedlePreviewPage() {
   }, [previewSvg, previewLabels]);
 
   return (
-    <PageShell title="高针预览" onBack={() => window.history.back()} actions={header}>
+    <PageShell
+      title="高针预览"
+      onBack={() => window.history.back()}
+      actions={header}
+    >
       <div className="space-y-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-2 text-sm font-semibold text-slate-900">导入 / 导出 JSON</div>
+          <div className="mb-2 text-sm font-semibold text-slate-900">
+            导入 / 导出 JSON
+          </div>
           <textarea
             rows={8}
             className="w-full rounded border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-slate-300"
@@ -345,7 +445,9 @@ export default function HighNeedlePreviewPage() {
               disabled={!minimalJson}
               onClick={() => {
                 if (!minimalJson) return;
-                void navigator.clipboard.writeText(JSON.stringify(minimalJson, null, 2));
+                void navigator.clipboard.writeText(
+                  JSON.stringify(minimalJson, null, 2),
+                );
                 message.success("已复制最小 JSON");
               }}
             >
@@ -378,7 +480,8 @@ export default function HighNeedlePreviewPage() {
           </div>
 
           <div className="mt-2 text-[11px] text-slate-500">
-            说明：该页面仅做预览，不包含标注流程。档位/DML/单双会按 20%/50%/70% 的规律写到线条上。
+            说明：该页面仅做预览，不包含标注流程。优先使用已保存的标记文本节点；缺失时才按
+            20%/50%/70% 位置回退展示。
           </div>
         </div>
 
@@ -390,7 +493,9 @@ export default function HighNeedlePreviewPage() {
                 <input
                   type="checkbox"
                   checked={toggles.level}
-                  onChange={(e) => setToggles((v) => ({ ...v, level: e.target.checked }))}
+                  onChange={(e) =>
+                    setToggles((v) => ({ ...v, level: e.target.checked }))
+                  }
                 />
                 档位
               </label>
@@ -398,7 +503,9 @@ export default function HighNeedlePreviewPage() {
                 <input
                   type="checkbox"
                   checked={toggles.double}
-                  onChange={(e) => setToggles((v) => ({ ...v, double: e.target.checked }))}
+                  onChange={(e) =>
+                    setToggles((v) => ({ ...v, double: e.target.checked }))
+                  }
                 />
                 单双
               </label>
@@ -406,7 +513,9 @@ export default function HighNeedlePreviewPage() {
                 <input
                   type="checkbox"
                   checked={toggles.dml}
-                  onChange={(e) => setToggles((v) => ({ ...v, dml: e.target.checked }))}
+                  onChange={(e) =>
+                    setToggles((v) => ({ ...v, dml: e.target.checked }))
+                  }
                 />
                 DML
               </label>
@@ -414,7 +523,9 @@ export default function HighNeedlePreviewPage() {
                 <input
                   type="checkbox"
                   checked={toggles.text}
-                  onChange={(e) => setToggles((v) => ({ ...v, text: e.target.checked }))}
+                  onChange={(e) =>
+                    setToggles((v) => ({ ...v, text: e.target.checked }))
+                  }
                 />
                 文本
               </label>
@@ -424,7 +535,11 @@ export default function HighNeedlePreviewPage() {
           {loaded ? (
             <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white p-3">
               <div ref={svgWrapRef} className="inline-block">
-                <InlineSvg svg={previewSvg} className="max-w-full" height="auto" />
+                <InlineSvg
+                  svg={previewSvg}
+                  className="max-w-full"
+                  height="auto"
+                />
               </div>
             </div>
           ) : (

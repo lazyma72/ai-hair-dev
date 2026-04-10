@@ -22,9 +22,20 @@ type Props = {
   onBack?: () => void;
   actions?: React.ReactNode;
   children: React.ReactNode;
+  fullWidth?: boolean;
 };
 
-export default function PageShell({ title, onBack, actions, children }: Props) {
+export default function PageShell({
+  title,
+  onBack,
+  actions,
+  children,
+  fullWidth,
+}: Props) {
+  const containerClass = fullWidth
+    ? "w-full space-y-5 p-4 sm:p-6"
+    : "mx-auto max-w-7xl space-y-5 p-4 sm:p-6";
+
   return (
     <div className="min-h-screen bg-slate-50">
       <nav className="border-b border-slate-200 bg-white">
@@ -47,7 +58,7 @@ export default function PageShell({ title, onBack, actions, children }: Props) {
           ))}
         </div>
       </nav>
-      <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6">
+      <div className={containerClass}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {onBack ? (

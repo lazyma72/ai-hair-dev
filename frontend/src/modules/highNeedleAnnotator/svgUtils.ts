@@ -235,6 +235,8 @@ export function getSvgTextNodeFontStyle(
   const fill = readAttr("fill");
   const fontWeight = readAttr("font-weight");
   const fontSizeRaw = readAttr("font-size");
+  const textAnchor = readAttr("text-anchor");
+  const dominantBaseline = readAttr("dominant-baseline");
 
   const result: Record<string, unknown> = {};
   if (fill) result.fill = fill;
@@ -243,6 +245,8 @@ export function getSvgTextNodeFontStyle(
     const parsed = Number.parseFloat(fontSizeRaw);
     result.fontSize = Number.isFinite(parsed) ? parsed : fontSizeRaw;
   }
+  if (textAnchor) result.textAnchor = textAnchor;
+  if (dominantBaseline) result.dominantBaseline = dominantBaseline;
 
   return result;
 }
@@ -346,10 +350,14 @@ export function setSvgTextNodeStyle(
     setOrRemoveStyle("fill", fontStyle.fill);
     setOrRemoveStyle("font-size", fontStyle.fontSize);
     setOrRemoveStyle("font-weight", fontStyle.fontWeight);
+    setOrRemoveStyle("text-anchor", fontStyle.textAnchor);
+    setOrRemoveStyle("dominant-baseline", fontStyle.dominantBaseline);
 
     setOrRemoveAttr("fill", fontStyle.fill);
     setOrRemoveAttr("font-size", fontStyle.fontSize);
     setOrRemoveAttr("font-weight", fontStyle.fontWeight);
+    setOrRemoveAttr("text-anchor", fontStyle.textAnchor);
+    setOrRemoveAttr("dominant-baseline", fontStyle.dominantBaseline);
 
     return serializeSvg(doc);
   } catch {
@@ -587,7 +595,7 @@ export function decorateLines(
 
     let nextWidth = baseWidth;
     if (isSelected) {
-      nextWidth = Math.max(baseWidth, 2.5);
+      nextWidth = Math.max(baseWidth, 2);
     } else if (
       regionStroke ||
       typeof regionNo === "number" ||
@@ -614,7 +622,7 @@ export function decorateLines(
     if (isSelected && nextStroke) {
       style.setProperty(
         "filter",
-        `drop-shadow(0 0 6px ${nextStroke}) drop-shadow(0 0 3px ${nextStroke})`,
+        `drop-shadow(0 0 4px ${nextStroke}) drop-shadow(0 0 2px ${nextStroke})`,
         "important",
       );
     } else {
