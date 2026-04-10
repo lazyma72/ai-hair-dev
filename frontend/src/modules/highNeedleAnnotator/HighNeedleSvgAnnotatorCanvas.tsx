@@ -871,7 +871,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
                   style={{ left: pos.x + stagger.dx, top: pos.y + stagger.dy }}
                 >
                   <div className="flex flex-col items-center gap-1">
-
                     {typeof marks.levelNo === "number" ? (
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[11px] font-semibold text-white shadow">
                         {marks.levelNo}
