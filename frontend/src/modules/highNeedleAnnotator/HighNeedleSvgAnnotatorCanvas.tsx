@@ -65,9 +65,16 @@ type DragState = {
   textNodeId: string;
   textEl: SVGTextElement;
   svgRoot: SVGSVGElement;
-  startSvgPoint: { x: number; y: number };
-  /** 拖拽开始时文本元素在 SVG 用户坐标系中的真实位置（通过 CTM 获取，考虑 transform）*/
-  startTextSvgPos: { x: number; y: number };
+  /** 鼠标按下时的客户端坐标（用于计算 screen delta） */
+  startClientX: number;
+  startClientY: number;
+  /** 拖拽开始时文本锚点在父元素坐标系中的位置（x/y attrs + transform 全部考虑在内） */
+  initialParentX: number;
+  initialParentY: number;
+  /** 父元素的屏幕 CTM（用于将 screen delta 转换为父坐标系 delta） */
+  parentCTM: DOMMatrix;
+  /** 文本元素原始 transform 属性值（拖拽预览时与偏移量组合） */
+  originalTransform: string | null;
 };
 
 function readNumberAttr(value: string | null | undefined): number | null {
@@ -77,34 +84,124 @@ function readNumberAttr(value: string | null | undefined): number | null {
 }
 
 /**
- * 返回文本元素在 SVG 用户坐标系中的视觉位置（考虑 transform）。
- * 通过 CTM 将屏幕左上角映射回 SVG 坐标。
+ * 返回文本元素锚点在父元素坐标系中的位置，通过 getScreenCTM() 精确计算。
+ *
+ * 锚点取优先级：text[x/y] > 第一个 tspan[x/y] > (0,0)
+ * 这样可以正确处理：
+ *   A. transform="translate" 定位（x/y=0）
+ *   B. text[x/y] 定位
+ *   C. tspan[x/y] 绝对定位（text 本身无 x/y）
  */
-function getTextPosByCTM(
+function getAnchorInParentSpace(
   el: SVGTextElement,
   svgRoot: SVGSVGElement,
-): { x: number; y: number } | null {
-  const elCTM = (el as unknown as SVGGraphicsElement).getScreenCTM?.();
-  const rootCTM = svgRoot.getScreenCTM?.();
-  if (!elCTM || !rootCTM) return null;
+): { pos: { x: number; y: number }; parentCTM: DOMMatrix } | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const elCTM: DOMMatrix | null = (el as any).getScreenCTM?.() ?? null;
+  if (!elCTM) return null;
 
-  // elCTM maps local (0,0) → screen; rootCTM.inverse maps screen → SVG user space
-  const rootInv = rootCTM.inverse();
-  const combined = rootInv.multiply(elCTM);
+  const parentEl = el.parentElement as Element | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parentCTM: DOMMatrix | null =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (parentEl as any)?.getScreenCTM?.() ?? svgRoot.getScreenCTM?.() ?? null;
+  if (!parentCTM) return null;
 
-  // The translation part of the combined matrix is the position of local (0,0)
-  return { x: combined.e, y: combined.f };
+  // tspan[0] 的绝对 x/y 在 SVG 中优先级高于 text 本身的 x/y
+  // 必须与 setSvgTextNodePosition 的锚点计算逻辑保持一致
+  const firstTspan = el.querySelector("tspan");
+  const xAttr =
+    readNumberAttr(firstTspan?.getAttribute("x")) ??
+    readNumberAttr(el.getAttribute("x")) ??
+    0;
+  const yAttr =
+    readNumberAttr(firstTspan?.getAttribute("y")) ??
+    readNumberAttr(el.getAttribute("y")) ??
+    0;
+
+  // Transform the anchor point (x, y) from element local space → screen
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pt: any = svgRoot.createSVGPoint?.();
+  if (!pt) return null;
+  pt.x = xAttr;
+  pt.y = yAttr;
+  const screenAnchor = pt.matrixTransform(elCTM);
+
+  // Convert screen → parent local space
+  const parentAnchor = screenAnchor.matrixTransform(parentCTM.inverse());
+
+  return { pos: { x: parentAnchor.x, y: parentAnchor.y }, parentCTM };
 }
 
 /**
- * 通过 transform 属性移动文本元素（不修改 x/y/tspan，保留行间距结构）。
+ * 将 screen 坐标增量转换为父元素坐标系中的增量（处理父元素含 scale/rotate 的情况）。
  */
-function setTextDragTransform(
-  el: SVGTextElement,
-  offset: { dx: number; dy: number },
-) {
-  el.setAttribute("transform", `translate(${offset.dx},${offset.dy})`);
+function screenDeltaToParent(
+  svgRoot: SVGSVGElement,
+  parentCTM: DOMMatrix,
+  screenDx: number,
+  screenDy: number,
+): { dx: number; dy: number } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pt: any = svgRoot.createSVGPoint?.();
+  if (!pt) return { dx: screenDx, dy: screenDy };
+
+  const inv = parentCTM.inverse();
+  // Transform origin (to get the translation component)
+  pt.x = 0;
+  pt.y = 0;
+  const origin = pt.matrixTransform(inv);
+  // Transform the delta point
+  pt.x = screenDx;
+  pt.y = screenDy;
+  const moved = pt.matrixTransform(inv);
+
+  // Subtract origin to get pure vector delta (cancel out translation)
+  return { dx: moved.x - origin.x, dy: moved.y - origin.y };
 }
+
+/** 以 2×3 affine 矩阵变换一个点（避免 createSVGPoint 开销）。 */
+function applyMatrix(
+  x: number,
+  y: number,
+  m: DOMMatrix,
+): { x: number; y: number } {
+  return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
+}
+
+/**
+ * 判断线段 AB 与线段 CD 是否相交（含端点）。
+ * 使用向量叉积（cross-product）法。
+ */
+function segmentsIntersect(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+  dx: number,
+  dy: number,
+): boolean {
+  const d1x = bx - ax,
+    d1y = by - ay;
+  const d2x = dx - cx,
+    d2y = dy - cy;
+  const denom = d1x * d2y - d1y * d2x;
+  if (Math.abs(denom) < 1e-10) return false; // 平行
+  const ex = cx - ax,
+    ey = cy - ay;
+  const t = (ex * d2y - ey * d2x) / denom;
+  const u = (ex * d1y - ey * d1x) / denom;
+  return t >= -1e-6 && t <= 1 + 1e-6 && u >= -1e-6 && u <= 1 + 1e-6;
+}
+
+/**
+ * 每根线段的几何缓存：一组折线段坐标（SVG root 用户空间），
+ * 格式 [x1, y1, x2, y2]。
+ */
+type LineSegment4 = readonly [number, number, number, number];
+type LineGeometryCache = Map<string, LineSegment4[]>;
 
 function clientToSvgPoint(
   svgRoot: SVGSVGElement,
@@ -145,6 +242,11 @@ export default function HighNeedleSvgAnnotatorCanvas({
   const brushVisitedRef = useRef<Set<string>>(new Set());
   const brushLastPointRef = useRef<{ x: number; y: number } | null>(null);
 
+  /** 几何缓存：各线段在 SVG root 用户空间中的折线段列表，renderSvg 变化后重建。 */
+  const geomCacheRef = useRef<LineGeometryCache>(new Map());
+  /** 刷选描边叠加层 canvas。 */
+  const brushCanvasRef = useRef<HTMLCanvasElement>(null);
+
   const dragRef = useRef<DragState | null>(null);
 
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
@@ -166,6 +268,83 @@ export default function HighNeedleSvgAnnotatorCanvas({
     brushRef.current = false;
     brushVisitedRef.current = new Set();
     brushLastPointRef.current = null;
+
+    // 清空刷选描边叠加层
+    const canvas = brushCanvasRef.current;
+    if (canvas) {
+      canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }, []);
+
+  /**
+   * 在 DOM 更新（renderSvg 变化）后，把所有线条元素的几何数据采样到
+   * SVG root 用户空间的 LineGeometryCache，供刷选时的相交检测使用。
+   */
+  useEffect(() => {
+    const wrap = canvasWrapRef.current;
+    if (!wrap) return;
+
+    const raf = requestAnimationFrame(() => {
+      const svgRoot = wrap.querySelector<SVGSVGElement>("svg");
+      if (!svgRoot) return;
+
+      const rootCTM = svgRoot.getScreenCTM();
+      if (!rootCTM) return;
+      const rootInvCTM = rootCTM.inverse();
+
+      const cache: LineGeometryCache = new Map();
+
+      for (const id of allLineIdSet) {
+        const el = wrap.querySelector<SVGGeometryElement>(
+          `#${cssEscapeId(id)}`,
+        );
+        if (!el || typeof el.getTotalLength !== "function") continue;
+
+        const elCTM = el.getScreenCTM();
+        if (!elCTM) continue;
+
+        // element local → SVG root user space（与页面 scroll/zoom 无关）
+        const localToSvg = rootInvCTM.multiply(elCTM);
+
+        const totalLen = el.getTotalLength();
+        // 用元素屏幕 bbox 对角线近似估算采样数，保证足够密度
+        const bbox = el.getBoundingClientRect();
+        const screenDiag = Math.hypot(bbox.width, bbox.height);
+        const numPts = Math.max(4, Math.min(200, Math.ceil(screenDiag / 3)));
+
+        const segments: LineSegment4[] = [];
+        let prev: { x: number; y: number } | null = null;
+
+        for (let i = 0; i <= numPts; i++) {
+          const lp = el.getPointAtLength((i / numPts) * totalLen);
+          const sp = applyMatrix(lp.x, lp.y, localToSvg);
+          if (prev) segments.push([prev.x, prev.y, sp.x, sp.y]);
+          prev = sp;
+        }
+
+        if (segments.length > 0) cache.set(id, segments);
+      }
+
+      geomCacheRef.current = cache;
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [renderSvg, allLineIdSet]);
+
+  /** 保证 canvas 尺寸始终与内层包裹 div 一致（device-pixel-ratio 无关）。 */
+  useEffect(() => {
+    const wrap = canvasWrapRef.current;
+    const canvas = brushCanvasRef.current;
+    if (!wrap || !canvas) return;
+
+    const sync = () => {
+      canvas.width = wrap.offsetWidth;
+      canvas.height = wrap.offsetHeight;
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(wrap);
+    return () => ro.disconnect();
   }, []);
 
   useEffect(() => {
@@ -186,27 +365,35 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
       hasMoved = true;
 
-      const curSvg = clientToSvgPoint(drag.svgRoot, e.clientX, e.clientY);
-      if (!curSvg) return;
+      const { dx, dy } = screenDeltaToParent(
+        drag.svgRoot,
+        drag.parentCTM,
+        e.clientX - drag.startClientX,
+        e.clientY - drag.startClientY,
+      );
 
-      const dx = curSvg.x - drag.startSvgPoint.x;
-      const dy = curSvg.y - drag.startSvgPoint.y;
-
-      // 通过 transform 移动，不触碰 tspan 结构，保留多行行间距
-      setTextDragTransform(drag.textEl, { dx, dy });
+      // 组合原始 transform + 偏移量进行预览，不修改 x/y/tspan 结构
+      const origT = drag.originalTransform ? ` ${drag.originalTransform}` : "";
+      drag.textEl.setAttribute("transform", `translate(${dx},${dy})${origT}`);
     };
 
-    const onUp = () => {
+    const onUp = (e: MouseEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
 
       if (hasMoved) {
-        // 拖拽结束：读取当前视觉位置（含 transform），提交给父组件写入 SVG
-        const finalPos = getTextPosByCTM(drag.textEl, drag.svgRoot);
-        if (finalPos) {
-          onTextPositionCommit(drag.textNodeId, finalPos);
-        }
-        // 清除临时 transform（commitTextNodePosition 会用 x/y 正规化位置）
+        const { dx, dy } = screenDeltaToParent(
+          drag.svgRoot,
+          drag.parentCTM,
+          e.clientX - drag.startClientX,
+          e.clientY - drag.startClientY,
+        );
+
+        // 提交：初始锚点位置 + 父坐标系 delta
+        onTextPositionCommit(drag.textNodeId, {
+          x: drag.initialParentX + dx,
+          y: drag.initialParentY + dy,
+        });
         drag.textEl.removeAttribute("transform");
       }
       hasMoved = false;
@@ -411,22 +598,19 @@ export default function HighNeedleSvgAnnotatorCanvas({
             );
             if (!svgRoot || !textEl) return;
 
-            const startSvgPoint = clientToSvgPoint(
-              svgRoot,
-              e.clientX,
-              e.clientY,
-            );
-            if (!startSvgPoint) return;
+            const anchorResult = getAnchorInParentSpace(textEl, svgRoot);
+            if (!anchorResult) return;
 
             dragRef.current = {
               textNodeId: id,
               textEl,
               svgRoot,
-              startSvgPoint,
-              startTextSvgPos: getTextPosByCTM(textEl, svgRoot) ?? {
-                x: 0,
-                y: 0,
-              },
+              startClientX: e.clientX,
+              startClientY: e.clientY,
+              initialParentX: anchorResult.pos.x,
+              initialParentY: anchorResult.pos.y,
+              parentCTM: anchorResult.parentCTM,
+              originalTransform: textEl.getAttribute("transform"),
             };
 
             return;
@@ -439,11 +623,38 @@ export default function HighNeedleSvgAnnotatorCanvas({
           brushVisitedRef.current = new Set();
           brushLastPointRef.current = { x: e.clientX, y: e.clientY };
 
-          const id = getLineIdFromPoint(e.clientX, e.clientY);
-          if (!id) return;
-
-          brushVisitedRef.current.add(id);
-          toggleSelect(id, { silent: true });
+          // 初始点击也做相交检测（将起点当作零长度段处理）
+          const wrap = canvasWrapRef.current;
+          const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+          if (svgRoot) {
+            const rootCTM = svgRoot.getScreenCTM();
+            if (rootCTM) {
+              const inv = rootCTM.inverse();
+              const pt = applyMatrix(e.clientX, e.clientY, inv);
+              // 对起点做极小扰动以触发相交
+              for (const [id, segs] of geomCacheRef.current) {
+                if (brushVisitedRef.current.has(id)) continue;
+                for (const [ax, ay, bx, by] of segs) {
+                  if (
+                    segmentsIntersect(
+                      pt.x - 0.5,
+                      pt.y - 0.5,
+                      pt.x + 0.5,
+                      pt.y + 0.5,
+                      ax,
+                      ay,
+                      bx,
+                      by,
+                    )
+                  ) {
+                    brushVisitedRef.current.add(id);
+                    toggleSelect(id, { silent: true });
+                    break;
+                  }
+                }
+              }
+            }
+          }
         }}
         onMouseUp={resetBrushState}
         onMouseLeave={resetBrushState}
@@ -457,22 +668,57 @@ export default function HighNeedleSvgAnnotatorCanvas({
           const cur = { x: e.clientX, y: e.clientY };
           brushLastPointRef.current = cur;
 
-          const dx = prev ? cur.x - prev.x : 0;
-          const dy = prev ? cur.y - prev.y : 0;
-          const dist = prev ? Math.hypot(dx, dy) : 0;
-          const steps = prev
-            ? Math.min(60, Math.max(1, Math.ceil(dist / 6)))
-            : 1;
+          // ── 绘制刷选描边叠加层 ──────────────────────────────────────
+          const canvas = brushCanvasRef.current;
+          const wrap2 = canvasWrapRef.current;
+          if (canvas && wrap2 && prev) {
+            const wrapRect = wrap2.getBoundingClientRect();
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.strokeStyle = "rgba(99,102,241,0.75)";
+              ctx.lineWidth = 2;
+              ctx.lineCap = "round";
+              ctx.lineJoin = "round";
+              ctx.beginPath();
+              ctx.moveTo(prev.x - wrapRect.left, prev.y - wrapRect.top);
+              ctx.lineTo(cur.x - wrapRect.left, cur.y - wrapRect.top);
+              ctx.stroke();
+            }
+          }
 
-          for (let i = 0; i <= steps; i += 1) {
-            const x = prev ? prev.x + (dx * i) / steps : cur.x;
-            const y = prev ? prev.y + (dy * i) / steps : cur.y;
-            const id = getLineIdFromPoint(x, y);
-            if (!id) continue;
+          if (!prev) return;
+
+          // ── 几何相交检测 ────────────────────────────────────────────
+          const svgRoot = wrap2?.querySelector<SVGSVGElement>("svg");
+          if (!svgRoot) return;
+
+          const rootCTM = svgRoot.getScreenCTM();
+          if (!rootCTM) return;
+          const inv = rootCTM.inverse();
+
+          const svgFrom = applyMatrix(prev.x, prev.y, inv);
+          const svgTo = applyMatrix(cur.x, cur.y, inv);
+
+          for (const [id, segs] of geomCacheRef.current) {
             if (brushVisitedRef.current.has(id)) continue;
-
-            brushVisitedRef.current.add(id);
-            toggleSelect(id, { silent: true });
+            for (const [ax, ay, bx, by] of segs) {
+              if (
+                segmentsIntersect(
+                  svgFrom.x,
+                  svgFrom.y,
+                  svgTo.x,
+                  svgTo.y,
+                  ax,
+                  ay,
+                  bx,
+                  by,
+                )
+              ) {
+                brushVisitedRef.current.add(id);
+                toggleSelect(id, { silent: true });
+                break;
+              }
+            }
           }
         }}
         onClick={(e) => {
@@ -488,6 +734,13 @@ export default function HighNeedleSvgAnnotatorCanvas({
             svg={renderSvg}
             className="max-w-full"
             height="auto"
+          />
+
+          {/* 刷选描边叠加层（不影响交互） */}
+          <canvas
+            ref={brushCanvasRef}
+            className="pointer-events-none absolute inset-0"
+            style={{ zIndex: 10 }}
           />
 
           {activeTextBox ? (

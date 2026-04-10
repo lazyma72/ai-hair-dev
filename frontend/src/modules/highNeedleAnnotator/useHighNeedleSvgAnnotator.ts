@@ -302,7 +302,6 @@ export default function useHighNeedleSvgAnnotator({
   }, [value.底图.区域名]);
 
   const regionStrokeById = useMemo(() => {
-    if (step !== "DML") return undefined;
     const map = new Map<string, string>();
     value.底图.区域线条.forEach((d) => {
       const color = regionColorByName.get(d.区域名);
@@ -310,7 +309,7 @@ export default function useHighNeedleSvgAnnotator({
       d.lineNodeIds.forEach((id) => map.set(id, color));
     });
     return map;
-  }, [regionColorByName, step, value.底图.区域线条]);
+  }, [regionColorByName, value.底图.区域线条]);
 
   const regionLabelItems = useMemo(() => {
     if (step !== "DML") return [];
@@ -461,8 +460,8 @@ export default function useHighNeedleSvgAnnotator({
       selected: new Set(draftSelected),
       disabled: disabledForStep,
       regionNoById,
-      regionStrokeById: step === "DML" ? regionStrokeById : undefined,
-      levelNoById,
+      regionStrokeById,
+      levelNoById: step === "DML" ? undefined : levelNoById,
       dmlById: step === "DML" ? dmlById : undefined,
       doubleById: step === "单双" ? doubleById : undefined,
       selectedStroke,
@@ -475,6 +474,7 @@ export default function useHighNeedleSvgAnnotator({
     draftSelected,
     levelNoById,
     regionNoById,
+    regionStrokeById,
     step,
     value.底图.svg,
   ]);

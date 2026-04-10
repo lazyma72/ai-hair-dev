@@ -372,24 +372,40 @@ export function setSvgTextNodePosition(
     const el = doc.getElementById(nodeId);
     if (!el) return svg;
 
-    el.setAttribute("x", String(pos.x));
-    el.setAttribute("y", String(pos.y));
-    // 清除 transform，用 x/y 属性正规化定位
-    el.removeAttribute("transform");
+    const parseFirst = (v: string | null): number | null => {
+      if (!v) return null;
+      const n = Number(v.trim().split(/[ ,]+/)[0]);
+      return Number.isFinite(n) ? n : null;
+    };
 
-    for (const tspan of Array.from(el.querySelectorAll("tspan"))) {
-      // 始终更新 x，使多行文本水平对齐到新位置
-      tspan.setAttribute("x", String(pos.x));
-      // 如果 tspan 用 dy 表达行间距（相对偏移），不要写入绝对 y，
-      // 否则 dy 与绝对 y 叠加会导致各行重叠在同一位置。
-      // 只有第一个不带 dy（或第一行 dy=0）的 tspan 才需要设置 y。
-      const dyAttr = tspan.getAttribute("dy");
-      const hasDy =
-        dyAttr !== null && dyAttr.trim() !== "" && dyAttr.trim() !== "0";
-      if (!hasDy) {
-        tspan.setAttribute("y", String(pos.y));
-      }
-    }
+    // 读取"原始锚点"：即不含 transform 时 x/y 属性所定义的坐标。
+    // 与 canvas 的 getAnchorInParentSpace 保持相同优先级：
+    //   tspan[0].x/y  >  text.x/y  >  0
+    // （SVG 规范：tspan 绝对 x/y 会覆盖继承自 text 的坐标）
+    const firstTspan = el.querySelector("tspan");
+    const rawX =
+      parseFirst(firstTspan?.getAttribute("x") ?? null) ??
+      parseFirst(el.getAttribute("x")) ??
+      0;
+    const rawY =
+      parseFirst(firstTspan?.getAttribute("y") ?? null) ??
+      parseFirst(el.getAttribute("y")) ??
+      0;
+
+    // 所需偏移量 = 目标位置 - 原始锚点
+    const tx = pos.x - rawX;
+    const ty = pos.y - rawY;
+
+    // 将现有 transform 中的 translate 部分替换为新值，保留 rotate/scale/matrix 等
+    const existing = el.getAttribute("transform") ?? "";
+    const withoutTranslate = existing
+      .replace(/translate\s*\([^)]*\)/gi, "")
+      .trim();
+    const newTransform = `translate(${tx},${ty})${withoutTranslate ? ` ${withoutTranslate}` : ""}`;
+
+    el.setAttribute("transform", newTransform);
+
+    // ⚠️  不修改 x、y 及任何 tspan 属性——transform 整体平移，行间距结构完全保留
 
     return serializeSvg(doc);
   } catch {
@@ -578,6 +594,17 @@ export function decorateLines(
 
     if (isDisabled) {
       style.setProperty("opacity", "0.35", "important");
+    }
+
+    // 选中线条发光效果
+    if (isSelected && nextStroke) {
+      style.setProperty(
+        "filter",
+        `drop-shadow(0 0 6px ${nextStroke}) drop-shadow(0 0 3px ${nextStroke})`,
+        "important",
+      );
+    } else {
+      style.removeProperty("filter");
     }
   });
 
