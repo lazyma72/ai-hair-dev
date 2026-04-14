@@ -38,7 +38,7 @@ export default function FileDetailPage() {
   const [tab, setTab] = useState<TabKey>("规格书");
 
   const { data, loading, error } = useApi(() =>
-    callApi("file/GetDetail", { id: id! }),
+    callApi("admin/file/GetDetail", { id: id! }),
   );
 
   const file: 沐茵丝假发成品稿Frontend | null = data?.file ?? null;
@@ -51,11 +51,6 @@ export default function FileDetailPage() {
       <StatusView loading={loading} error={error}>
         {file && (
           <>
-            {/* ID 行 */}
-            <div className="font-mono text-[11px] text-slate-400">
-              ID: {file._id}
-            </div>
-
             {/* Tab 切换栏 */}
             <div className="flex gap-2">
               {TABS.map(({ key, label }) => (

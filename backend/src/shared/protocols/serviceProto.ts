@@ -2,12 +2,13 @@ import { ServiceProto } from 'tsrpc-proto';
 import { ReqAdd, ResAdd } from './admin/customer/PtlAdd';
 import { ReqGetList, ResGetList } from './admin/customer/PtlGetList';
 import { ReqAdd as ReqAdd_1, ResAdd as ResAdd_1 } from './admin/file/PtlAdd';
+import { ReqGetDetail, ResGetDetail } from './admin/file/PtlGetDetail';
+import { ReqGetList as ReqGetList_1, ResGetList as ResGetList_1 } from './admin/file/PtlGetList';
 import { ReqUpdate, ResUpdate } from './admin/file/PtlUpdate';
-import { ReqGetDetail, ResGetDetail } from './admin/ratio/PtlGetDetail';
-import { ReqGetList as ReqGetList_1, ResGetList as ResGetList_1 } from './admin/ratio/PtlGetList';
+import { ReqGetPreview, ResGetPreview } from './admin/PtlGetPreview';
+import { ReqGetDetail as ReqGetDetail_1, ResGetDetail as ResGetDetail_1 } from './admin/ratio/PtlGetDetail';
+import { ReqGetList as ReqGetList_2, ResGetList as ResGetList_2 } from './admin/ratio/PtlGetList';
 import { ReqUpdate as ReqUpdate_1, ResUpdate as ResUpdate_1 } from './admin/ratio/PtlUpdate';
-import { ReqGetDetail as ReqGetDetail_1, ResGetDetail as ResGetDetail_1 } from './file/PtlGetDetail';
-import { ReqGetList as ReqGetList_2, ResGetList as ResGetList_2 } from './file/PtlGetList';
 
 export interface ServiceType {
     api: {
@@ -23,29 +24,33 @@ export interface ServiceType {
             req: ReqAdd_1,
             res: ResAdd_1
         },
+        "admin/file/GetDetail": {
+            req: ReqGetDetail,
+            res: ResGetDetail
+        },
+        "admin/file/GetList": {
+            req: ReqGetList_1,
+            res: ResGetList_1
+        },
         "admin/file/Update": {
             req: ReqUpdate,
             res: ResUpdate
         },
+        "admin/GetPreview": {
+            req: ReqGetPreview,
+            res: ResGetPreview
+        },
         "admin/ratio/GetDetail": {
-            req: ReqGetDetail,
-            res: ResGetDetail
+            req: ReqGetDetail_1,
+            res: ResGetDetail_1
         },
         "admin/ratio/GetList": {
-            req: ReqGetList_1,
-            res: ResGetList_1
+            req: ReqGetList_2,
+            res: ResGetList_2
         },
         "admin/ratio/Update": {
             req: ReqUpdate_1,
             res: ResUpdate_1
-        },
-        "file/GetDetail": {
-            req: ReqGetDetail_1,
-            res: ResGetDetail_1
-        },
-        "file/GetList": {
-            req: ReqGetList_2,
-            res: ResGetList_2
         }
     },
     msg: {
@@ -54,7 +59,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 8,
+    "version": 12,
     "services": [
         {
             "id": 9,
@@ -77,8 +82,30 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "conf": {}
         },
         {
+            "id": 11,
+            "name": "admin/file/GetDetail",
+            "type": "api",
+            "conf": {
+                "allowNoLogin": true
+            }
+        },
+        {
+            "id": 12,
+            "name": "admin/file/GetList",
+            "type": "api",
+            "conf": {
+                "allowNoLogin": true
+            }
+        },
+        {
             "id": 3,
             "name": "admin/file/Update",
+            "type": "api",
+            "conf": {}
+        },
+        {
+            "id": 13,
+            "name": "admin/GetPreview",
             "type": "api",
             "conf": {}
         },
@@ -103,22 +130,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "name": "admin/ratio/Update",
             "type": "api",
             "conf": {}
-        },
-        {
-            "id": 7,
-            "name": "file/GetDetail",
-            "type": "api",
-            "conf": {
-                "allowNoLogin": true
-            }
-        },
-        {
-            "id": 8,
-            "name": "file/GetList",
-            "type": "api",
-            "conf": {
-                "allowNoLogin": true
-            }
         }
     ],
     "types": {
@@ -137,6 +148,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 0,
                     "name": "客户编号",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "客户名称",
                     "type": {
                         "type": "String"
                     }
@@ -240,6 +258,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 1,
                     "name": "客户编号",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "客户名称",
                     "type": {
                         "type": "String"
                     }
@@ -1628,6 +1653,16 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                                         "type": "String"
                                                     }
                                                 }
+                                            },
+                                            {
+                                                "id": 2,
+                                                "name": "textNodeIds",
+                                                "type": {
+                                                    "type": "Array",
+                                                    "elementType": {
+                                                        "type": "String"
+                                                    }
+                                                }
                                             }
                                         ]
                                     }
@@ -1715,6 +1750,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                                 "type": {
                                                     "type": "String"
                                                 }
+                                            },
+                                            {
+                                                "id": 4,
+                                                "name": "textNodeId",
+                                                "type": {
+                                                    "type": "String"
+                                                }
                                             }
                                         ]
                                     }
@@ -1740,6 +1782,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                                 "name": "双数",
                                                 "type": {
                                                     "type": "Boolean"
+                                                }
+                                            },
+                                            {
+                                                "id": 2,
+                                                "name": "textNodeId",
+                                                "type": {
+                                                    "type": "String"
                                                 }
                                             }
                                         ]
@@ -1800,31 +1849,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 }
             ]
         },
-        "admin/file/PtlUpdate/ReqUpdate": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "base/BaseRequest"
-                    }
-                }
-            ]
-        },
-        "admin/file/PtlUpdate/ResUpdate": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "base/BaseResponse"
-                    }
-                }
-            ]
-        },
-        "admin/ratio/PtlGetDetail/ReqGetDetail": {
+        "admin/file/PtlGetDetail/ReqGetDetail": {
             "type": "Interface",
             "extends": [
                 {
@@ -1845,166 +1870,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 }
             ]
         },
-        "admin/ratio/PtlGetDetail/ResGetDetail": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "base/BaseResponse"
-                    }
-                }
-            ],
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "胶丝比例",
-                    "type": {
-                        "type": "Reference",
-                        "target": "../frontend/model/model/胶丝比例Frontend"
-                    }
-                }
-            ]
-        },
-        "../frontend/model/model/胶丝比例Frontend": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "target": {
-                            "type": "Reference",
-                            "target": "../db/Db胶丝比例/Db胶丝比例"
-                        },
-                        "keys": [
-                            "颜色图片参考"
-                        ],
-                        "type": "Omit"
-                    }
-                }
-            ],
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "颜色图片参考",
-                    "type": {
-                        "type": "String"
-                    },
-                    "optional": true
-                }
-            ]
-        },
-        "admin/ratio/PtlGetList/ReqGetList": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "base/BaseRequest"
-                    }
-                }
-            ]
-        },
-        "admin/ratio/PtlGetList/ResGetList": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "base/BaseResponse"
-                    }
-                }
-            ],
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "list",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../frontend/model/model/胶丝比例ListItem"
-                        }
-                    }
-                }
-            ]
-        },
-        "../frontend/model/model/胶丝比例ListItem": {
-            "type": "Interface",
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "_id",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 2,
-                    "name": "发丝种类",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 1,
-                    "name": "线色",
-                    "type": {
-                        "type": "String"
-                    },
-                    "optional": true
-                }
-            ]
-        },
-        "admin/ratio/PtlUpdate/ReqUpdate": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "base/BaseRequest"
-                    }
-                }
-            ]
-        },
-        "admin/ratio/PtlUpdate/ResUpdate": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "base/BaseResponse"
-                    }
-                }
-            ]
-        },
-        "file/PtlGetDetail/ReqGetDetail": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "base/BaseRequest"
-                    }
-                }
-            ],
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "id",
-                    "type": {
-                        "type": "String"
-                    }
-                }
-            ]
-        },
-        "file/PtlGetDetail/ResGetDetail": {
+        "admin/file/PtlGetDetail/ResGetDetail": {
             "type": "Interface",
             "extends": [
                 {
@@ -2414,6 +2280,17 @@ export const serviceProto: ServiceProto<ServiceType> = {
                             "type": "String"
                         }
                     }
+                },
+                {
+                    "id": 9,
+                    "name": "染色档位列表",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../db/Db沐茵丝假发成品稿/染色档位"
+                        }
+                    }
                 }
             ]
         },
@@ -2483,6 +2360,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "高针图svg",
                     "type": {
                         "type": "String"
+                    }
+                },
+                {
+                    "id": 5,
+                    "name": "高针图数据",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/高针图/高针图"
                     }
                 },
                 {
@@ -2585,6 +2470,17 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Array",
                         "elementType": {
                             "type": "String"
+                        }
+                    }
+                },
+                {
+                    "id": 6,
+                    "name": "染色档位列表",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../db/Db沐茵丝假发成品稿/染色档位"
                         }
                     }
                 }
@@ -2740,7 +2636,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 }
             ]
         },
-        "file/PtlGetList/ReqGetList": {
+        "admin/file/PtlGetList/ReqGetList": {
             "type": "Interface",
             "extends": [
                 {
@@ -2750,9 +2646,81 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "target": "base/BaseRequest"
                     }
                 }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "pageNum",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "pageSize",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "keyword",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "orderSort",
+                    "type": {
+                        "type": "Union",
+                        "members": [
+                            {
+                                "id": 0,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "asc"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "desc"
+                                }
+                            }
+                        ]
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "filter",
+                    "type": {
+                        "type": "Partial",
+                        "target": {
+                            "target": {
+                                "type": "Reference",
+                                "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿"
+                            },
+                            "keys": [
+                                "客户编号",
+                                "品名",
+                                "原材料",
+                                "假发类型",
+                                "CAP"
+                            ],
+                            "type": "Pick"
+                        }
+                    },
+                    "optional": true
+                }
             ]
         },
-        "file/PtlGetList/ResGetList": {
+        "admin/file/PtlGetList/ResGetList": {
             "type": "Interface",
             "extends": [
                 {
@@ -2773,6 +2741,27 @@ export const serviceProto: ServiceProto<ServiceType> = {
                             "type": "Reference",
                             "target": "../frontend/model/model/沐茵丝假发成品稿ListItem"
                         }
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "total",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "pageNum",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "pageSize",
+                    "type": {
+                        "type": "Number"
                     }
                 }
             ]
@@ -2802,6 +2791,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
+                    "id": 6,
+                    "name": "原材料",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
                     "id": 3,
                     "name": "假发类型",
                     "type": {
@@ -2814,6 +2810,361 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "CAP",
                     "type": {
                         "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/file/PtlUpdate/ReqUpdate": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ]
+        },
+        "admin/file/PtlUpdate/ResUpdate": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ]
+        },
+        "admin/PtlGetPreview/ReqGetPreview": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ]
+        },
+        "admin/PtlGetPreview/ResGetPreview": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "设计稿总数",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "胶丝比例总数",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "admin/ratio/PtlGetDetail/ReqGetDetail": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "id",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/ratio/PtlGetDetail/ResGetDetail": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "胶丝比例",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../frontend/model/model/胶丝比例Frontend"
+                    }
+                }
+            ]
+        },
+        "../frontend/model/model/胶丝比例Frontend": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "target": {
+                            "type": "Reference",
+                            "target": "../db/Db胶丝比例/Db胶丝比例"
+                        },
+                        "keys": [
+                            "颜色图片参考"
+                        ],
+                        "type": "Omit"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "颜色图片参考",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/ratio/PtlGetList/ReqGetList": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "pageNum",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "pageSize",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "keyword",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "orderSort",
+                    "type": {
+                        "type": "Union",
+                        "members": [
+                            {
+                                "id": 0,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "asc"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "desc"
+                                }
+                            }
+                        ]
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "filter",
+                    "type": {
+                        "type": "Partial",
+                        "target": {
+                            "type": "Interface",
+                            "properties": [
+                                {
+                                    "id": 0,
+                                    "name": "颜色编号",
+                                    "type": {
+                                        "type": "String"
+                                    },
+                                    "optional": true
+                                },
+                                {
+                                    "id": 1,
+                                    "name": "发丝种类",
+                                    "type": {
+                                        "type": "String"
+                                    },
+                                    "optional": true
+                                },
+                                {
+                                    "id": 2,
+                                    "name": "线色",
+                                    "type": {
+                                        "type": "String"
+                                    },
+                                    "optional": true
+                                },
+                                {
+                                    "id": 3,
+                                    "name": "D",
+                                    "type": {
+                                        "type": "Boolean"
+                                    },
+                                    "optional": true
+                                },
+                                {
+                                    "id": 4,
+                                    "name": "M",
+                                    "type": {
+                                        "type": "Boolean"
+                                    },
+                                    "optional": true
+                                },
+                                {
+                                    "id": 5,
+                                    "name": "L",
+                                    "type": {
+                                        "type": "Boolean"
+                                    },
+                                    "optional": true
+                                }
+                            ]
+                        }
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/ratio/PtlGetList/ResGetList": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "list",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../frontend/model/model/胶丝比例ListItem"
+                        }
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "total",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "pageNum",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "pageSize",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../frontend/model/model/胶丝比例ListItem": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "_id",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "发丝种类",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "线色",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/ratio/PtlUpdate/ReqUpdate": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ]
+        },
+        "admin/ratio/PtlUpdate/ResUpdate": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
                     }
                 }
             ]

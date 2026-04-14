@@ -160,7 +160,7 @@ export function formatInchText(n: number): string {
   return `${formatInch(n)}"`;
 }
 
-function buildPreviewSvg(item: 染色档位): string {
+export function buildPreviewSvg(item: 染色档位): string {
   let svg = item.染色图.svg;
 
   const slotCount = item.染色图.档位标注.档位列表.length;

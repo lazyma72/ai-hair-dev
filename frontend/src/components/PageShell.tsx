@@ -49,6 +49,8 @@ type Props = {
   onBack?: () => void;
   actions?: React.ReactNode;
   children: React.ReactNode;
+  /** 需要容纳大画布（如高针标注）时可开启 */
+  fullWidth?: boolean;
 };
 
 function NavItemLink({ item }: { item: NavItem }) {
@@ -69,9 +71,11 @@ function NavItemLink({ item }: { item: NavItem }) {
   );
 }
 
-export default function PageShell({ title, onBack, actions, children }: Props) {
+export default function PageShell({ title, onBack, actions, children, fullWidth }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const containerMaxWidthCls = fullWidth ? "max-w-none" : "max-w-7xl";
 
   const account = localStorage.getItem("demo_login_account") || "";
   const loggedIn = Boolean(account);
@@ -82,11 +86,13 @@ export default function PageShell({ title, onBack, actions, children }: Props) {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <div className={`mx-auto flex ${containerMaxWidthCls} items-center justify-between gap-4 px-4 py-3 sm:px-6`}>
           <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-sm font-semibold text-white">
-              AI
-            </div>
+            <img
+              src="/icon.png"
+              alt="沐茵丝"
+              className="h-9 w-9 rounded-lg object-contain"
+            />
             <div className="leading-tight">
               <div className="text-sm font-semibold text-slate-900">
                 AI 设计稿工作台
@@ -139,7 +145,7 @@ export default function PageShell({ title, onBack, actions, children }: Props) {
         </div>
 
         {showNav ? (
-          <div className="mx-auto max-w-7xl overflow-x-auto px-4 pb-3 lg:hidden sm:px-6">
+          <div className={`mx-auto ${containerMaxWidthCls} overflow-x-auto px-4 pb-3 lg:hidden sm:px-6`}>
             <div className="flex w-max items-center gap-1">
               {flatNavItems.map((item) => (
                 <NavItemLink key={item.to} item={item} />
@@ -149,7 +155,7 @@ export default function PageShell({ title, onBack, actions, children }: Props) {
         ) : null}
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6">
+      <main className={`mx-auto ${containerMaxWidthCls} space-y-5 p-4 sm:p-6`}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {onBack ? (

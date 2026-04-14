@@ -5,13 +5,13 @@
  *  - 按发丝种类分标签页展示
  *  - 支持颜色编号（_id）搜索
  */
-import * as React from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import { type Column } from "../../components/DataTable";
 import DataTable from "../../components/DataTable";
 import PageShell from "../../components/PageShell";
+import PaginationBar from "../../components/PaginationBar";
 import StatusView from "../../components/StatusView";
 import { useApi } from "../../hooks/useApi";
 import type { 胶丝比例ListItem } from "../../shared/frontend/model/model";
@@ -20,23 +20,44 @@ export default function RatioListPage() {
   const navigate = useNavigate();
   const [activeType, setActiveType] = useState<string>("全部");
   const [keyword, setKeyword] = useState<string>("");
+  const [pageNum, setPageNum] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const { data, loading, error } = useApi(() =>
-    callApi("admin/ratio/GetList", {}),
+  const { data, loading, error, reload } = useApi(() =>
+    callApi("admin/ratio/GetList", {
+      keyword: keyword.trim() || undefined,
+      filter:
+        activeType === "全部"
+          ? undefined
+          : {
+              发丝种类: activeType,
+            },
+      pageNum,
+      pageSize,
+      orderSort: "desc",
+    }),
   );
+
+  useEffect(() => {
+    void reload();
+  }, [activeType, keyword, pageNum, pageSize, reload]);
+
   const list = useMemo<胶丝比例ListItem[]>(() => data?.list ?? [], [data]);
 
-  const types = useMemo(() => {
-    const set = new Set(list.map((x) => x.发丝种类).filter(Boolean));
-    return ["全部", ...Array.from(set).sort()];
-  }, [list]);
+  const { data: typeData } = useApi(() =>
+    callApi("admin/ratio/GetList", {
+      pageNum: 1,
+      pageSize: 1000,
+      orderSort: "asc",
+    }),
+  );
 
-  const filteredList = useMemo(() => {
-    const kw = keyword.trim().toLowerCase();
-    return list
-      .filter((x) => (activeType === "全部" ? true : x.发丝种类 === activeType))
-      .filter((x) => (!kw ? true : x._id.toLowerCase().includes(kw)));
-  }, [activeType, keyword, list]);
+  const types = useMemo(() => {
+    const baseList = typeData?.list ?? [];
+    const set = new Set(baseList.map((x) => x.发丝种类).filter(Boolean));
+    return ["全部", ...Array.from(set).sort()];
+  }, [typeData]);
+  const total = data?.total ?? 0;
 
   const columns: Column<胶丝比例ListItem>[] = [
     {
@@ -90,7 +111,10 @@ export default function RatioListPage() {
                       ? "rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-white"
                       : "rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-slate-200"
                   }
-                  onClick={() => setActiveType(t)}
+                  onClick={() => {
+                    setActiveType(t);
+                    setPageNum(1);
+                  }}
                 >
                   {t}
                 </button>
@@ -107,7 +131,10 @@ export default function RatioListPage() {
               className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
               placeholder="例如：A01"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                setPageNum(1);
+              }}
             />
           </div>
         </div>
@@ -116,10 +143,20 @@ export default function RatioListPage() {
       <StatusView
         loading={loading}
         error={error}
-        empty={filteredList.length === 0}
+        empty={list.length === 0}
         emptyText="暂无胶丝比例数据"
       >
-        <DataTable columns={columns} rows={filteredList} rowKey={(r) => r._id} />
+        <DataTable columns={columns} rows={list} rowKey={(r) => r._id} />
+        <PaginationBar
+          total={total}
+          pageNum={pageNum}
+          pageSize={pageSize}
+          onPageNumChange={setPageNum}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPageNum(1);
+          }}
+        />
       </StatusView>
     </PageShell>
   );

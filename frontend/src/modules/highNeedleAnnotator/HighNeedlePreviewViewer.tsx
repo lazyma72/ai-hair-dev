@@ -1,0 +1,389 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import InlineSvg from "../../components/InlineSvg";
+import { makeDmlMap, makeDoubleSet } from "./helpers";
+import type { 高针图 } from "./types";
+import { collectSvgTextNodes, pruneSvgTextNodes } from "./svgUtils";
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+type PreviewToggles = {
+  level: boolean;
+  dml: boolean;
+  double: boolean;
+  text: boolean;
+};
+
+type PreviewLabelItem = {
+  lineId: string;
+  text: string;
+  ratio: number;
+  fill: string;
+};
+
+type Props = {
+  data: 高针图 | null;
+  emptyText?: string;
+  className?: string;
+};
+
+function parseLevelNo(levelLabel: string, fallbackNo: number): number {
+  const match = String(levelLabel ?? "")
+    .trim()
+    .match(/\d+/);
+  if (!match) return fallbackNo;
+
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackNo;
+}
+
+function getLevelMarkerText(levelNo: number): string {
+  return String(levelNo);
+}
+
+function isManagedMarkerTextId(textNodeId: string): boolean {
+  const id = String(textNodeId ?? "").trim();
+  return (
+    id.startsWith("region_text_") ||
+    id.startsWith("level_text_") ||
+    id.startsWith("dml_text_") ||
+    id.startsWith("double_text_")
+  );
+}
+
+function cssEscapeId(id: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(id);
+  }
+  return id.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
+}
+
+function transformToSvgRootPoint(
+  svgRoot: SVGSVGElement,
+  el: Element,
+  p: { x: number; y: number },
+): { x: number; y: number } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const elScreen: any = (el as any).getScreenCTM?.();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rootScreen: any = (svgRoot as any).getScreenCTM?.();
+
+  let rootInv: any = null;
+  try {
+    rootInv = rootScreen?.inverse?.();
+  } catch {
+    rootInv = null;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const DOMPointCtor: any = (globalThis as any).DOMPoint;
+  if (elScreen && rootInv && typeof DOMPointCtor === "function") {
+    const pt = new DOMPointCtor(p.x, p.y);
+    const out = pt.matrixTransform(elScreen).matrixTransform(rootInv);
+    return { x: out.x, y: out.y };
+  }
+
+  if (elScreen && rootInv) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const svgPt: any = svgRoot.createSVGPoint?.();
+    if (svgPt) {
+      svgPt.x = p.x;
+      svgPt.y = p.y;
+      const out = svgPt.matrixTransform(elScreen).matrixTransform(rootInv);
+      return { x: out.x, y: out.y };
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matrix: any = (el as any).getCTM?.();
+  if (!matrix) return p;
+
+  if (typeof DOMPointCtor === "function") {
+    const pt = new DOMPointCtor(p.x, p.y);
+    const out = pt.matrixTransform(matrix);
+    return { x: out.x, y: out.y };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const svgPt: any = svgRoot.createSVGPoint?.();
+  if (!svgPt) return p;
+  svgPt.x = p.x;
+  svgPt.y = p.y;
+  const out = svgPt.matrixTransform(matrix);
+  return { x: out.x, y: out.y };
+}
+
+function getPointAtRatio(
+  svgRoot: SVGSVGElement,
+  el: Element,
+  ratio: number,
+): { x: number; y: number } | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const geo: any = el as any;
+  if (
+    typeof geo.getTotalLength === "function" &&
+    typeof geo.getPointAtLength === "function"
+  ) {
+    try {
+      const len = geo.getTotalLength();
+      if (!Number.isFinite(len) || len <= 0) return null;
+      const pt = geo.getPointAtLength(len * ratio);
+      if (!pt) return null;
+      return transformToSvgRootPoint(svgRoot, el, { x: pt.x, y: pt.y });
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bbox = (el as any).getBBox?.();
+    if (bbox && Number.isFinite(bbox.x) && Number.isFinite(bbox.y)) {
+      return transformToSvgRootPoint(svgRoot, el, {
+        x: bbox.x + bbox.width * ratio,
+        y: bbox.y + bbox.height / 2,
+      });
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+function buildPreviewLabels(
+  data: 高针图,
+  toggles: PreviewToggles,
+  existingSvgTextIdSet: ReadonlySet<string>,
+): PreviewLabelItem[] {
+  const dmlById = makeDmlMap(data.自定义数据.DML标注);
+  const doubleSet = makeDoubleSet(data.自定义数据.单双标注);
+
+  const out: PreviewLabelItem[] = [];
+
+  data.底图.档位标注.forEach(({ 区域名, lineNodeIds, textNodeIds = [] }, index) => {
+    if (!toggles.level) return;
+    const levelText = getLevelMarkerText(
+      parseLevelNo(String(区域名 ?? ""), index + 1),
+    );
+    lineNodeIds.forEach((lineId, lineIndex) => {
+      const textNodeId = String(textNodeIds[lineIndex] ?? "").trim();
+      if (textNodeId && existingSvgTextIdSet.has(textNodeId)) return;
+      out.push({
+        lineId,
+        text: levelText,
+        ratio: 0.2,
+        fill: "#0f172a",
+      });
+    });
+  });
+
+  data.自定义数据.DML标注.forEach((item) => {
+    if (!toggles.dml) return;
+    const textNodeId = String(item.textNodeId ?? "").trim();
+    if (textNodeId && existingSvgTextIdSet.has(textNodeId)) return;
+    const v = (dmlById.get(item.lineNodeId) ?? "").trim();
+    if (!v) return;
+    out.push({
+      lineId: item.lineNodeId,
+      text: v,
+      ratio: 0.5,
+      fill: "#f59e0b",
+    });
+  });
+
+  data.自定义数据.单双标注.forEach((item) => {
+    if (!toggles.double) return;
+    const textNodeId = String(item.textNodeId ?? "").trim();
+    if (textNodeId && existingSvgTextIdSet.has(textNodeId)) return;
+    if (!doubleSet.has(item.lineNodeId)) return;
+    out.push({
+      lineId: item.lineNodeId,
+      text: "双",
+      ratio: 0.7,
+      fill: "#10b981",
+    });
+  });
+
+  return out;
+}
+
+export default function HighNeedlePreviewViewer({
+  data,
+  emptyText = "暂无高针图",
+  className = "",
+}: Props) {
+  const [toggles, setToggles] = useState<PreviewToggles>({
+    level: true,
+    dml: true,
+    double: true,
+    text: true,
+  });
+  const svgWrapRef = useRef<HTMLDivElement | null>(null);
+
+  const previewSvg = useMemo(() => {
+    if (!data?.底图?.svg) return "";
+    const allTextIds = collectSvgTextNodes(data.底图.svg).map((item) => item.id);
+    const existingSvgTextIdSet = new Set(allTextIds);
+    const levelTextIds = data.底图.档位标注.flatMap(({ textNodeIds = [] }) => {
+      return textNodeIds.filter((textNodeId) =>
+        existingSvgTextIdSet.has(String(textNodeId ?? "").trim()),
+      );
+    });
+    const dmlTextIds = data.自定义数据.DML标注.map((item) =>
+      String(item.textNodeId ?? "").trim(),
+    ).filter((textNodeId) => existingSvgTextIdSet.has(textNodeId));
+    const doubleTextIds = data.自定义数据.单双标注.map((item) =>
+      String(item.textNodeId ?? "").trim(),
+    );
+    const markerTextIds = new Set(
+      [...levelTextIds, ...dmlTextIds, ...doubleTextIds]
+        .map((id) => String(id ?? "").trim())
+        .filter(Boolean),
+    );
+
+    const visibleTextIds = new Set<string>();
+    if (toggles.text) {
+      allTextIds.forEach((id) => {
+        if (!markerTextIds.has(id) && !isManagedMarkerTextId(id)) {
+          visibleTextIds.add(id);
+        }
+      });
+    }
+    if (toggles.level) {
+      levelTextIds.forEach((id) => {
+        const nextId = String(id ?? "").trim();
+        if (nextId) visibleTextIds.add(nextId);
+      });
+    }
+    if (toggles.dml) {
+      dmlTextIds.forEach((id) => {
+        const nextId = String(id ?? "").trim();
+        if (nextId) visibleTextIds.add(nextId);
+      });
+    }
+    if (toggles.double) {
+      doubleTextIds.forEach((id) => {
+        const nextId = String(id ?? "").trim();
+        if (nextId) visibleTextIds.add(nextId);
+      });
+    }
+
+    return pruneSvgTextNodes(data.底图.svg, Array.from(visibleTextIds));
+  }, [data, toggles]);
+
+  const previewLabels = useMemo(() => {
+    if (!data) return [];
+    const existingSvgTextIdSet = new Set(
+      collectSvgTextNodes(data.底图.svg).map((item) => item.id),
+    );
+    return buildPreviewLabels(data, toggles, existingSvgTextIdSet);
+  }, [data, toggles]);
+
+  useEffect(() => {
+    const wrap = svgWrapRef.current;
+    if (!wrap) return;
+
+    const svgRoot = wrap.querySelector<SVGSVGElement>("svg");
+    if (!svgRoot) return;
+
+    let group = svgRoot.querySelector<SVGGElement>("#aime_preview_labels");
+    if (!group) {
+      group = document.createElementNS(SVG_NS, "g") as unknown as SVGGElement;
+      group.setAttribute("id", "aime_preview_labels");
+      group.setAttribute("pointer-events", "none");
+      svgRoot.appendChild(group);
+    }
+
+    while (group.firstChild) {
+      group.removeChild(group.firstChild);
+    }
+
+    previewLabels.forEach((item) => {
+      if (!item.text) return;
+      const lineEl = svgRoot.querySelector<SVGGraphicsElement>(
+        `#${cssEscapeId(item.lineId)}`,
+      );
+      if (!lineEl) return;
+
+      const pt = getPointAtRatio(svgRoot, lineEl, item.ratio);
+      if (!pt) return;
+
+      const textEl = document.createElementNS(SVG_NS, "text");
+      textEl.setAttribute("x", String(pt.x));
+      textEl.setAttribute("y", String(pt.y));
+      textEl.setAttribute("text-anchor", "middle");
+      textEl.setAttribute("dominant-baseline", "middle");
+      textEl.setAttribute("fill", item.fill);
+      textEl.setAttribute(
+        "font-family",
+        "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
+      );
+      textEl.setAttribute("font-size", "12");
+      textEl.setAttribute("font-weight", "700");
+      textEl.textContent = item.text;
+      group.appendChild(textEl);
+    });
+  }, [previewSvg, previewLabels]);
+
+  return (
+    <div className={className}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm font-semibold text-slate-900">预览选项</div>
+        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+          <label className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={toggles.level}
+              onChange={(e) =>
+                setToggles((v) => ({ ...v, level: e.target.checked }))
+              }
+            />
+            档位
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={toggles.double}
+              onChange={(e) =>
+                setToggles((v) => ({ ...v, double: e.target.checked }))
+              }
+            />
+            单双
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={toggles.dml}
+              onChange={(e) =>
+                setToggles((v) => ({ ...v, dml: e.target.checked }))
+              }
+            />
+            DML
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={toggles.text}
+              onChange={(e) =>
+                setToggles((v) => ({ ...v, text: e.target.checked }))
+              }
+            />
+            文本
+          </label>
+        </div>
+      </div>
+
+      {data?.底图?.svg ? (
+        <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white p-3">
+          <div ref={svgWrapRef} className="inline-block">
+            <InlineSvg svg={previewSvg} className="max-w-full" height="auto" />
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
+          {emptyText}
+        </div>
+      )}
+    </div>
+  );
+}

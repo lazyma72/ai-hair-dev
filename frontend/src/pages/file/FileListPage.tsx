@@ -23,7 +23,13 @@ import type { 沐茵丝假发成品稿ListItem } from "../../shared/frontend/mod
 export default function FileListPage() {
   const navigate = useNavigate();
 
-  const { data, loading, error } = useApi(() => callApi("file/GetList", {}));
+  const { data, loading, error } = useApi(() =>
+    callApi("admin/file/GetList", {
+      pageNum: 1,
+      pageSize: 1000,
+      orderSort: "desc",
+    }),
+  );
 
   const list: 沐茵丝假发成品稿ListItem[] = data?.list ?? [];
 

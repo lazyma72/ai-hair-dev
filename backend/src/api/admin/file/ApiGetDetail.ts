@@ -1,9 +1,9 @@
 import { ApiCall } from "tsrpc"
-import { ReqGetDetail, ResGetDetail } from "../../shared/protocols/file/PtlGetDetail"
-import { Global } from "../../models/Global"
-import { to制品规格书Frontend } from "../../shared/frontend/converters/to制品规格书Frontend"
-import { to高针指示单Frontend } from "../../shared/frontend/converters/to高针指示单Frontend"
-import { to手织指示单Frontend } from "../../shared/frontend/converters/to手织指示单Frontend"
+import { ReqGetDetail, ResGetDetail } from "../../../shared/protocols/admin/file/PtlGetDetail"
+import { Global } from "../../../models/Global"
+import { to制品规格书Frontend } from "../../../shared/frontend/converters/to制品规格书Frontend"
+import { to高针指示单Frontend } from "../../../shared/frontend/converters/to高针指示单Frontend"
+import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend"
 
 export default async function (call: ApiCall<ReqGetDetail, ResGetDetail>) {
   const col = Global.getCollection("沐茵丝假发成品稿")

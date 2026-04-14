@@ -23,10 +23,12 @@ type Props = {
   enableDml?: boolean;
   enableDouble?: boolean;
   onChange?: (v: 高针图) => void;
+  showPreview?: boolean;
 };
 
 export default function HighNeedleSvgAnnotator(props: Props) {
   const state = useHighNeedleSvgAnnotator(props);
+  const showPreview = props.showPreview ?? true;
 
   const activeTextNodeId =
     state.activeTextKey && state.value.底图.文本节点[state.activeTextKey]
@@ -34,7 +36,7 @@ export default function HighNeedleSvgAnnotator(props: Props) {
       : "";
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
+    <div className="grid h-full min-h-0 gap-4 overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
       <HighNeedleSvgAnnotatorSidebar {...state} />
       <HighNeedleSvgAnnotatorCanvas
         step={state.step}
@@ -45,12 +47,19 @@ export default function HighNeedleSvgAnnotator(props: Props) {
         previewValue={state.previewValue}
         canvasEpoch={state.canvasEpoch}
         visibleMarkerById={state.visibleMarkerById}
+        markerTextIdSet={state.markerTextIdSet}
+        draggableMarkerTextIdSet={state.draggableMarkerTextIdSet}
         regionLabels={state.regionLabelItems}
         toggleSelect={state.toggleSelect}
         handleLineAction={state.handleLineAction}
+        ensureLevelMarkerTextNode={state.ensureLevelMarkerTextNode}
+        ensureDmlMarkerTextNode={state.ensureDmlMarkerTextNode}
+        layerToggles={state.layerToggles}
+        setLayerToggles={state.setLayerToggles}
         activeTextNodeId={activeTextNodeId}
         onTextActivate={state.ensureTextNodeKept}
         onTextPositionCommit={state.commitTextNodePosition}
+        showPreview={showPreview}
       />
     </div>
   );

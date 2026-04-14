@@ -79,6 +79,196 @@ function nextDml(v: DmlValue): DmlValue {
   return v === "" ? "D" : v === "D" ? "M" : v === "M" ? "L" : "";
 }
 
+type SvgPoint = { x: number; y: number };
+
+type MarkerTextKind = "region" | "level" | "dml" | "double";
+
+function normalize高针图值(value: 高针图): 高针图 {
+  return {
+    ...value,
+    底图: {
+      ...value.底图,
+      区域名: value.底图.区域名 ?? [],
+      区域线条: (value.底图.区域线条 ?? []).map((item) => {
+        const legacyTextNodeIds = (
+          item as typeof item & { textNodeIds?: string[] }
+        ).textNodeIds;
+        return {
+          ...item,
+          textNodeIds: legacyTextNodeIds ?? [],
+          lineNodeIds: item.lineNodeIds ?? [],
+        };
+      }),
+      档位标注: (value.底图.档位标注 ?? []).map((item) => ({
+        ...item,
+        textNodeIds: item.textNodeIds ?? [],
+        lineNodeIds: item.lineNodeIds ?? [],
+      })),
+      文本节点: value.底图.文本节点 ?? {},
+    },
+    自定义数据: {
+      ...value.自定义数据,
+      DML标注: (value.自定义数据.DML标注 ?? []).map((item) => ({
+        ...item,
+        textNodeId: item.textNodeId ?? "",
+      })),
+      单双标注: (value.自定义数据.单双标注 ?? []).map((item) => ({
+        ...item,
+        textNodeId: item.textNodeId ?? "",
+      })),
+    },
+  };
+}
+
+function mergeTextIdList(
+  prev: string[],
+  addIds: string[],
+  removeIds: string[],
+): string[] {
+  const removeSet = new Set(removeIds.map((id) => id.trim()).filter(Boolean));
+  const next = prev.filter((id) => !removeSet.has(id));
+  const seen = new Set(next);
+
+  addIds
+    .map((id) => id.trim())
+    .filter(Boolean)
+    .forEach((id) => {
+      if (seen.has(id)) return;
+      seen.add(id);
+      next.push(id);
+    });
+
+  return next;
+}
+
+function getMarkerTextAnchorStyle(): Record<string, unknown> {
+  return {
+    textAnchor: "middle",
+    dominantBaseline: "middle",
+  };
+}
+
+function getMarkerTextFontStyle(kind: MarkerTextKind): Record<string, unknown> {
+  if (kind === "region") {
+    return {
+      fill: "#0369a1",
+      fontWeight: "700",
+      fontSize: 10,
+      ...getMarkerTextAnchorStyle(),
+    };
+  }
+  if (kind === "level") {
+    return {
+      fill: "#92400e",
+      fontWeight: "700",
+      fontSize: 12,
+      ...getMarkerTextAnchorStyle(),
+    };
+  }
+  if (kind === "dml") {
+    return {
+      fill: "#111827",
+      fontWeight: "700",
+      fontSize: 10,
+      ...getMarkerTextAnchorStyle(),
+    };
+  }
+  return {
+    fill: "#78350f",
+    fontWeight: "700",
+    fontSize: 10,
+    ...getMarkerTextAnchorStyle(),
+  };
+}
+
+function parseLevelNo(levelLabel: string, fallbackNo: number): number {
+  const match = String(levelLabel ?? "")
+    .trim()
+    .match(/\d+/);
+  if (!match) return fallbackNo;
+
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackNo;
+}
+
+function getLevelMarkerText(levelNo: number): string {
+  return String(levelNo);
+}
+
+function isManagedMarkerTextId(textNodeId: string): boolean {
+  const id = String(textNodeId ?? "").trim();
+  return (
+    id.startsWith("region_text_") ||
+    id.startsWith("level_text_") ||
+    id.startsWith("dml_text_") ||
+    id.startsWith("double_text_")
+  );
+}
+
+function filterExistingTextNodeMap(
+  sourceMap: ReadonlyMap<string, string>,
+  existingSvgTextIdSet: ReadonlySet<string>,
+): Map<string, string> {
+  const next = new Map<string, string>();
+  sourceMap.forEach((textNodeId, key) => {
+    if (!existingSvgTextIdSet.has(textNodeId)) return;
+    next.set(key, textNodeId);
+  });
+  return next;
+}
+
+function upsertMarkerTextNode(
+  svg: string,
+  options: {
+    textNodeId: string;
+    createNodeId: string;
+    createWhenMissing: boolean;
+    text: string;
+    pos?: SvgPoint;
+    fontStyle: Record<string, unknown>;
+  },
+): { svg: string; textNodeId: string; created: boolean } {
+  const currentId = options.textNodeId.trim();
+
+  const hasCurrentNode =
+    currentId.length > 0 &&
+    collectSvgTextNodes(svg).some((item) => item.id === currentId);
+
+  if (hasCurrentNode) {
+    let nextSvg = updateSvgTextNode(svg, currentId, options.text);
+    nextSvg = setSvgTextNodeStyle(nextSvg, currentId, options.fontStyle);
+    if (options.pos) {
+      nextSvg = setSvgTextNodePosition(nextSvg, currentId, options.pos);
+    }
+    return { svg: nextSvg, textNodeId: currentId, created: false };
+  }
+
+  if (!options.createWhenMissing) {
+    return { svg, textNodeId: "", created: false };
+  }
+
+  const createdId = options.createNodeId.trim();
+  let nextSvg = appendSvgTextNode(svg, {
+    nodeId: createdId,
+    text: options.text,
+    x: options.pos?.x,
+    y: options.pos?.y,
+    fontStyle: options.fontStyle,
+  });
+  nextSvg = updateSvgTextNode(nextSvg, createdId, options.text);
+  return { svg: nextSvg, textNodeId: createdId, created: true };
+}
+
+export type LayerToggles = {
+  region: boolean;
+  level: boolean;
+  dml: boolean;
+  double: boolean;
+  text: boolean;
+  /** 展示无区域标记的原始线条（关闭则隐藏未分配区域的线条） */
+  rawLines: boolean;
+};
+
 export type UseHighNeedleSvgAnnotatorParams = {
   initialSvg: string;
   initialValue?: 高针图;
@@ -107,11 +297,22 @@ export default function useHighNeedleSvgAnnotator({
 
   const [step, setStep] = useState<标注步骤>(startFromDone ? "完成" : "区域");
   const [progress, setProgress] = useState<number>(startFromDone ? 5 : 0);
-  const [value, setValue] = useState<高针图>(
-    () => initialValue ?? createEmpty高针图(initialSvg),
+  const [value, setValue] = useState<高针图>(() =>
+    initialValue
+      ? normalize高针图值(initialValue)
+      : createEmpty高针图(initialSvg),
   );
   const [allLineIds, setAllLineIds] = useState<string[]>([]);
   const [allTextIds, setAllTextIds] = useState<string[]>([]);
+
+  const [layerToggles, setLayerToggles] = useState<LayerToggles>({
+    region: true,
+    level: true,
+    dml: true,
+    double: true,
+    text: true,
+    rawLines: true,
+  });
 
   const allLineIdSet = useMemo(() => new Set(allLineIds), [allLineIds]);
 
@@ -136,6 +337,12 @@ export default function useHighNeedleSvgAnnotator({
   const autoDmlSlotByLineIdRef = useRef<
     Map<string, { configId: string; slotIndex: number }>
   >(new Map());
+  const draftMarkerPosByLineIdRef = useRef<Map<string, SvgPoint>>(new Map());
+  const [draftLevelTextNodeIdByLineId, setDraftLevelTextNodeIdByLineId] =
+    useState<Map<string, string>>(() => new Map());
+  const pendingDmlMarkerPosByLineIdRef = useRef<Map<string, SvgPoint>>(
+    new Map(),
+  );
 
   const [activeTextKey, setActiveTextKey] = useState<string>("");
   const [newTextDraft, setNewTextDraft] = useState<{
@@ -179,6 +386,7 @@ export default function useHighNeedleSvgAnnotator({
       autoDmlAssignmentsRef.current = new Map();
       autoDmlManagedIdsRef.current = new Set();
       autoDmlSlotByLineIdRef.current = new Map();
+      setDraftLevelTextNodeIdByLineId(new Map());
       setDmlAutoConfigs([]);
 
       setStep("区域");
@@ -190,12 +398,18 @@ export default function useHighNeedleSvgAnnotator({
   useEffect(() => {
     if (!initialValue) return;
 
-    const ensuredLine = ensureLineIds(initialValue.底图.svg, lineSelector);
+    const normalizedInitialValue = normalize高针图值(initialValue);
+
+    const ensuredLine = ensureLineIds(
+      normalizedInitialValue.底图.svg,
+      lineSelector,
+    );
     const ensuredText = ensureTextIds(ensuredLine.svg);
 
     setStep(startFromDone ? "完成" : "区域");
     setDirty(false);
     setDraftSelected([]);
+    setDraftLevelTextNodeIdByLineId(new Map());
     setActiveTextKey("");
     setRegionIndex(0);
     setRegionPresetValue(presets[0]?.name ?? CUSTOM_REGION_PRESET_VALUE);
@@ -226,19 +440,14 @@ export default function useHighNeedleSvgAnnotator({
     setProgress(startFromDone ? 5 : 0);
 
     setValue({
-      ...initialValue,
+      ...normalizedInitialValue,
       底图: {
-        ...initialValue.底图,
+        ...normalizedInitialValue.底图,
         svg: ensuredText.svg,
-        文本节点: initialValue.底图.文本节点 ?? {},
-      },
-      自定义数据: {
-        ...initialValue.自定义数据,
-        DML标注: initialValue.自定义数据.DML标注 ?? [],
-        单双标注: initialValue.自定义数据.单双标注 ?? [],
+        文本节点: normalizedInitialValue.底图.文本节点 ?? {},
       },
     });
-  }, [initialValue, lineSelector, presets]);
+  }, [initialValue, lineSelector, presets, startFromDone]);
 
   useEffect(() => {
     onChange?.(value);
@@ -264,6 +473,11 @@ export default function useHighNeedleSvgAnnotator({
     prepareCustomTextStage();
   }, [step]);
 
+  useEffect(() => {
+    if (step === "区域" || step === "档位") return;
+    draftMarkerPosByLineIdRef.current = new Map();
+  }, [step]);
+
   const usedRegionLines = useMemo(
     () => new Set(value.底图.区域线条.flatMap((d) => d.lineNodeIds)),
     [value.底图.区域线条],
@@ -282,6 +496,260 @@ export default function useHighNeedleSvgAnnotator({
     () => makeDoubleSet(value.自定义数据.单双标注),
     [value.自定义数据.单双标注],
   );
+
+  const existingSvgTextIdSet = useMemo(
+    () =>
+      new Set(
+        collectSvgTextNodes(value.底图.svg)
+          .map((item) => String(item.id ?? "").trim())
+          .filter(Boolean),
+      ),
+    [value.底图.svg],
+  );
+
+  const regionTextNodeIdByLineId = useMemo(() => {
+    const map = new Map<string, string>();
+    value.底图.区域线条.forEach((item) => {
+      const textNodeIds = (
+        item as typeof item & { textNodeIds?: string[] }
+      ).textNodeIds;
+      item.lineNodeIds.forEach((lineId, index) => {
+        const textNodeId = String(textNodeIds?.[index] ?? "").trim();
+        if (!textNodeId) return;
+        map.set(lineId, textNodeId);
+      });
+    });
+    return map;
+  }, [value.底图.区域线条]);
+
+  const actualRegionTextNodeIdByLineId = useMemo(
+    () =>
+      filterExistingTextNodeMap(regionTextNodeIdByLineId, existingSvgTextIdSet),
+    [existingSvgTextIdSet, regionTextNodeIdByLineId],
+  );
+
+  const levelLocationByLineId = useMemo(() => {
+    const map = new Map<string, { itemIndex: number; lineIndex: number }>();
+    value.底图.档位标注.forEach((item, itemIndex) => {
+      item.lineNodeIds.forEach((rawLineId, lineIndex) => {
+        const lineId = String(rawLineId ?? "").trim();
+        if (!lineId) return;
+        map.set(lineId, { itemIndex, lineIndex });
+      });
+    });
+    return map;
+  }, [value.底图.档位标注]);
+
+  const levelTextNodeIdByLineId = useMemo(() => {
+    const map = new Map<string, string>();
+    value.底图.档位标注.forEach((item) => {
+      item.lineNodeIds.forEach((lineId, index) => {
+        const textNodeId = String(item.textNodeIds[index] ?? "").trim();
+        if (!textNodeId) return;
+        map.set(lineId, textNodeId);
+      });
+    });
+    return map;
+  }, [value.底图.档位标注]);
+
+  const actualPersistedLevelTextNodeIdByLineId = useMemo(
+    () =>
+      filterExistingTextNodeMap(levelTextNodeIdByLineId, existingSvgTextIdSet),
+    [existingSvgTextIdSet, levelTextNodeIdByLineId],
+  );
+
+  const actualDraftLevelTextNodeIdByLineId = useMemo(
+    () =>
+      filterExistingTextNodeMap(
+        draftLevelTextNodeIdByLineId,
+        existingSvgTextIdSet,
+      ),
+    [draftLevelTextNodeIdByLineId, existingSvgTextIdSet],
+  );
+
+  const effectiveLevelTextNodeIdByLineId = useMemo(() => {
+    const map = new Map(actualPersistedLevelTextNodeIdByLineId);
+    actualDraftLevelTextNodeIdByLineId.forEach((textNodeId, lineId) => {
+      if (!textNodeId) return;
+      map.set(lineId, textNodeId);
+    });
+    return map;
+  }, [
+    actualDraftLevelTextNodeIdByLineId,
+    actualPersistedLevelTextNodeIdByLineId,
+  ]);
+
+  const dmlTextNodeIdByLineId = useMemo(() => {
+    const map = new Map<string, string>();
+    value.自定义数据.DML标注.forEach((item) => {
+      const textNodeId = String(item.textNodeId ?? "").trim();
+      if (!textNodeId) return;
+      map.set(item.lineNodeId, textNodeId);
+    });
+    return map;
+  }, [value.自定义数据.DML标注]);
+
+  const actualDmlTextNodeIdByLineId = useMemo(
+    () =>
+      filterExistingTextNodeMap(dmlTextNodeIdByLineId, existingSvgTextIdSet),
+    [dmlTextNodeIdByLineId, existingSvgTextIdSet],
+  );
+
+  const doubleTextNodeIdByLineId = useMemo(() => {
+    const map = new Map<string, string>();
+    value.自定义数据.单双标注.forEach((item) => {
+      const textNodeId = String(item.textNodeId ?? "").trim();
+      if (!textNodeId) return;
+      map.set(item.lineNodeId, textNodeId);
+    });
+    return map;
+  }, [value.自定义数据.单双标注]);
+
+  const actualDoubleTextNodeIdByLineId = useMemo(
+    () =>
+      filterExistingTextNodeMap(doubleTextNodeIdByLineId, existingSvgTextIdSet),
+    [doubleTextNodeIdByLineId, existingSvgTextIdSet],
+  );
+
+  const markerTextIdSet = useMemo(() => {
+    const ids = new Set<string>();
+    actualRegionTextNodeIdByLineId.forEach((id) => ids.add(id));
+    effectiveLevelTextNodeIdByLineId.forEach((id) => ids.add(id));
+    actualDmlTextNodeIdByLineId.forEach((id) => ids.add(id));
+    actualDoubleTextNodeIdByLineId.forEach((id) => ids.add(id));
+    return ids;
+  }, [
+    actualDmlTextNodeIdByLineId,
+    actualDoubleTextNodeIdByLineId,
+    actualRegionTextNodeIdByLineId,
+    effectiveLevelTextNodeIdByLineId,
+  ]);
+
+  const draggableMarkerTextIdSet = useMemo(() => {
+    const ids = new Set<string>();
+    effectiveLevelTextNodeIdByLineId.forEach((id) => ids.add(id));
+    actualDmlTextNodeIdByLineId.forEach((id) => ids.add(id));
+    actualDoubleTextNodeIdByLineId.forEach((id) => ids.add(id));
+    return ids;
+  }, [
+    actualDmlTextNodeIdByLineId,
+    actualDoubleTextNodeIdByLineId,
+    effectiveLevelTextNodeIdByLineId,
+  ]);
+
+  useEffect(() => {
+    if (draftLevelTextNodeIdByLineId.size === 0) return;
+
+    const keepLineIdSet =
+      step === "档位" ? new Set(draftSelected) : new Set<string>();
+    const staleEntries = Array.from(
+      draftLevelTextNodeIdByLineId.entries(),
+    ).filter(([lineId]) => !keepLineIdSet.has(lineId));
+    if (staleEntries.length === 0) return;
+
+    const removedTextIds = uniquePreserveOrder(
+      staleEntries
+        .map(([, textNodeId]) => String(textNodeId ?? "").trim())
+        .filter(Boolean),
+    );
+
+    setDraftLevelTextNodeIdByLineId((prev) => {
+      const next = new Map(prev);
+      staleEntries.forEach(([lineId]) => next.delete(lineId));
+      return next;
+    });
+
+    if (removedTextIds.length === 0) return;
+
+    setValue((cur) => ({
+      ...cur,
+      底图: {
+        ...cur.底图,
+        svg: removeSvgTextNodes(cur.底图.svg, removedTextIds),
+      },
+    }));
+    setAllTextIds((prev) => mergeTextIdList(prev, [], removedTextIds));
+  }, [draftLevelTextNodeIdByLineId, draftSelected, step]);
+
+  const persistedMarkerTextIds = useMemo(
+    () =>
+      uniquePreserveOrder([
+        ...Array.from(actualRegionTextNodeIdByLineId.values()),
+        ...Array.from(actualPersistedLevelTextNodeIdByLineId.values()),
+        ...Array.from(actualDmlTextNodeIdByLineId.values()),
+        ...Array.from(actualDoubleTextNodeIdByLineId.values()),
+      ])
+        .map((id) => String(id ?? "").trim())
+        .filter(Boolean),
+    [
+      actualDmlTextNodeIdByLineId,
+      actualDoubleTextNodeIdByLineId,
+      actualPersistedLevelTextNodeIdByLineId,
+      actualRegionTextNodeIdByLineId,
+    ],
+  );
+
+  useEffect(() => {
+    if (persistedMarkerTextIds.length === 0) return;
+
+    const anchorStyle = getMarkerTextAnchorStyle();
+    let nextSvg = value.底图.svg;
+    let changed = false;
+
+    persistedMarkerTextIds.forEach((textNodeId) => {
+      const currentStyle = getSvgTextNodeFontStyle(nextSvg, textNodeId);
+      if (
+        currentStyle.textAnchor === anchorStyle.textAnchor &&
+        currentStyle.dominantBaseline === anchorStyle.dominantBaseline
+      ) {
+        return;
+      }
+
+      nextSvg = setSvgTextNodeStyle(nextSvg, textNodeId, {
+        ...currentStyle,
+        ...anchorStyle,
+      });
+      changed = true;
+    });
+
+    if (!changed || nextSvg === value.底图.svg) return;
+
+    setValue((cur) => {
+      if (cur.底图.svg !== value.底图.svg) return cur;
+      return {
+        ...cur,
+        底图: {
+          ...cur.底图,
+          svg: nextSvg,
+        },
+      };
+    });
+  }, [persistedMarkerTextIds, value.底图.svg]);
+
+  useEffect(() => {
+    const orphanManagedTextIds = uniquePreserveOrder(
+      collectSvgTextNodes(value.底图.svg)
+        .map((item) => String(item.id ?? "").trim())
+        .filter(
+          (textNodeId) =>
+            isManagedMarkerTextId(textNodeId) &&
+            !markerTextIdSet.has(textNodeId),
+        ),
+    );
+    if (orphanManagedTextIds.length === 0) return;
+
+    setValue((cur) => {
+      if (cur.底图.svg !== value.底图.svg) return cur;
+      return {
+        ...cur,
+        底图: {
+          ...cur.底图,
+          svg: removeSvgTextNodes(cur.底图.svg, orphanManagedTextIds),
+        },
+      };
+    });
+    setAllTextIds((prev) => mergeTextIdList(prev, [], orphanManagedTextIds));
+  }, [markerTextIdSet, value.底图.svg]);
 
   const regionLineItems = useMemo<RegionLineItem[]>(() => {
     const out: RegionLineItem[] = [];
@@ -337,8 +805,6 @@ export default function useHighNeedleSvgAnnotator({
   }, [regionColorByName, value.底图.区域线条]);
 
   const regionLabelItems = useMemo(() => {
-    if (step !== "DML") return [];
-
     const byName = new Map<string, string[]>();
     value.底图.区域线条.forEach((d) => {
       const name = String(d.区域名 ?? "").trim();
@@ -357,7 +823,7 @@ export default function useHighNeedleSvgAnnotator({
       color: regionColorByName.get(name) ?? "#ef4444",
       lineIds: uniquePreserveOrder(lineIds),
     }));
-  }, [regionColorByName, step, value.底图.区域线条]);
+  }, [regionColorByName, value.底图.区域线条]);
 
   const regionNoById = useMemo(() => {
     const map = new Map<string, number>();
@@ -380,7 +846,8 @@ export default function useHighNeedleSvgAnnotator({
     const map = new Map<string, number>();
 
     value.底图.档位标注.forEach((d, idx) => {
-      d.lineNodeIds.forEach((id) => map.set(id, idx + 1));
+      const markerLevelNo = parseLevelNo(String(d.区域名 ?? ""), idx + 1);
+      d.lineNodeIds.forEach((id) => map.set(id, markerLevelNo));
     });
 
     if (step === "档位") {
@@ -390,48 +857,115 @@ export default function useHighNeedleSvgAnnotator({
     return map;
   }, [draftSelected, levelNo, step, value.底图.档位标注]);
 
+  const levelTextById = useMemo(() => {
+    const map = new Map<string, string>();
+    levelNoById.forEach((no, id) => {
+      map.set(id, getLevelMarkerText(no));
+    });
+    return map;
+  }, [levelNoById]);
+
+  const persistedLevelTextTargets = useMemo(
+    () =>
+      value.底图.档位标注.flatMap((item, itemIndex) => {
+        const levelText = getLevelMarkerText(
+          parseLevelNo(String(item.区域名 ?? ""), itemIndex + 1),
+        );
+
+        return item.textNodeIds
+          .map((rawTextNodeId) => String(rawTextNodeId ?? "").trim())
+          .filter(Boolean)
+          .map((textNodeId) => ({ textNodeId, text: levelText }));
+      }),
+    [value.底图.档位标注],
+  );
+
+  useEffect(() => {
+    if (persistedLevelTextTargets.length === 0) return;
+
+    let nextSvg = value.底图.svg;
+    let changed = false;
+
+    persistedLevelTextTargets.forEach(({ textNodeId, text }) => {
+      if (getSvgTextNodeText(nextSvg, textNodeId) === text) return;
+
+      nextSvg = updateSvgTextNode(nextSvg, textNodeId, text);
+      changed = true;
+    });
+
+    if (!changed || nextSvg === value.底图.svg) return;
+
+    setValue((cur) => {
+      if (cur.底图.svg !== value.底图.svg) return cur;
+      return {
+        ...cur,
+        底图: {
+          ...cur.底图,
+          svg: nextSvg,
+        },
+      };
+    });
+  }, [persistedLevelTextTargets, value.底图.svg]);
+
   const visibleMarkerById = useMemo(() => {
     const map = new Map<
       string,
       {
         regionNo?: number;
+        regionTextNodeId?: string;
         levelNo?: number;
+        levelTextNodeId?: string;
         dml?: DmlValue;
+        dmlTextNodeId?: string;
         isDouble?: boolean;
+        doubleTextNodeId?: string;
       }
     >();
 
-    if (step === "区域") {
-      regionNoById.forEach((no, id) => {
-        map.set(id, { regionNo: no });
+    regionNoById.forEach((no, id) => {
+      map.set(id, {
+        ...map.get(id),
+        regionNo: no,
+        regionTextNodeId: actualRegionTextNodeIdByLineId.get(id),
       });
-      return map;
-    }
+    });
 
-    if (step === "档位") {
-      levelNoById.forEach((no, id) => {
-        map.set(id, { levelNo: no });
+    levelNoById.forEach((no, id) => {
+      map.set(id, {
+        ...map.get(id),
+        levelNo: no,
+        levelTextNodeId: effectiveLevelTextNodeIdByLineId.get(id),
       });
-      return map;
-    }
+    });
 
-    if (step === "DML") {
-      dmlById.forEach((v, id) => {
-        if (!v) return;
-        map.set(id, { dml: v });
+    dmlById.forEach((v, id) => {
+      if (!v) return;
+      map.set(id, {
+        ...map.get(id),
+        dml: v,
+        dmlTextNodeId: actualDmlTextNodeIdByLineId.get(id),
       });
-      return map;
-    }
+    });
 
-    if (step === "单双") {
-      doubleById.forEach((id) => {
-        map.set(id, { isDouble: true });
+    doubleById.forEach((id) => {
+      map.set(id, {
+        ...map.get(id),
+        isDouble: true,
+        doubleTextNodeId: actualDoubleTextNodeIdByLineId.get(id),
       });
-      return map;
-    }
+    });
 
     return map;
-  }, [dmlById, doubleById, levelNoById, regionNoById, step]);
+  }, [
+    dmlById,
+    actualDmlTextNodeIdByLineId,
+    doubleById,
+    actualDoubleTextNodeIdByLineId,
+    levelNoById,
+    effectiveLevelTextNodeIdByLineId,
+    regionNoById,
+    actualRegionTextNodeIdByLineId,
+  ]);
 
   const availableForStep = useMemo(() => {
     if (step === "完成" || step === "自定义文本") return new Set<string>();
@@ -480,28 +1014,73 @@ export default function useHighNeedleSvgAnnotator({
     const selectedStroke =
       step === "档位" ? "#f59e0b" : step === "区域" ? "#3b82f6" : "#ef4444";
 
-    return decorateLines(value.底图.svg, {
+    const visibleTextIdSet = new Set<string>();
+    if (layerToggles.text) {
+      allTextIds.forEach((id) => {
+        if (!markerTextIdSet.has(id) && !isManagedMarkerTextId(id)) {
+          visibleTextIdSet.add(id);
+        }
+      });
+    }
+    if (layerToggles.region) {
+      actualRegionTextNodeIdByLineId.forEach((id) => visibleTextIdSet.add(id));
+    }
+    if (layerToggles.level) {
+      effectiveLevelTextNodeIdByLineId.forEach((id) =>
+        visibleTextIdSet.add(id),
+      );
+    }
+    if (layerToggles.dml) {
+      actualDmlTextNodeIdByLineId.forEach((id) => visibleTextIdSet.add(id));
+    }
+    if (layerToggles.double) {
+      actualDoubleTextNodeIdByLineId.forEach((id) => visibleTextIdSet.add(id));
+    }
+
+    const baseSvg = pruneSvgTextNodes(
+      value.底图.svg,
+      Array.from(visibleTextIdSet),
+    );
+
+    // 「原线条」关闭时：隐藏没有区域归属的线条
+    const assignedLineIds = new Set(
+      value.底图.区域线条.flatMap((d) => d.lineNodeIds),
+    );
+    const hiddenLineIds = !layerToggles.rawLines
+      ? new Set(allLineIds.filter((id) => !assignedLineIds.has(id)))
+      : undefined;
+
+    return decorateLines(baseSvg, {
       touchIds: allLineIds,
       selected: new Set(draftSelected),
-      disabled: disabledForStep,
+      disabled: new Set<string>(),
+      hiddenIds: hiddenLineIds,
       regionNoById,
-      regionStrokeById,
-      levelNoById: step === "DML" ? undefined : levelNoById,
-      dmlById: step === "DML" ? dmlById : undefined,
-      doubleById: step === "单双" ? doubleById : undefined,
+      regionStrokeById: layerToggles.region ? regionStrokeById : undefined,
+      levelNoById: layerToggles.level ? levelNoById : undefined,
+      dmlById: layerToggles.dml ? dmlById : undefined,
+      doubleById: layerToggles.double ? doubleById : undefined,
       selectedStroke,
     });
   }, [
     allLineIds,
+    allTextIds,
     disabledForStep,
     dmlById,
+    actualDmlTextNodeIdByLineId,
     doubleById,
+    actualDoubleTextNodeIdByLineId,
     draftSelected,
+    effectiveLevelTextNodeIdByLineId,
+    layerToggles,
     levelNoById,
+    markerTextIdSet,
     regionNoById,
+    actualRegionTextNodeIdByLineId,
     regionStrokeById,
     step,
     value.底图.svg,
+    value.底图.区域线条,
   ]);
 
   function commitMergedDml(
@@ -526,16 +1105,69 @@ export default function useHighNeedleSvgAnnotator({
       }
     });
 
-    setValue((cur) => ({
-      ...cur,
-      自定义数据: {
-        ...cur.自定义数据,
-        DML标注: Array.from(merged.entries()).map(([lineNodeId, 标注DML]) => ({
-          lineNodeId,
-          标注DML,
-        })),
-      },
-    }));
+    const addedTextIds: string[] = [];
+    const removedTextIds: string[] = [];
+
+    setValue((cur) => {
+      const prevByLineId = new Map(
+        cur.自定义数据.DML标注.map((item) => [item.lineNodeId, item]),
+      );
+      let nextSvg = cur.底图.svg;
+
+      const nextDmlItems = Array.from(merged.entries()).map(
+        ([lineNodeId, 标注DML]) => {
+          const prev = prevByLineId.get(lineNodeId);
+          const result = upsertMarkerTextNode(nextSvg, {
+            textNodeId: String(prev?.textNodeId ?? ""),
+            createNodeId: allocLocalId("dml_text"),
+            createWhenMissing: Boolean(
+              prev?.textNodeId ||
+              pendingDmlMarkerPosByLineIdRef.current.get(lineNodeId),
+            ),
+            text: 标注DML,
+            pos: pendingDmlMarkerPosByLineIdRef.current.get(lineNodeId),
+            fontStyle: getMarkerTextFontStyle("dml"),
+          });
+          nextSvg = result.svg;
+          if (result.created && result.textNodeId) {
+            addedTextIds.push(result.textNodeId);
+          }
+
+          return {
+            lineNodeId,
+            textNodeId: result.textNodeId,
+            标注DML,
+          };
+        },
+      );
+
+      prevByLineId.forEach((prev, lineNodeId) => {
+        if (merged.has(lineNodeId)) return;
+        const textNodeId = String(prev.textNodeId ?? "").trim();
+        if (!textNodeId) return;
+        nextSvg = removeSvgTextNodes(nextSvg, [textNodeId]);
+        removedTextIds.push(textNodeId);
+      });
+
+      return {
+        ...cur,
+        底图: {
+          ...cur.底图,
+          svg: nextSvg,
+        },
+        自定义数据: {
+          ...cur.自定义数据,
+          DML标注: nextDmlItems,
+        },
+      };
+    });
+
+    pendingDmlMarkerPosByLineIdRef.current = new Map();
+    if (addedTextIds.length > 0 || removedTextIds.length > 0) {
+      setAllTextIds((prev) =>
+        mergeTextIdList(prev, addedTextIds, removedTextIds),
+      );
+    }
   }
 
   function recomputeAutoDml(configs: DmlAutoConfig[]) {
@@ -589,8 +1221,12 @@ export default function useHighNeedleSvgAnnotator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dmlAutoConfigs, regionLineItems, step, value.底图.档位标注]);
 
-  function toggleSelect(id: string, options?: { silent?: boolean }) {
+  function toggleSelect(
+    id: string,
+    options?: { silent?: boolean; markerPos?: SvgPoint },
+  ) {
     if (!id) return;
+    const existed = draftSelected.includes(id);
     if (!availableForStep.has(id) && !draftSelected.includes(id)) {
       if (!options?.silent) {
         message.warning("该线条在当前步骤不可操作");
@@ -598,12 +1234,25 @@ export default function useHighNeedleSvgAnnotator({
       return;
     }
 
-    setDraftSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setDraftSelected((prev) => {
+      const existedInPrev = prev.includes(id);
+      if (step === "区域" || step === "档位") {
+        if (existedInPrev) {
+          draftMarkerPosByLineIdRef.current.delete(id);
+        } else if (options?.markerPos) {
+          draftMarkerPosByLineIdRef.current.set(id, options.markerPos);
+        }
+      }
+
+      return existedInPrev ? prev.filter((x) => x !== id) : [...prev, id];
+    });
+
+    if (step === "档位" && !existed && options?.markerPos) {
+      ensureLevelMarkerTextNode(id, options.markerPos);
+    }
   }
 
-  function handleLineAction(id: string) {
+  function handleLineAction(id: string, options?: { markerPos?: SvgPoint }) {
     if (!id) return;
 
     if (step === "DML") {
@@ -620,6 +1269,9 @@ export default function useHighNeedleSvgAnnotator({
       // 无论 next 是否为空，都写入 manual override。
       // 空字符串 ("") 是"明确清除"信号，commitMergedDml 会据此删除自动规律赋值。
       manualDmlOverridesRef.current[id] = next;
+      if (options?.markerPos) {
+        pendingDmlMarkerPosByLineIdRef.current.set(id, options.markerPos);
+      }
       commitMergedDml(
         autoDmlAssignmentsRef.current,
         autoDmlManagedIdsRef.current,
@@ -631,28 +1283,205 @@ export default function useHighNeedleSvgAnnotator({
       if (!availableForStep.has(id)) return;
 
       setDirty(true);
+      const addedTextIds: string[] = [];
+      const removedTextIds: string[] = [];
       setValue((v) => {
-        const prevSet = makeDoubleSet(v.自定义数据.单双标注);
-        const nextSet = new Set(prevSet);
-        if (nextSet.has(id)) nextSet.delete(id);
-        else nextSet.add(id);
+        const prevByLineId = new Map(
+          v.自定义数据.单双标注.map((item) => [item.lineNodeId, item]),
+        );
+        const existed = prevByLineId.get(id);
+        let nextSvg = v.底图.svg;
+        let nextItems = v.自定义数据.单双标注.filter(
+          (item) => item.lineNodeId !== id,
+        );
+
+        if (!existed) {
+          const result = upsertMarkerTextNode(nextSvg, {
+            textNodeId: "",
+            createNodeId: allocLocalId("double_text"),
+            createWhenMissing: true,
+            text: "双",
+            pos: options?.markerPos,
+            fontStyle: getMarkerTextFontStyle("double"),
+          });
+          nextSvg = result.svg;
+          if (result.created && result.textNodeId) {
+            addedTextIds.push(result.textNodeId);
+          }
+          nextItems = [
+            ...nextItems,
+            { lineNodeId: id, textNodeId: result.textNodeId, 双数: true },
+          ];
+        } else {
+          const textNodeId = String(existed.textNodeId ?? "").trim();
+          if (textNodeId) {
+            nextSvg = removeSvgTextNodes(nextSvg, [textNodeId]);
+            removedTextIds.push(textNodeId);
+          }
+        }
 
         return {
           ...v,
+          底图: {
+            ...v.底图,
+            svg: nextSvg,
+          },
           自定义数据: {
             ...v.自定义数据,
-            单双标注: Array.from(nextSet).map((lineNodeId) => ({
-              lineNodeId,
-              双数: true,
-            })),
+            单双标注: nextItems,
           },
         };
       });
+
+      if (addedTextIds.length > 0 || removedTextIds.length > 0) {
+        setAllTextIds((prev) =>
+          mergeTextIdList(prev, addedTextIds, removedTextIds),
+        );
+      }
 
       return;
     }
 
     toggleSelect(id);
+  }
+
+  function ensureDmlMarkerTextNode(lineNodeId: string, pos: SvgPoint) {
+    if (!lineNodeId) return;
+
+    let addedTextId = "";
+
+    setValue((cur) => {
+      const index = cur.自定义数据.DML标注.findIndex(
+        (item) => item.lineNodeId === lineNodeId,
+      );
+      if (index < 0) return cur;
+
+      const prev = cur.自定义数据.DML标注[index];
+      if (String(prev.textNodeId ?? "").trim()) return cur;
+
+      const text = String(prev.标注DML ?? "").trim() as DmlValue;
+      if (text !== "D" && text !== "M" && text !== "L") return cur;
+
+      const result = upsertMarkerTextNode(cur.底图.svg, {
+        textNodeId: "",
+        createNodeId: allocLocalId("dml_text"),
+        createWhenMissing: true,
+        text,
+        pos,
+        fontStyle: getMarkerTextFontStyle("dml"),
+      });
+      if (!result.textNodeId) return cur;
+
+      addedTextId = result.textNodeId;
+      const nextItems = [...cur.自定义数据.DML标注];
+      nextItems[index] = {
+        ...prev,
+        textNodeId: result.textNodeId,
+      };
+
+      return {
+        ...cur,
+        底图: {
+          ...cur.底图,
+          svg: result.svg,
+        },
+        自定义数据: {
+          ...cur.自定义数据,
+          DML标注: nextItems,
+        },
+      };
+    });
+
+    if (addedTextId) {
+      setAllTextIds((prev) => mergeTextIdList(prev, [addedTextId], []));
+    }
+  }
+
+  function ensureLevelMarkerTextNode(lineNodeId: string, pos: SvgPoint) {
+    if (!lineNodeId) return;
+
+    let addedTextId = "";
+    let draftTextNodeId = "";
+
+    setValue((cur) => {
+      const savedLevelLocation = levelLocationByLineId.get(lineNodeId);
+      const isDraftLevelLine = draftSelected.includes(lineNodeId);
+      if (
+        !savedLevelLocation &&
+        !availableForStep.has(lineNodeId) &&
+        !isDraftLevelLine
+      ) {
+        return cur;
+      }
+
+      const levelText = String(levelTextById.get(lineNodeId) ?? "").trim();
+      if (!levelText) return cur;
+
+      const existingTextNodeId = savedLevelLocation
+        ? String(
+            cur.底图.档位标注[savedLevelLocation.itemIndex]?.textNodeIds[
+              savedLevelLocation.lineIndex
+            ] ?? "",
+          ).trim()
+        : String(draftLevelTextNodeIdByLineId.get(lineNodeId) ?? "").trim();
+
+      const result = upsertMarkerTextNode(cur.底图.svg, {
+        textNodeId: existingTextNodeId,
+        createNodeId: allocLocalId("level_text"),
+        createWhenMissing: true,
+        text: levelText,
+        pos,
+        fontStyle: getMarkerTextFontStyle("level"),
+      });
+      if (!result.textNodeId) return cur;
+
+      if (result.created) {
+        addedTextId = result.textNodeId;
+      }
+
+      if (savedLevelLocation) {
+        const nextLevelItems = [...cur.底图.档位标注];
+        const prevLevelItem = nextLevelItems[savedLevelLocation.itemIndex];
+        if (!prevLevelItem) return cur;
+
+        const nextTextNodeIds = [...prevLevelItem.textNodeIds];
+        nextTextNodeIds[savedLevelLocation.lineIndex] = result.textNodeId;
+        nextLevelItems[savedLevelLocation.itemIndex] = {
+          ...prevLevelItem,
+          textNodeIds: nextTextNodeIds,
+        };
+
+        return {
+          ...cur,
+          底图: {
+            ...cur.底图,
+            svg: result.svg,
+            档位标注: nextLevelItems,
+          },
+        };
+      }
+
+      draftTextNodeId = result.textNodeId;
+      return {
+        ...cur,
+        底图: {
+          ...cur.底图,
+          svg: result.svg,
+        },
+      };
+    });
+
+    if (draftTextNodeId) {
+      setDraftLevelTextNodeIdByLineId((prev) => {
+        const next = new Map(prev);
+        next.set(lineNodeId, draftTextNodeId);
+        return next;
+      });
+    }
+
+    if (addedTextId) {
+      setAllTextIds((prev) => mergeTextIdList(prev, [addedTextId], []));
+    }
   }
 
   function confirmExit() {
@@ -665,6 +1494,9 @@ export default function useHighNeedleSvgAnnotator({
     autoDmlAssignmentsRef.current = new Map();
     autoDmlManagedIdsRef.current = new Set();
     autoDmlSlotByLineIdRef.current = new Map();
+    draftMarkerPosByLineIdRef.current = new Map();
+    setDraftLevelTextNodeIdByLineId(new Map());
+    pendingDmlMarkerPosByLineIdRef.current = new Map();
     setDmlAutoConfigs([]);
 
     requestCanvasReset();
@@ -713,6 +1545,9 @@ export default function useHighNeedleSvgAnnotator({
     autoDmlAssignmentsRef.current = new Map();
     autoDmlManagedIdsRef.current = new Set();
     autoDmlSlotByLineIdRef.current = new Map();
+    draftMarkerPosByLineIdRef.current = new Map();
+    setDraftLevelTextNodeIdByLineId(new Map());
+    pendingDmlMarkerPosByLineIdRef.current = new Map();
     setDmlAutoConfigs([]);
 
     requestCanvasReset();
@@ -750,11 +1585,22 @@ export default function useHighNeedleSvgAnnotator({
     setDirty(true);
     setLevelNo(1);
     setDraftSelected([]);
+    setDraftLevelTextNodeIdByLineId(new Map());
+    draftMarkerPosByLineIdRef.current = new Map();
+    pendingDmlMarkerPosByLineIdRef.current = new Map();
+
+    const removedTextIds = uniquePreserveOrder([
+      ...Array.from(draftLevelTextNodeIdByLineId.values()),
+      ...value.底图.档位标注.flatMap((item) => item.textNodeIds ?? []),
+      ...value.自定义数据.DML标注.map((item) => item.textNodeId),
+      ...value.自定义数据.单双标注.map((item) => item.textNodeId),
+    ]);
 
     setValue((v) => ({
       ...v,
       底图: {
         ...v.底图,
+        svg: removeSvgTextNodes(v.底图.svg, removedTextIds),
         档位标注: [],
       },
       自定义数据: {
@@ -763,6 +1609,10 @@ export default function useHighNeedleSvgAnnotator({
         单双标注: [],
       },
     }));
+
+    if (removedTextIds.length > 0) {
+      setAllTextIds((prev) => mergeTextIdList(prev, [], removedTextIds));
+    }
 
     message.success("已清空档位阶段");
   }
@@ -775,15 +1625,27 @@ export default function useHighNeedleSvgAnnotator({
     autoDmlAssignmentsRef.current = new Map();
     autoDmlManagedIdsRef.current = new Set();
     autoDmlSlotByLineIdRef.current = new Map();
+    pendingDmlMarkerPosByLineIdRef.current = new Map();
     setDmlAutoConfigs((prev) => prev.map((c) => ({ ...c, pattern: "" })));
+
+    const removedTextIds = uniquePreserveOrder(
+      value.自定义数据.DML标注.map((item) => item.textNodeId),
+    );
 
     setValue((v) => ({
       ...v,
+      底图: {
+        ...v.底图,
+        svg: removeSvgTextNodes(v.底图.svg, removedTextIds),
+      },
       自定义数据: {
         ...v.自定义数据,
         DML标注: [],
       },
     }));
+    if (removedTextIds.length > 0) {
+      setAllTextIds((prev) => mergeTextIdList(prev, [], removedTextIds));
+    }
     message.success("已清空 DML 标注（并关闭自动规律）");
   }
 
@@ -791,13 +1653,23 @@ export default function useHighNeedleSvgAnnotator({
     requestCanvasReset();
 
     setDirty(true);
+    const removedTextIds = uniquePreserveOrder(
+      value.自定义数据.单双标注.map((item) => item.textNodeId),
+    );
     setValue((v) => ({
       ...v,
+      底图: {
+        ...v.底图,
+        svg: removeSvgTextNodes(v.底图.svg, removedTextIds),
+      },
       自定义数据: {
         ...v.自定义数据,
         单双标注: [],
       },
     }));
+    if (removedTextIds.length > 0) {
+      setAllTextIds((prev) => mergeTextIdList(prev, [], removedTextIds));
+    }
     message.success("已清空 单双 标注");
   }
 
@@ -893,25 +1765,52 @@ export default function useHighNeedleSvgAnnotator({
     setDirty(true);
     setDraftSelected([]);
 
+    const addedTextIds: string[] = [];
+
     setValue((v) => {
+      let nextSvg = v.底图.svg;
       const regionNameList = [...v.底图.区域名, draft.name];
 
-      const newLines = selected.map((lineId, i) => ({
-        区域名: draft.name,
-        lineNodeIds: [lineId],
-        lineLength: draft.lineLength,
-        区域内位置占比: selected.length <= 1 ? 0.5 : i / (selected.length - 1),
-      }));
+      const startNo = v.底图.区域线条.length;
+      const newLines = selected.map((lineId, i) => {
+        const result = upsertMarkerTextNode(nextSvg, {
+          textNodeId: "",
+          createNodeId: allocLocalId("region_text"),
+          createWhenMissing: true,
+          text: String(startNo + i + 1),
+          pos: draftMarkerPosByLineIdRef.current.get(lineId),
+          fontStyle: getMarkerTextFontStyle("region"),
+        });
+        nextSvg = result.svg;
+        if (result.created && result.textNodeId) {
+          addedTextIds.push(result.textNodeId);
+        }
+
+        return {
+          区域名: draft.name,
+          textNodeIds: result.textNodeId ? [result.textNodeId] : [],
+          lineNodeIds: [lineId],
+          lineLength: draft.lineLength,
+          区域内位置占比:
+            selected.length <= 1 ? 0.5 : i / (selected.length - 1),
+        };
+      });
 
       return {
         ...v,
         底图: {
           ...v.底图,
+          svg: nextSvg,
           区域名: regionNameList,
           区域线条: [...v.底图.区域线条, ...newLines],
         },
       };
     });
+
+    if (addedTextIds.length > 0) {
+      setAllTextIds((prev) => mergeTextIdList(prev, addedTextIds, []));
+    }
+    selected.forEach((id) => draftMarkerPosByLineIdRef.current.delete(id));
 
     if (gotoNextStage) {
       requestCanvasReset();
@@ -948,20 +1847,49 @@ export default function useHighNeedleSvgAnnotator({
     }
 
     const levelLabel = `${levelNo}档`;
+    const levelText = getLevelMarkerText(levelNo);
+    const addedTextIds: string[] = [];
+    const draftLevelTextIds = new Map(draftLevelTextNodeIdByLineId);
 
     setDirty(true);
-    setDraftSelected([]);
 
-    setValue((v) => ({
-      ...v,
-      底图: {
-        ...v.底图,
-        档位标注: [
-          ...v.底图.档位标注,
-          { 区域名: levelLabel, lineNodeIds: selected },
-        ],
-      },
-    }));
+    setValue((v) => {
+      let nextSvg = v.底图.svg;
+      const textNodeIds = selected.map((lineNodeId) => {
+        const result = upsertMarkerTextNode(nextSvg, {
+          textNodeId: draftLevelTextIds.get(lineNodeId) ?? "",
+          createNodeId: allocLocalId("level_text"),
+          createWhenMissing: true,
+          text: levelTextById.get(lineNodeId) ?? levelText,
+          pos: draftMarkerPosByLineIdRef.current.get(lineNodeId),
+          fontStyle: getMarkerTextFontStyle("level"),
+        });
+        nextSvg = result.svg;
+        if (result.created && result.textNodeId) {
+          addedTextIds.push(result.textNodeId);
+        }
+        return result.textNodeId;
+      });
+
+      return {
+        ...v,
+        底图: {
+          ...v.底图,
+          svg: nextSvg,
+          档位标注: [
+            ...v.底图.档位标注,
+            { 区域名: levelLabel, textNodeIds, lineNodeIds: selected },
+          ],
+        },
+      };
+    });
+
+    if (addedTextIds.length > 0) {
+      setAllTextIds((prev) => mergeTextIdList(prev, addedTextIds, []));
+    }
+    setDraftLevelTextNodeIdByLineId(new Map());
+    setDraftSelected([]);
+    selected.forEach((id) => draftMarkerPosByLineIdRef.current.delete(id));
 
     setLevelNo((n) => n + 1);
     message.success(`${levelLabel} 已记录`);
@@ -972,7 +1900,9 @@ export default function useHighNeedleSvgAnnotator({
     if (svgTextNodes.length === 0) return;
 
     const removeIds = svgTextNodes
-      .filter((d) => AUTO_REMOVE_TEXT_SET.has(d.text))
+      .filter(
+        (d) => AUTO_REMOVE_TEXT_SET.has(d.text) && !markerTextIdSet.has(d.id),
+      )
       .map((d) => d.id);
 
     const keepNodes = svgTextNodes.filter(
@@ -1131,6 +2061,7 @@ export default function useHighNeedleSvgAnnotator({
 
       const keepTextNodeIds = uniquePreserveOrder([
         ...Object.values(value.底图.文本节点).map((d) => d.textNodeId),
+        ...Array.from(markerTextIdSet),
         ...(slotTextNodeId ? [slotTextNodeId] : []),
       ]);
 
@@ -1408,6 +2339,8 @@ export default function useHighNeedleSvgAnnotator({
     allLineIds,
     allLineIdSet,
     allTextIds,
+    markerTextIdSet,
+    draggableMarkerTextIdSet,
 
     // 区域/档位草稿
     regionIndex,
@@ -1432,12 +2365,18 @@ export default function useHighNeedleSvgAnnotator({
     disabledForStep,
     stepTips,
 
+    // 图层控制
+    layerToggles,
+    setLayerToggles,
+
     // 事件/操作
     stepToIndex,
     confirmExit,
     requestCanvasReset,
     toggleSelect,
     handleLineAction,
+    ensureLevelMarkerTextNode,
+    ensureDmlMarkerTextNode,
     clearRegionStage,
     clearLevelStage,
     clearDmlStage,

@@ -235,6 +235,8 @@ export function getSvgTextNodeFontStyle(
   const fill = readAttr("fill");
   const fontWeight = readAttr("font-weight");
   const fontSizeRaw = readAttr("font-size");
+  const textAnchor = readAttr("text-anchor");
+  const dominantBaseline = readAttr("dominant-baseline");
 
   const result: Record<string, unknown> = {};
   if (fill) result.fill = fill;
@@ -243,6 +245,8 @@ export function getSvgTextNodeFontStyle(
     const parsed = Number.parseFloat(fontSizeRaw);
     result.fontSize = Number.isFinite(parsed) ? parsed : fontSizeRaw;
   }
+  if (textAnchor) result.textAnchor = textAnchor;
+  if (dominantBaseline) result.dominantBaseline = dominantBaseline;
 
   return result;
 }
@@ -346,10 +350,14 @@ export function setSvgTextNodeStyle(
     setOrRemoveStyle("fill", fontStyle.fill);
     setOrRemoveStyle("font-size", fontStyle.fontSize);
     setOrRemoveStyle("font-weight", fontStyle.fontWeight);
+    setOrRemoveStyle("text-anchor", fontStyle.textAnchor);
+    setOrRemoveStyle("dominant-baseline", fontStyle.dominantBaseline);
 
     setOrRemoveAttr("fill", fontStyle.fill);
     setOrRemoveAttr("font-size", fontStyle.fontSize);
     setOrRemoveAttr("font-weight", fontStyle.fontWeight);
+    setOrRemoveAttr("text-anchor", fontStyle.textAnchor);
+    setOrRemoveAttr("dominant-baseline", fontStyle.dominantBaseline);
 
     return serializeSvg(doc);
   } catch {
@@ -487,6 +495,8 @@ export function decorateLines(
     touchIds?: string[];
     selected?: Set<string>;
     disabled?: Set<string>;
+    /** 完全隐藏（display:none）的线条集合。 */
+    hiddenIds?: Set<string>;
     /** 区域节点序号（用于渲染 1、2、3…） */
     regionNoById?: Map<string, number>;
     /** 区域线条自定义颜色（DML 阶段用于按区域上色） */
@@ -506,6 +516,7 @@ export function decorateLines(
     touchIds,
     selected,
     disabled,
+    hiddenIds,
     regionNoById,
     regionStrokeById,
     levelNoById,
@@ -513,6 +524,13 @@ export function decorateLines(
     doubleById,
     selectedStroke,
   } = options;
+
+  // 先处理隐藏元素
+  hiddenIds?.forEach((id) => {
+    const el = doc.getElementById(id);
+    if (!el) return;
+    el.setAttribute("display", "none");
+  });
 
   const allIds = new Set<string>();
 
@@ -558,20 +576,22 @@ export function decorateLines(
                       ? "#cbd5e1"
                       : undefined;
 
+    const svgEl = el as unknown as SVGElement;
+
     // 确保细线可命中（点击/刷选）
-    (el as unknown as SVGElement).setAttribute("pointer-events", "stroke");
-    (el as unknown as SVGElement).setAttribute("cursor", "pointer");
+    // 注意：InlineSvg 会通过 DOMPurify sanitize SVG；使用 attributes 比 style 更稳定。
+    svgEl.setAttribute("pointer-events", "stroke");
+    svgEl.setAttribute("cursor", "pointer");
 
     if (nextStroke) {
-      // 使用 SVG attribute 写入，避免 sanitizer 因 style 过滤导致 stroke 丢失
-      (el as unknown as SVGElement).setAttribute("stroke", nextStroke);
+      svgEl.setAttribute("stroke", nextStroke);
     }
 
     const baseWidth = parseFloat(el.getAttribute("stroke-width") ?? "1") || 1;
 
     let nextWidth = baseWidth;
     if (isSelected) {
-      nextWidth = Math.max(baseWidth, 2.5);
+      nextWidth = Math.max(baseWidth, 2);
     } else if (
       regionStroke ||
       typeof regionNo === "number" ||
@@ -587,13 +607,21 @@ export function decorateLines(
     }
 
     if (nextWidth !== baseWidth) {
-      (el as unknown as SVGElement).setAttribute("stroke-width", String(nextWidth));
+      svgEl.setAttribute("stroke-width", String(nextWidth));
     }
 
     if (isDisabled) {
-      (el as unknown as SVGElement).setAttribute("opacity", "0.35");
+      svgEl.setAttribute("opacity", "0.35");
+    }
+
+    // 选中线条发光效果
+    if (isSelected && nextStroke) {
+      svgEl.setAttribute(
+        "filter",
+        `drop-shadow(0 0 4px ${nextStroke}) drop-shadow(0 0 2px ${nextStroke})`,
+      );
     } else {
-      (el as unknown as SVGElement).removeAttribute("opacity");
+      svgEl.removeAttribute("filter");
     }
   });
 

@@ -8,9 +8,15 @@
  *   - 调整机器规格清单列：修改下方 columns 数组
  */
 import DataTable, { type Column } from "../../../components/DataTable";
+import InlineSvg from "../../../components/InlineSvg";
 import Row from "../../../components/Row";
 import Section from "../../../components/Section";
+import {
+  buildPreviewSvg,
+  formatInchText,
+} from "../../admin/add-file/components/DyeLevelEditor";
 import type { KLS胶丝比例 } from "../../../shared/db/Db胶丝比例";
+import type { 染色档位 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import type { 制品规格书Frontend } from "../../../shared/frontend/model/model";
 import { 数字转分数字符串 } from "../../../shared/models/分数转换";
 
@@ -99,6 +105,53 @@ const 配比列: Column<KLS胶丝比例>[] = [
   },
 ];
 
+function 染色档位卡片({ item, index }: { item: 染色档位; index: number }) {
+  const previewSvg = buildPreviewSvg(item);
+
+  return (
+    <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-medium text-slate-500">
+            染色档位 {index + 1}（{item.type}）
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {item.染色图.档位标注.档位列表.map((slot) => (
+              <span
+                key={slot}
+                className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-medium text-white"
+              >
+                {slot}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-2 text-xs text-slate-600 sm:grid-cols-3">
+          <div className="rounded bg-slate-50 px-3 py-2">
+            染色尺寸：{formatInchText(item.染色图.染色尺寸标注.尺寸)}
+          </div>
+          {item.type === "错位" ? (
+            <div className="rounded bg-slate-50 px-3 py-2">
+              长尺寸：{formatInchText(item.染色图.长尺寸标注.尺寸)}
+            </div>
+          ) : null}
+          {item.type === "错位" && item.染色图.短尺寸标注 ? (
+            <div className="rounded bg-slate-50 px-3 py-2">
+              短尺寸：{formatInchText(item.染色图.短尺寸标注.尺寸)}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {previewSvg ? (
+        <div className="overflow-x-auto rounded border border-slate-100 bg-white p-3">
+          <InlineSvg svg={previewSvg} className="max-w-full" height="auto" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function 规格书View({ data }: Props) {
   const {
     title,
@@ -110,6 +163,7 @@ export default function 规格书View({ data }: Props) {
     人工规格清单,
     胶丝比例列表,
     发型图片,
+    染色档位列表,
   } = data;
 
   return (
@@ -140,33 +194,6 @@ export default function 规格书View({ data }: Props) {
           ).map(([k, v]) => (
             <Row key={k} label={k} value={v} />
           ))}
-        </div>
-      </Section>
-
-      {/* ── 工程重量 ── */}
-      <Section title={`工程重量（当前重量：${当前重量}g）`}>
-        <div className="divide-y divide-slate-100">
-          {(
-            Object.entries(工程重量) as [
-              string,
-              { 加减: number; 数值: number } | string,
-            ][]
-          )
-            .filter(([k]) => k !== "重量")
-            .map(([k, v]) => {
-              if (typeof v === "string") return null;
-              return (
-                <Row
-                  key={k}
-                  label={k}
-                  value={`${v.数值}g (${v.加减 >= 0 ? "+" : ""}${v.加减})`}
-                />
-              );
-            })}
-        </div>
-        <div className="flex items-center justify-between bg-slate-900 px-5 py-2.5 text-xs text-white">
-          <span className="text-slate-300">合计重量</span>
-          <span className="font-semibold">{工程重量.重量}</span>
         </div>
       </Section>
 
@@ -248,6 +275,61 @@ export default function 规格书View({ data }: Props) {
           ))}
         </Section>
       )}
+
+      {/* ── 工程重量 ── */}
+      <Section title={`工程重量（当前重量：${当前重量}g）`}>
+        <div className="px-5 py-3 text-xs text-slate-500">
+          备注：手织重量 = 制帽的加减 + 手织的加减。
+        </div>
+        <div className="divide-y divide-slate-100">
+          <div className="grid grid-cols-[7rem_6rem_1fr] gap-2 px-4 py-2 text-xs text-slate-400">
+            <span>项目</span>
+            <span>加减</span>
+            <span>重量</span>
+          </div>
+          {(
+            Object.entries(工程重量) as [
+              string,
+              { 加减: number; 数值: number } | string,
+            ][]
+          )
+            .filter(([k]) => k !== "重量")
+            .map(([k, v]) => {
+              if (typeof v === "string") return null;
+              return (
+                <div
+                  key={k}
+                  className="grid grid-cols-[7rem_6rem_1fr] gap-2 px-4 py-2 text-xs"
+                >
+                  <span className="text-slate-400">{k}</span>
+                  <span className="text-slate-900">
+                    {v.加减 >= 0 ? "+" : ""}
+                    {v.加减}
+                  </span>
+                  <span className="text-slate-900">{v.数值}g</span>
+                </div>
+              );
+            })}
+        </div>
+        <div className="flex items-center justify-between bg-slate-900 px-5 py-2.5 text-xs text-white">
+          <span className="text-slate-300">合计重量</span>
+          <span className="font-semibold">{工程重量.重量}</span>
+        </div>
+      </Section>
+
+      {染色档位列表.length > 0 ? (
+        <Section title="染色档位列表">
+          <div className="space-y-3 p-4">
+            {染色档位列表.map((item, index) => (
+              <染色档位卡片
+                key={`${item.type}-${index}-${item.染色图.档位标注.textNodeId}`}
+                item={item}
+                index={index}
+              />
+            ))}
+          </div>
+        </Section>
+      ) : null}
 
       {/* ── 工艺说明 ── */}
       <Section title="工艺说明">

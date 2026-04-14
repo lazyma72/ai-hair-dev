@@ -119,7 +119,7 @@ export default function ManualSpecSection({
                     enabled={has对裁}
                     value={档位.整毛.对裁 ?? 0}
                     onChange={(n) =>
-                      p("整毛", { ...档位.整毛, 对裁: n || undefined })
+                      p("整毛", { ...档位.整毛, 对裁: n })
                     }
                   />
                 </div>

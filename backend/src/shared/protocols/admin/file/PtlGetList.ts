@@ -1,6 +1,6 @@
 import { BaseRequest, BaseResponse, BaseConf } from "../../base"
-import { 胶丝比例ListItem } from "../../../frontend/model/model"
-import { Db胶丝比例 } from "../../../db/Db胶丝比例"
+import { 沐茵丝假发成品稿ListItem } from "../../../frontend/model/model"
+import { 沐茵丝假发成品稿 } from "../../../db/Db沐茵丝假发成品稿"
 
 export interface ReqGetList extends BaseRequest {
   /** 页码，从 1 开始 */
@@ -15,21 +15,11 @@ export interface ReqGetList extends BaseRequest {
   /** 排序方式：asc/desc */
   orderSort?: "asc" | "desc"
 
-  filter?: Partial<{
-    颜色编号?: string
-    发丝种类?: string
-    线色?: string
-    /* 是否包含D色配比列表 */
-    D?: boolean
-    /* 是否包含M色配比列表 */
-    M?: boolean
-    /* 是否包含L色配比列表 */
-    L?: boolean
-  }>
+  filter?: Partial<Pick<沐茵丝假发成品稿, "客户编号" | "品名" | "原材料" | "假发类型" | "CAP">>
 }
 
 export interface ResGetList extends BaseResponse {
-  list: 胶丝比例ListItem[]
+  list: 沐茵丝假发成品稿ListItem[]
   total: number
   pageNum: number
   pageSize: number

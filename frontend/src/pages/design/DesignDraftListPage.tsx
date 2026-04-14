@@ -1,10 +1,10 @@
-import * as React from "react";
 import { message } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import Badge from "../../components/Badge";
 import PageShell from "../../components/PageShell";
+import PaginationBar from "../../components/PaginationBar";
 import StatusView from "../../components/StatusView";
 import { useApi } from "../../hooks/useApi";
 import type { 沐茵丝假发成品稿ListItem } from "../../shared/frontend/model/model";
@@ -49,8 +49,16 @@ export default function DesignDraftListPage() {
   const [keyword, setKeyword] = useState("");
   const [hiddenIds, setHiddenIds] = useState<string[]>(() => readHiddenIds());
   const [aliasMap, setAliasMap] = useState<AliasMap>(() => readAliasMap());
+  const [pageNum, setPageNum] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
 
-  const { data, loading, error, reload } = useApi(() => callApi("file/GetList", {}));
+  const { data, loading, error, reload } = useApi(() =>
+    callApi("admin/file/GetList", {
+      pageNum: 1,
+      pageSize: 1000,
+      orderSort: "desc",
+    }),
+  );
   const list = useMemo<沐茵丝假发成品稿ListItem[]>(() => data?.list ?? [], [data]);
 
   const filteredList = useMemo(() => {
@@ -65,6 +73,19 @@ export default function DesignDraftListPage() {
               .includes(kw.toLowerCase()),
       );
   }, [hiddenIds, keyword, list]);
+
+  const total = filteredList.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pagedList = useMemo(() => {
+    const start = (pageNum - 1) * pageSize;
+    return filteredList.slice(start, start + pageSize);
+  }, [filteredList, pageNum, pageSize]);
+
+  useEffect(() => {
+    if (pageNum > totalPages) {
+      setPageNum(totalPages);
+    }
+  }, [pageNum, totalPages]);
 
   function handleHide(id: string) {
     if (!window.confirm("确认删除？（Demo：仅从列表隐藏，不影响数据）")) return;
@@ -108,7 +129,10 @@ export default function DesignDraftListPage() {
               className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
               placeholder="支持：ID / 客户编号 / 品名 / CAP"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                setPageNum(1);
+              }}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -126,6 +150,7 @@ export default function DesignDraftListPage() {
                 setKeyword("");
                 setHiddenIds([]);
                 setAliasMap({});
+                setPageNum(1);
                 localStorage.removeItem(LS_HIDDEN);
                 localStorage.removeItem(LS_ALIAS);
               }}
@@ -143,7 +168,7 @@ export default function DesignDraftListPage() {
         emptyText="暂无设计稿"
       >
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredList.map((item) => (
+          {pagedList.map((item) => (
             <div
               key={item._id}
               className="rounded-2xl border border-slate-200 bg-white p-4"
@@ -151,17 +176,22 @@ export default function DesignDraftListPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-slate-900">
-                    {aliasMap[item._id] || item.品名}
+                    样品编号：{item._id}
                   </div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    {item.客户编号} · CAP: {item.CAP}
+                  <div className="mt-1 space-y-0.5 text-xs text-slate-500">
+                    {aliasMap[item._id] ? (
+                      <div>显示名称：{aliasMap[item._id]}</div>
+                    ) : null}
+                    <div>假发类型：{item.假发类型}</div>
+                    <div>品名：{item.品名}</div>
+                    <div>原材料：{item.原材料 || "—"}</div>
                   </div>
                 </div>
-                <Badge>{item.假发类型}</Badge>
+                <Badge>{item.客户编号}</Badge>
               </div>
 
-              <div className="mt-3 font-mono text-[10px] text-slate-300">
-                {item._id}
+              <div className="mt-3 text-[11px] text-slate-400">
+                CAP: {item.CAP}
               </div>
 
               <div className="mt-4 flex items-center gap-2">
@@ -190,6 +220,16 @@ export default function DesignDraftListPage() {
             </div>
           ))}
         </div>
+        <PaginationBar
+          total={total}
+          pageNum={pageNum}
+          pageSize={pageSize}
+          onPageNumChange={setPageNum}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPageNum(1);
+          }}
+        />
       </StatusView>
     </PageShell>
   );

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { message } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { callApi } from "../../../api/callApi";
 import PageShell from "../../../components/PageShell";
@@ -24,6 +24,8 @@ const STEPS = ["导入数据", "导入高针图", "导入手织图"] as const;
 type StepIndex = 0 | 1 | 2;
 
 type FieldErrors = Partial<Record<string, string>>;
+
+type 高针图值 = 沐茵丝假发成品稿["高针指示单"]["高针图"];
 
 function Stepper({ step }: { step: StepIndex }) {
   return (
@@ -105,6 +107,10 @@ export default function ManualCreateWizardPage() {
   const [highNeedleSvgFileName, setHighNeedleSvgFileName] = useState<string | null>(
     null,
   );
+  const [annotatorSvg, setAnnotatorSvg] = useState("");
+  const [annotatorInitialValue, setAnnotatorInitialValue] =
+    useState<高针图值 | null>(null);
+  const lastStepRef = useRef<StepIndex>(0);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -112,7 +118,11 @@ export default function ManualCreateWizardPage() {
       if (r.isSucc) setCustomerList(r.res.list);
     });
 
-    callApi("admin/ratio/GetList", {}).then((r) => {
+    callApi("admin/ratio/GetList", {
+      pageNum: 1,
+      pageSize: 1000,
+      orderSort: "asc",
+    }).then((r) => {
       if (r.isSucc) setRatioList(r.res.list);
     });
   }, []);
@@ -124,6 +134,24 @@ export default function ManualCreateWizardPage() {
       手织指示单: { ...f.手织指示单, 手织图: { svg: "" } },
     }));
   }, [step]);
+
+  useEffect(() => {
+    if (step !== 1) {
+      lastStepRef.current = step;
+      return;
+    }
+
+    if (lastStepRef.current === 1) return;
+
+    const svg = form.高针指示单.高针图.底图.svg.trim();
+    if (svg) {
+      setAnnotatorSvg(svg);
+      setAnnotatorInitialValue(form.高针指示单.高针图);
+      setHighNeedleSvgRevision((v) => v + 1);
+    }
+
+    lastStepRef.current = step;
+  }, [form.高针指示单.高针图, step]);
 
   const clearFieldError = React.useCallback((key: string) => {
     setFieldErrors((prev) => {
@@ -244,7 +272,12 @@ export default function ManualCreateWizardPage() {
   );
 
   return (
-    <PageShell title="添加成品稿" onBack={() => navigate("/designs")} actions={actions}>
+    <PageShell
+      title="添加成品稿"
+      onBack={() => navigate("/designs")}
+      actions={actions}
+      fullWidth={step === 1}
+    >
       <Stepper step={step} />
 
       {step === 0 ? (
@@ -362,6 +395,8 @@ export default function ManualCreateWizardPage() {
                         const emptyHighNeedle = emptyFile().高针指示单.高针图;
                         emptyHighNeedle.底图.svg = text;
                         setHighNeedleSvgFileName(file.name);
+                        setAnnotatorSvg(text);
+                        setAnnotatorInitialValue(emptyHighNeedle);
                         setHighNeedleSvgRevision((v) => v + 1);
                         setForm((f) => ({
                           ...f,
@@ -419,21 +454,24 @@ export default function ManualCreateWizardPage() {
               </div>
             ) : null}
 
-            {form.高针指示单.高针图.底图.svg.trim() ? (
-              <HighNeedleSvgAnnotator
-                key={highNeedleSvgRevision}
-                initialSvg={form.高针指示单.高针图.底图.svg}
-                initialValue={form.高针指示单.高针图}
-                startAt="begin"
-                enableDml
-                enableDouble
-                onChange={(v) =>
-                  setForm((f) => ({
-                    ...f,
-                    高针指示单: { ...f.高针指示单, 高针图: v },
-                  }))
-                }
-              />
+            {annotatorSvg.trim() ? (
+              <div className="h-[70vh] min-h-[560px] overflow-hidden">
+                <HighNeedleSvgAnnotator
+                  key={highNeedleSvgRevision}
+                  initialSvg={annotatorSvg}
+                  initialValue={annotatorInitialValue ?? undefined}
+                  startAt="begin"
+                  enableDml
+                  enableDouble
+                  showPreview={false}
+                  onChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      高针指示单: { ...f.高针指示单, 高针图: v },
+                    }))
+                  }
+                />
+              </div>
             ) : (
               <div className="text-sm text-slate-600">
                 请先选择一份高针图 SVG 文件。

@@ -71,7 +71,13 @@ export default function ABCreateWizardPage() {
   const [errorA, setErrorA] = useState("");
   const [errorB, setErrorB] = useState("");
 
-  const listState = useApi(() => callApi("file/GetList", {}));
+  const listState = useApi(() =>
+    callApi("admin/file/GetList", {
+      pageNum: 1,
+      pageSize: 1000,
+      orderSort: "desc",
+    }),
+  );
   const list = useMemo<沐茵丝假发成品稿ListItem[]>(
     () => listState.data?.list ?? [],
     [listState.data],
@@ -95,7 +101,7 @@ export default function ABCreateWizardPage() {
 
     setLoadingA(true);
     setErrorA("");
-    void callApi("file/GetDetail", { id: aId })
+    void callApi("admin/file/GetDetail", { id: aId })
       .then((r) => {
         if (!r.isSucc) {
           setErrorA(r.err.message);
@@ -116,7 +122,7 @@ export default function ABCreateWizardPage() {
 
     setLoadingB(true);
     setErrorB("");
-    void callApi("file/GetDetail", { id: bId })
+    void callApi("admin/file/GetDetail", { id: bId })
       .then((r) => {
         if (!r.isSucc) {
           setErrorB(r.err.message);

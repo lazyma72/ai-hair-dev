@@ -354,7 +354,7 @@ export default function MachineLevelEditor({
           <OptionalQuarterFractionInput
             enabled={has对裁}
             value={value.整毛.对裁 ?? 0}
-            onChange={(n) => p("整毛", { ...value.整毛, 对裁: n || undefined })}
+            onChange={(n) => p("整毛", { ...value.整毛, 对裁: n })}
           />
         </Field>
       </div>
@@ -411,7 +411,7 @@ export default function MachineLevelEditor({
                 onChange={(n) =>
                   p("双针", {
                     ...value.双针,
-                    尺数: { ...value.双针.尺数, M: n || undefined },
+                    尺数: { ...value.双针.尺数, M: n },
                   })
                 }
               />
@@ -426,7 +426,7 @@ export default function MachineLevelEditor({
                 onChange={(n) =>
                   p("双针", {
                     ...value.双针,
-                    尺数: { ...value.双针.尺数, L: n || undefined },
+                    尺数: { ...value.双针.尺数, L: n },
                   })
                 }
               />

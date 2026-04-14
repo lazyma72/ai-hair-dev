@@ -76,10 +76,10 @@ export default function BasicInfoSection({
             status={err("客户编号") ? "error" : undefined}
             value={form.客户编号 || undefined}
             options={customerList.map((c) => ({
-              label: c.客户编号,
+              label: `${c.客户编号}${c.客户名称 ? ` - ${c.客户名称}` : ""}`,
               value: c.客户编号,
             }))}
-            placeholder="选择客户编号"
+            placeholder="选择客户编号 / 客户名称"
             allowClear
             showSearch
             optionFilterProp="label"

@@ -2,9 +2,9 @@
  * 高针指示单View — 高针指示单的展示区块
  */
 import DataTable, { type Column } from "../../../components/DataTable";
-import InlineSvg from "../../../components/InlineSvg";
 import Row from "../../../components/Row";
 import Section from "../../../components/Section";
+import HighNeedlePreviewViewer from "../../../modules/highNeedleAnnotator/HighNeedlePreviewViewer";
 import type { 高针指示单Frontend } from "../../../shared/frontend/model/model";
 
 type Props = { data: 高针指示单Frontend };
@@ -25,7 +25,8 @@ const 规格列: Column<高针指示单Frontend["机器规格清单_高针图"][
 ];
 
 export default function 高针指示单View({ data }: Props) {
-  const { title, 高针图svg, 机器规格清单_高针图, 注意事项, 发型图片 } = data;
+  const { title, 高针图数据, 机器规格清单_高针图, 注意事项, 发型图片 } =
+    data;
 
   return (
     <div className="space-y-5">
@@ -42,15 +43,6 @@ export default function 高针指示单View({ data }: Props) {
         </div>
       </Section>
 
-      {/* ── 高针图 SVG ── */}
-      {高针图svg && (
-        <Section title="高针图">
-          <div className="p-4">
-            <InlineSvg svg={高针图svg} height={320} className="w-full" />
-          </div>
-        </Section>
-      )}
-
       {/* ── 机器规格清单（高针图版） ── */}
       <Section title="机器规格清单（高针图版）">
         <div className="overflow-x-auto">
@@ -61,6 +53,18 @@ export default function 高针指示单View({ data }: Props) {
           />
         </div>
       </Section>
+
+      {/* ── 高针图 SVG ── */}
+      {高针图数据?.底图?.svg && (
+        <Section title="高针图">
+          <div className="p-4">
+            <HighNeedlePreviewViewer
+              data={高针图数据}
+              emptyText="暂无高针图"
+            />
+          </div>
+        </Section>
+      )}
 
       {/* ── 注意事项 ── */}
       {注意事项 && (
