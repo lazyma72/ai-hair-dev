@@ -1,4 +1,3 @@
-import * as React from "react";
 import type {
   制品规格书,
   裁断重量项,
@@ -147,6 +146,7 @@ export default function MachineLevelEditor({
   const has对裁 = value.整毛.对裁 != null;
   const 是间色 = type === 假发类型.间色;
   const 是上下分 = type === 假发类型.上下分;
+  const 是单T色 = String(type) === "单T色";
 
   const dmlKeys: DMLKey[] =
     dmlMode === "D:M"
@@ -162,6 +162,7 @@ export default function MachineLevelEditor({
 
   const activeWeightKeys: DMLKey[] = (() => {
     if (是间色) return [...dmlKeys];
+    if (是单T色) return ["D", "L"];
     if (是上下分) {
       const keys: DMLKey[] = ["D"];
       if (hasM尺数) keys.push("M");
@@ -201,6 +202,15 @@ export default function MachineLevelEditor({
             ? (value.双针.尺数.M ?? 0)
             : (value.双针.尺数.L ?? 0);
       let w = ((row.裁断 * 密度 * 对应尺数 * 2.54) / 100 / 2) * rowFactor;
+      if (key === "D" && has对裁) w /= 2;
+      return w;
+    }
+    if (是单T色) {
+      const shouldShowWeight =
+        totalRows === 1 ? key === "D" || key === "L" : key === (rowIndex % 2 === 0 ? "D" : "L");
+      if (!shouldShowWeight) return 0;
+
+      let w = ((row.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
       if (key === "D" && has对裁) w /= 2;
       return w;
     }
@@ -364,6 +374,11 @@ export default function MachineLevelEditor({
         <p className="mb-1.5 text-[11px] font-medium text-slate-500">
           裁断与重量
         </p>
+        {是单T色 ? (
+          <p className="mb-1.5 text-[10px] text-slate-400">
+            单T色规则：1 行时同时展示 D/L；多行时按 D → L → D → L 轮询展示重量。
+          </p>
+        ) : null}
         <裁断重量编辑器
           value={value.裁断与重量}
           onChange={(v) => p("裁断与重量", v)}

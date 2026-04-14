@@ -400,6 +400,10 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 2,
                     "value": "上下分"
+                },
+                {
+                    "id": 3,
+                    "value": "单T色"
                 }
             ]
         },

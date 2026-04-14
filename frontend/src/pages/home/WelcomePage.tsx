@@ -1,7 +1,8 @@
-import * as React from "react";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { callApi } from "../../api/callApi";
 import PageShell from "../../components/PageShell";
+import { useApi } from "../../hooks/useApi";
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -45,6 +46,10 @@ export default function WelcomePage() {
     [],
   );
 
+  const { data, loading, error } = useApi(() => callApi("admin/GetPreview", {}));
+  const statValue = (n: number | undefined) =>
+    loading ? "加载中…" : error ? "—" : String(n ?? 0);
+
   return (
     <PageShell title="Welcome">
       <div className="rounded-2xl bg-slate-900 px-6 py-6 text-white">
@@ -58,8 +63,9 @@ export default function WelcomePage() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-1">
-        <StatCard label="草稿设计稿" value="12" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <StatCard label="设计稿总数" value={statValue(data?.设计稿总数)} />
+        <StatCard label="胶丝比例总数" value={statValue(data?.胶丝比例总数)} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
