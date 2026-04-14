@@ -5,28 +5,39 @@ import { 假发类型 } from "../../../../shared/db/Db沐茵丝假发成品稿";
 import type { DbCustomer } from "../../../../shared/db/DbCustomer";
 import { Field, Section, inputCls } from "../components/ui";
 
+type FieldErrors = Partial<Record<string, string>>;
+
 type Props = {
   form: 沐茵丝假发成品稿;
   setForm: React.Dispatch<React.SetStateAction<沐茵丝假发成品稿>>;
   customerList: DbCustomer[];
+  errors?: FieldErrors;
+  clearError?: (key: string) => void;
 };
 
 export default function BasicInfoSection({
   form,
   setForm,
   customerList,
+  errors,
+  clearError,
 }: Props) {
+  const err = (key: string) => errors?.[key];
+
   return (
     <Section title="基本信息">
       <div className="grid grid-cols-1 gap-3">
-        <Field label="样品编号" required>
+        <Field label="样品编号" required error={err("_id")}>
           <input
             type="text"
             required
             placeholder="XM-6190(L)"
-            className={inputCls}
+            className={`${inputCls}${err("_id") ? " border-rose-400 focus:ring-rose-200" : ""}`}
             value={form._id}
-            onChange={(e) => setForm((f) => ({ ...f, _id: e.target.value }))}
+            onChange={(e) => {
+              clearError?.("_id");
+              setForm((f) => ({ ...f, _id: e.target.value }));
+            }}
           />
         </Field>
 
@@ -59,9 +70,10 @@ export default function BasicInfoSection({
           </select>
         </Field>
 
-        <Field label="客户编号" required>
+        <Field label="客户编号" required error={err("客户编号")}>
           <Select
             className="w-full"
+            status={err("客户编号") ? "error" : undefined}
             value={form.客户编号 || undefined}
             options={customerList.map((c) => ({
               label: c.客户编号,
@@ -71,7 +83,10 @@ export default function BasicInfoSection({
             allowClear
             showSearch
             optionFilterProp="label"
-            onChange={(v) => setForm((f) => ({ ...f, 客户编号: v ?? "" }))}
+            onChange={(v) => {
+              clearError?.("客户编号");
+              setForm((f) => ({ ...f, 客户编号: v ?? "" }));
+            }}
           />
         </Field>
 
@@ -82,16 +97,17 @@ export default function BasicInfoSection({
             { key: "CAP" as const, placeholder: "P-025(侧分雪花网L)" },
           ] as const
         ).map(({ key, placeholder }) => (
-          <Field key={key} label={key} required>
+          <Field key={key} label={key} required error={err(key)}>
             <input
               type="text"
               required
               placeholder={placeholder}
-              className={inputCls}
+              className={`${inputCls}${err(key) ? " border-rose-400 focus:ring-rose-200" : ""}`}
               value={form[key]}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, [key]: e.target.value }))
-              }
+              onChange={(e) => {
+                clearError?.(key);
+                setForm((f) => ({ ...f, [key]: e.target.value }));
+              }}
             />
           </Field>
         ))}

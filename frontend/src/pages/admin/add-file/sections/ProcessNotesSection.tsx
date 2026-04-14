@@ -3,12 +3,21 @@ import type { 制品规格书 } from "../../../../shared/db/Db沐茵丝假发成
 import { AddBtn, DelBtn, Field, Section, inputCls } from "../components/ui";
 import { 工艺说明Keys } from "../defaults";
 
+type FieldErrors = Partial<Record<string, string>>;
+
 type Props = {
   list: 制品规格书["工艺说明"];
   onChange: (v: 制品规格书["工艺说明"]) => void;
+  errors?: FieldErrors;
+  clearError?: (key: string) => void;
 };
 
-export default function ProcessNotesSection({ list, onChange }: Props) {
+export default function ProcessNotesSection({
+  list,
+  onChange,
+  errors,
+  clearError,
+}: Props) {
   const [customKey, setCustomKey] = React.useState("");
   const [customValue, setCustomValue] = React.useState("");
   const [customError, setCustomError] = React.useState("");
@@ -41,18 +50,23 @@ export default function ProcessNotesSection({ list, onChange }: Props) {
   return (
     <Section title="工艺说明">
       <div className="space-y-3">
-        {工艺说明Keys.map((k) => (
-          <Field key={k} label={k}>
-            <input
-              type="text"
-              className={inputCls}
-              value={list[k] ?? ""}
-              onChange={(e) => {
-                onChange({ ...list, [k]: e.target.value });
-              }}
-            />
-          </Field>
-        ))}
+        {工艺说明Keys.map((k) => {
+          const errorKey = `工艺说明.${k}`;
+          const fieldError = errors?.[errorKey];
+          return (
+            <Field key={k} label={k} required error={fieldError}>
+              <input
+                type="text"
+                className={`${inputCls}${fieldError ? " border-rose-400 focus:ring-rose-200" : ""}`}
+                value={list[k] ?? ""}
+                onChange={(e) => {
+                  clearError?.(errorKey);
+                  onChange({ ...list, [k]: e.target.value });
+                }}
+              />
+            </Field>
+          );
+        })}
 
         <div className="border-t border-slate-200 pt-2">
           <p className="mb-3 text-xs font-semibold text-slate-500">

@@ -8,6 +8,12 @@ type Props = {
   initialSvg: string;
   /** 通过 JSON 恢复/预览时可传入（会覆盖 initialSvg） */
   initialValue?: 高针图;
+  /**
+   * 传了 initialValue 时默认会进入“完成”。
+   * - done：保持旧行为（预览模式）
+   * - begin：从第一步开始（编辑模式）
+   */
+  startAt?: "begin" | "done";
   /** 可覆盖默认的预置区域列表 */
   presets?: { name: string; lineLength: number }[];
   /** 线条选择器（CSS selector），用于从 SVG 中筛选可点选的线条元素 */
@@ -17,12 +23,10 @@ type Props = {
   enableDml?: boolean;
   enableDouble?: boolean;
   onChange?: (v: 高针图) => void;
-  showPreview?: boolean;
 };
 
 export default function HighNeedleSvgAnnotator(props: Props) {
   const state = useHighNeedleSvgAnnotator(props);
-  const showPreview = props.showPreview ?? true;
 
   const activeTextNodeId =
     state.activeTextKey && state.value.底图.文本节点[state.activeTextKey]
@@ -30,7 +34,7 @@ export default function HighNeedleSvgAnnotator(props: Props) {
       : "";
 
   return (
-    <div className="grid h-full min-h-0 gap-4 overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+    <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
       <HighNeedleSvgAnnotatorSidebar {...state} />
       <HighNeedleSvgAnnotatorCanvas
         step={state.step}
@@ -41,19 +45,12 @@ export default function HighNeedleSvgAnnotator(props: Props) {
         previewValue={state.previewValue}
         canvasEpoch={state.canvasEpoch}
         visibleMarkerById={state.visibleMarkerById}
-        markerTextIdSet={state.markerTextIdSet}
-        draggableMarkerTextIdSet={state.draggableMarkerTextIdSet}
         regionLabels={state.regionLabelItems}
         toggleSelect={state.toggleSelect}
         handleLineAction={state.handleLineAction}
-        ensureLevelMarkerTextNode={state.ensureLevelMarkerTextNode}
-        ensureDmlMarkerTextNode={state.ensureDmlMarkerTextNode}
-        layerToggles={state.layerToggles}
-        setLayerToggles={state.setLayerToggles}
         activeTextNodeId={activeTextNodeId}
         onTextActivate={state.ensureTextNodeKept}
         onTextPositionCommit={state.commitTextNodePosition}
-        showPreview={showPreview}
       />
     </div>
   );

@@ -8,7 +8,6 @@ import type {
   制品规格书,
   沐茵丝假发成品稿,
 } from "../../shared/db/Db沐茵丝假发成品稿";
-import { 假发类型 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { DbCustomer } from "../../shared/db/DbCustomer";
 import type { 胶丝比例ListItem } from "../../shared/frontend/model/model";
 import { emptyFile } from "./add-file/defaults";
@@ -206,13 +205,9 @@ export default function AddFilePage() {
         />
 
         <HighNeedleSection
-          value={form.高针指示单.注意事项}
-          onChange={(v) =>
-            setForm((f) => ({
-              ...f,
-              高针指示单: { ...f.高针指示单, 注意事项: v },
-            }))
-          }
+          value={form.高针指示单}
+          onChange={(v) => setForm((f) => ({ ...f, 高针指示单: v }))}
+          showJsonImporter={false}
         />
 
         <HandWovenSection

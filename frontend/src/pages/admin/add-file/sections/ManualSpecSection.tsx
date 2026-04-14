@@ -18,20 +18,29 @@ type 人工档位 = 制品规格书["人工规格清单"][number];
 type Props = {
   list: 制品规格书["人工规格清单"];
   onChange: (v: 制品规格书["人工规格清单"]) => void;
+  error?: string;
+  clearError?: () => void;
 };
 
-export default function ManualSpecSection({ list, onChange }: Props) {
+export default function ManualSpecSection({
+  list,
+  onChange,
+  error,
+  clearError,
+}: Props) {
   return (
     <Section
       title="人工规格清单"
+      error={error}
       action={
         <AddBtn
-          onClick={() =>
+          onClick={() => {
+            clearError?.();
             onChange([
               ...list,
               { ...empty人工档位(), 档位: `H${list.length + 1}` },
-            ])
-          }
+            ]);
+          }}
         />
       }
     >
@@ -61,9 +70,11 @@ export default function ManualSpecSection({ list, onChange }: Props) {
           </div>
 
           {list.map((档位, i) => {
-            const has对裁 = 档位.整毛.对裁 != null;
+            const has对裁 =
+              档位.整毛.对裁 !== undefined && 档位.整毛.对裁 !== null;
 
             function p<K extends keyof 人工档位>(key: K, val: 人工档位[K]) {
+              clearError?.();
               const next = [...list];
               next[i] = { ...next[i], [key]: val };
               onChange(next);
@@ -71,7 +82,7 @@ export default function ManualSpecSection({ list, onChange }: Props) {
 
             return (
               <div
-                key={`manual-level-${i}`}
+                key={档位.档位}
                 className="grid grid-cols-[60px_130px_130px_130px_65px_1fr_55px_1fr_auto] items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2"
               >
                 <TextInput
@@ -135,9 +146,7 @@ export default function ManualSpecSection({ list, onChange }: Props) {
                   onChange={(v) => p("备注", v || undefined)}
                   placeholder="可选"
                 />
-                <DelBtn
-                  onClick={() => onChange(list.filter((_, j) => j !== i))}
-                />
+                <DelBtn onClick={() => onChange(list.filter((_, j) => j !== i))} />
               </div>
             );
           })}

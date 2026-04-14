@@ -235,8 +235,6 @@ export function getSvgTextNodeFontStyle(
   const fill = readAttr("fill");
   const fontWeight = readAttr("font-weight");
   const fontSizeRaw = readAttr("font-size");
-  const textAnchor = readAttr("text-anchor");
-  const dominantBaseline = readAttr("dominant-baseline");
 
   const result: Record<string, unknown> = {};
   if (fill) result.fill = fill;
@@ -245,8 +243,6 @@ export function getSvgTextNodeFontStyle(
     const parsed = Number.parseFloat(fontSizeRaw);
     result.fontSize = Number.isFinite(parsed) ? parsed : fontSizeRaw;
   }
-  if (textAnchor) result.textAnchor = textAnchor;
-  if (dominantBaseline) result.dominantBaseline = dominantBaseline;
 
   return result;
 }
@@ -350,14 +346,10 @@ export function setSvgTextNodeStyle(
     setOrRemoveStyle("fill", fontStyle.fill);
     setOrRemoveStyle("font-size", fontStyle.fontSize);
     setOrRemoveStyle("font-weight", fontStyle.fontWeight);
-    setOrRemoveStyle("text-anchor", fontStyle.textAnchor);
-    setOrRemoveStyle("dominant-baseline", fontStyle.dominantBaseline);
 
     setOrRemoveAttr("fill", fontStyle.fill);
     setOrRemoveAttr("font-size", fontStyle.fontSize);
     setOrRemoveAttr("font-weight", fontStyle.fontWeight);
-    setOrRemoveAttr("text-anchor", fontStyle.textAnchor);
-    setOrRemoveAttr("dominant-baseline", fontStyle.dominantBaseline);
 
     return serializeSvg(doc);
   } catch {
@@ -495,8 +487,6 @@ export function decorateLines(
     touchIds?: string[];
     selected?: Set<string>;
     disabled?: Set<string>;
-    /** 完全隐藏（display:none）的线条集合。 */
-    hiddenIds?: Set<string>;
     /** 区域节点序号（用于渲染 1、2、3…） */
     regionNoById?: Map<string, number>;
     /** 区域线条自定义颜色（DML 阶段用于按区域上色） */
@@ -516,7 +506,6 @@ export function decorateLines(
     touchIds,
     selected,
     disabled,
-    hiddenIds,
     regionNoById,
     regionStrokeById,
     levelNoById,
@@ -524,17 +513,6 @@ export function decorateLines(
     doubleById,
     selectedStroke,
   } = options;
-
-  // 先处理隐藏元素
-  hiddenIds?.forEach((id) => {
-    const el = doc.getElementById(id);
-    if (!el) return;
-    (el as unknown as SVGElement).style.setProperty(
-      "display",
-      "none",
-      "important",
-    );
-  });
 
   const allIds = new Set<string>();
 
@@ -580,22 +558,20 @@ export function decorateLines(
                       ? "#cbd5e1"
                       : undefined;
 
-    const style = (el as unknown as SVGElement).style;
-
     // 确保细线可命中（点击/刷选）
-    style.setProperty("pointer-events", "stroke", "important");
-    style.setProperty("cursor", "pointer", "important");
+    (el as unknown as SVGElement).setAttribute("pointer-events", "stroke");
+    (el as unknown as SVGElement).setAttribute("cursor", "pointer");
 
     if (nextStroke) {
-      // 用 inline style + !important 覆盖原始 class/style 的 stroke
-      style.setProperty("stroke", nextStroke, "important");
+      // 使用 SVG attribute 写入，避免 sanitizer 因 style 过滤导致 stroke 丢失
+      (el as unknown as SVGElement).setAttribute("stroke", nextStroke);
     }
 
     const baseWidth = parseFloat(el.getAttribute("stroke-width") ?? "1") || 1;
 
     let nextWidth = baseWidth;
     if (isSelected) {
-      nextWidth = Math.max(baseWidth, 2);
+      nextWidth = Math.max(baseWidth, 2.5);
     } else if (
       regionStroke ||
       typeof regionNo === "number" ||
@@ -611,22 +587,13 @@ export function decorateLines(
     }
 
     if (nextWidth !== baseWidth) {
-      style.setProperty("stroke-width", String(nextWidth), "important");
+      (el as unknown as SVGElement).setAttribute("stroke-width", String(nextWidth));
     }
 
     if (isDisabled) {
-      style.setProperty("opacity", "0.35", "important");
-    }
-
-    // 选中线条发光效果
-    if (isSelected && nextStroke) {
-      style.setProperty(
-        "filter",
-        `drop-shadow(0 0 4px ${nextStroke}) drop-shadow(0 0 2px ${nextStroke})`,
-        "important",
-      );
+      (el as unknown as SVGElement).setAttribute("opacity", "0.35");
     } else {
-      style.removeProperty("filter");
+      (el as unknown as SVGElement).removeAttribute("opacity");
     }
   });
 

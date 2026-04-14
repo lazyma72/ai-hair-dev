@@ -29,21 +29,29 @@ export function Field({
   label,
   labelExtra,
   required,
+  error,
   children,
 }: {
   label: string;
   labelExtra?: React.ReactNode;
   required?: boolean;
+  error?: string;
   children: React.ReactNode;
 }) {
   const labelText = required && !label.includes("*") ? `${label} *` : label;
+
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-2 text-xs font-medium text-slate-700">
+      <div
+        className={`mb-1 flex items-center justify-between gap-2 text-xs font-medium ${
+          error ? "text-rose-600" : "text-slate-700"
+        }`}
+      >
         <span>{labelText}</span>
         {labelExtra}
       </div>
       {children}
+      {error ? <p className="mt-1 text-xs text-rose-500">{error}</p> : null}
     </div>
   );
 }
@@ -278,11 +286,13 @@ export function Section({
   id,
   title,
   action,
+  error,
   children,
 }: {
   id?: string;
   title: string;
   action?: React.ReactNode;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -294,6 +304,9 @@ export function Section({
         <SectionTitle>{title}</SectionTitle>
         {action}
       </div>
+      {error ? (
+        <div className="-mt-1 mb-3 text-xs text-rose-500">{error}</div>
+      ) : null}
       {children}
     </section>
   );

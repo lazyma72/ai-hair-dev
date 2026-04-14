@@ -1,7 +1,6 @@
 import * as React from "react";
 import { message } from "antd";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import type { Column } from "../../components/DataTable";
 import DataTable from "../../components/DataTable";
@@ -11,17 +10,16 @@ import { useApi } from "../../hooks/useApi";
 import type { DbCustomer } from "../../shared/db/DbCustomer";
 
 export default function CustomerListPage() {
-  const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
   const [newCustomerNo, setNewCustomerNo] = useState("");
 
   const fetcher = useMemo(
-    () => () => callApi("admin/customer/GetList", { keyword: keyword || undefined }),
+    () => () =>
+      callApi("admin/customer/GetList", { keyword: keyword || undefined }),
     [keyword],
   );
 
   const { data, loading, error, reload } = useApi(fetcher);
-
   const list = data?.list ?? [];
 
   const columns: Column<DbCustomer>[] = [
@@ -68,25 +66,13 @@ export default function CustomerListPage() {
   }
 
   return (
-    <PageShell
-      title="客户列表"
-      onBack={() => navigate("/admin/files")}
-      actions={
-        <button
-          type="button"
-          className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-          onClick={() => navigate("/admin/add")}
-        >
-          添加成品稿
-        </button>
-      }
-    >
+    <PageShell title="客户管理">
       <div className="space-y-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-72">
               <label className="mb-1 block text-xs font-medium text-slate-700">
-                搜索
+                查询
               </label>
               <input
                 type="text"

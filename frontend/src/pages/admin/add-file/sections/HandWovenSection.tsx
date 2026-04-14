@@ -5,9 +5,14 @@ import { Field, Section, inputCls } from "../components/ui";
 type Props = {
   value: 手织指示单;
   onChange: (v: 手织指示单) => void;
+  showSvg?: boolean;
 };
 
-export default function HandWovenSection({ value, onChange }: Props) {
+export default function HandWovenSection({
+  value,
+  onChange,
+  showSvg = true,
+}: Props) {
   return (
     <Section title="手织指示单">
       <Field label="注意事项">
@@ -20,18 +25,20 @@ export default function HandWovenSection({ value, onChange }: Props) {
         />
       </Field>
 
-      <div className="mt-3">
-        <Field label="手织图 SVG">
-          <textarea
-            rows={5}
-            className={inputCls}
-            value={value.手织图.svg}
-            onChange={(e) =>
-              onChange({ ...value, 手织图: { svg: e.target.value } })
-            }
-          />
-        </Field>
-      </div>
+      {showSvg ? (
+        <div className="mt-3">
+          <Field label="手织图 SVG">
+            <textarea
+              rows={5}
+              className={inputCls}
+              value={value.手织图.svg}
+              onChange={(e) =>
+                onChange({ ...value, 手织图: { svg: e.target.value } })
+              }
+            />
+          </Field>
+        </div>
+      ) : null}
     </Section>
   );
 }

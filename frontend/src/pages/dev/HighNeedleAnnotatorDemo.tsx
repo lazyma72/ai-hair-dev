@@ -64,10 +64,9 @@ export default function HighNeedleAnnotatorDemoPage() {
       title="高针图标注 Demo"
       onBack={() => window.history.back()}
       actions={header}
-      fullWidth
     >
-      <div className="flex h-[calc(100vh-11rem)] min-h-0 flex-col gap-4 overflow-hidden">
-        <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-2 text-sm font-semibold text-slate-900">
             选择 SVG 文件
           </div>
@@ -109,15 +108,12 @@ export default function HighNeedleAnnotatorDemoPage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <HighNeedleSvgAnnotator
-            initialSvg={svg}
-            slotTextNodeId="slot_text"
-            enableDml
-            enableDouble
-            showPreview={false}
-          />
-        </div>
+        <HighNeedleSvgAnnotator
+          initialSvg={svg}
+          slotTextNodeId="slot_text"
+          enableDml
+          enableDouble
+        />
       </div>
     </PageShell>
   );

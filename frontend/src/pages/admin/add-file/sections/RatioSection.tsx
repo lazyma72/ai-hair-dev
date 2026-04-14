@@ -5,11 +5,15 @@ import { Field, Section } from "../components/ui";
 
 type RatioId = Db胶丝比例["_id"];
 
+type FieldErrors = Partial<Record<string, string>>;
+
 type Props = {
   value: RatioId;
   onChange: (v: RatioId) => void;
   发丝种类选项: string[];
   颜色编号选项: string[];
+  errors?: FieldErrors;
+  clearError?: (key: string) => void;
 };
 
 export default function RatioSection({
@@ -17,26 +21,44 @@ export default function RatioSection({
   onChange,
   发丝种类选项,
   颜色编号选项,
+  errors,
+  clearError,
 }: Props) {
+  const err = (key: string) => errors?.[key];
+
   return (
     <Section title="胶丝比例">
       <div className="grid grid-cols-1 gap-3">
-        <Field label="发丝种类">
+        <Field
+          label="发丝种类"
+          required
+          error={err("胶丝比例.发丝种类")}
+        >
           <Select
             className="w-full"
+            status={err("胶丝比例.发丝种类") ? "error" : undefined}
             value={value.发丝种类 || undefined}
             options={发丝种类选项.map((t) => ({ label: t, value: t }))}
             placeholder="选择发丝种类"
             allowClear
             showSearch
             optionFilterProp="label"
-            onChange={(v) => onChange({ 颜色编号: "", 发丝种类: v ?? "" })}
+            onChange={(v) => {
+              clearError?.("胶丝比例.发丝种类");
+              clearError?.("胶丝比例.颜色编号");
+              onChange({ 颜色编号: "", 发丝种类: v ?? "" });
+            }}
           />
         </Field>
 
-        <Field label="颜色编号">
+        <Field
+          label="颜色编号"
+          required
+          error={err("胶丝比例.颜色编号")}
+        >
           <Select
             className="w-full"
+            status={err("胶丝比例.颜色编号") ? "error" : undefined}
             value={value.颜色编号 || undefined}
             options={颜色编号选项.map((c) => ({ label: c, value: c }))}
             placeholder={value.发丝种类 ? "选择颜色编号" : "请先选择发丝种类"}
@@ -44,7 +66,10 @@ export default function RatioSection({
             allowClear
             showSearch
             optionFilterProp="label"
-            onChange={(v) => onChange({ ...value, 颜色编号: v ?? "" })}
+            onChange={(v) => {
+              clearError?.("胶丝比例.颜色编号");
+              onChange({ ...value, 颜色编号: v ?? "" });
+            }}
           />
         </Field>
       </div>
@@ -58,9 +83,7 @@ export default function RatioSection({
             </div>
             <div>
               已选择颜色编号：
-              <span className="ml-1 font-mono font-medium">
-                {value.颜色编号}
-              </span>
+              <span className="ml-1 font-mono font-medium">{value.颜色编号}</span>
             </div>
             <div className="text-slate-400">详情可在“胶丝比例”页面查看</div>
           </div>
