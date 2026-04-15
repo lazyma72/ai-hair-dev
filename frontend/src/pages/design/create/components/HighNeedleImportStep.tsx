@@ -1,5 +1,5 @@
 import { message } from "antd";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import HighNeedleSvgAnnotator from "../../../../modules/highNeedleAnnotator/HighNeedleSvgAnnotator";
 import type { 沐茵丝假发成品稿 } from "../../../../shared/db/Db沐茵丝假发成品稿";
 import { emptyFile } from "../../../admin/add-file/defaults";
@@ -29,17 +29,13 @@ export default function HighNeedleImportStep({
   showJsonActions = true,
   fullscreen = false,
 }: Props) {
+  // Important: do NOT re-init annotator when `value.底图.svg` changes during annotation.
+  // The annotator writes marker text nodes back into svg, which would otherwise cause
+  // remount + step reset (区域/档位来回跳).
   const [annotatorSvg, setAnnotatorSvg] = useState(() => value.底图.svg.trim());
   const [annotatorInitialValue, setAnnotatorInitialValue] =
     useState<高针图值 | null>(() => (value.底图.svg.trim() ? value : null));
   const [revision, setRevision] = useState(0);
-
-  useEffect(() => {
-    const svg = value.底图.svg.trim();
-    setAnnotatorSvg(svg);
-    setAnnotatorInitialValue(svg ? value : null);
-    setRevision((v) => v + 1);
-  }, [value.底图.svg]);
 
   const content = (
     <section

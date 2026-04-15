@@ -9,9 +9,9 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://120.78.3.29:3000/",
+        // target: "http://120.78.3.29:3000/",
         // target: "http://120.78.3.29:81/api/dev/museen-dashboard",
-        // target: "http://localhost:3000",
+        target: "http://localhost:3000",
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },

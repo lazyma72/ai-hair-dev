@@ -3,6 +3,7 @@ import { 轻重TS预置选项 } from "../../../../shared/models/形态预置列�
 import {
   AddBtn,
   DelBtn,
+  Field,
   NumInput,
   OptionalQuarterFractionInput,
   PresetTextInput,
@@ -154,9 +155,9 @@ export default function ManualSpecSection({
                   value={档位.整毛.拉尖}
                   onChange={(n) => p("整毛", { ...档位.整毛, 拉尖: n })}
                 />
-                <div>
-                  <div className="mb-1 flex items-center justify-between gap-2 text-xs font-medium text-slate-700">
-                    <span>整毛·对裁</span>
+                <Field
+                  label="整毛·对裁"
+                  labelExtra={
                     <label className="flex items-center gap-1.5 text-xs font-normal text-slate-600">
                       <span>对裁</span>
                       <input
@@ -174,7 +175,8 @@ export default function ManualSpecSection({
                         }}
                       />
                     </label>
-                  </div>
+                  }
+                >
                   <OptionalQuarterFractionInput
                     enabled={has对裁}
                     value={档位.整毛.对裁 ?? 0}
@@ -182,7 +184,7 @@ export default function ManualSpecSection({
                       p("整毛", { ...档位.整毛, 对裁: n })
                     }
                   />
-                </div>
+                </Field>
                 <QuarterFractionInput
                   value={双针.毛长}
                   onChange={(n) =>
