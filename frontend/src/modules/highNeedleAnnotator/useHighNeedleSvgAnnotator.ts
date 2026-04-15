@@ -510,9 +510,8 @@ export default function useHighNeedleSvgAnnotator({
   const regionTextNodeIdByLineId = useMemo(() => {
     const map = new Map<string, string>();
     value.底图.区域线条.forEach((item) => {
-      const textNodeIds = (
-        item as typeof item & { textNodeIds?: string[] }
-      ).textNodeIds;
+      const textNodeIds = (item as typeof item & { textNodeIds?: string[] })
+        .textNodeIds;
       item.lineNodeIds.forEach((lineId, index) => {
         const textNodeId = String(textNodeIds?.[index] ?? "").trim();
         if (!textNodeId) return;
@@ -804,6 +803,16 @@ export default function useHighNeedleSvgAnnotator({
     return map;
   }, [regionColorByName, value.底图.区域线条]);
 
+  const currentRegionDraftColor = useMemo(() => {
+    const draftName = String(regionDraft.name ?? "").trim();
+    if (draftName) {
+      const existed = regionColorByName.get(draftName);
+      if (existed) return existed;
+    }
+    const nextIndex = value.底图.区域线条.length % REGION_COLOR_PALETTE.length;
+    return REGION_COLOR_PALETTE[nextIndex];
+  }, [regionColorByName, regionDraft.name, value.底图.区域线条.length]);
+
   const regionLabelItems = useMemo(() => {
     const byName = new Map<string, string[]>();
     value.底图.区域线条.forEach((d) => {
@@ -913,6 +922,7 @@ export default function useHighNeedleSvgAnnotator({
       {
         regionNo?: number;
         regionTextNodeId?: string;
+        regionColor?: string;
         levelNo?: number;
         levelTextNodeId?: string;
         dml?: DmlValue;
@@ -927,6 +937,11 @@ export default function useHighNeedleSvgAnnotator({
         ...map.get(id),
         regionNo: no,
         regionTextNodeId: actualRegionTextNodeIdByLineId.get(id),
+        regionColor:
+          regionStrokeById.get(id) ??
+          (step === "区域" && draftSelected.includes(id)
+            ? currentRegionDraftColor
+            : undefined),
       });
     });
 
@@ -965,6 +980,10 @@ export default function useHighNeedleSvgAnnotator({
     effectiveLevelTextNodeIdByLineId,
     regionNoById,
     actualRegionTextNodeIdByLineId,
+    currentRegionDraftColor,
+    draftSelected,
+    regionStrokeById,
+    step,
   ]);
 
   const availableForStep = useMemo(() => {
@@ -1012,7 +1031,11 @@ export default function useHighNeedleSvgAnnotator({
 
   const renderSvg = useMemo(() => {
     const selectedStroke =
-      step === "档位" ? "#f59e0b" : step === "区域" ? "#3b82f6" : "#ef4444";
+      step === "档位"
+        ? "#f59e0b"
+        : step === "区域"
+          ? currentRegionDraftColor
+          : "#ef4444";
 
     const visibleTextIdSet = new Set<string>();
     if (layerToggles.text) {
@@ -1078,6 +1101,7 @@ export default function useHighNeedleSvgAnnotator({
     regionNoById,
     actualRegionTextNodeIdByLineId,
     regionStrokeById,
+    currentRegionDraftColor,
     step,
     value.底图.svg,
     value.底图.区域线条,

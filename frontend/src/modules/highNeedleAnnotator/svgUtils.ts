@@ -591,7 +591,7 @@ export function decorateLines(
 
     let nextWidth = baseWidth;
     if (isSelected) {
-      nextWidth = Math.max(baseWidth, 2);
+      nextWidth = Math.max(baseWidth, 3);
     } else if (
       regionStroke ||
       typeof regionNo === "number" ||
@@ -599,7 +599,7 @@ export function decorateLines(
       (dml ?? "").trim() ||
       isDouble
     ) {
-      nextWidth = Math.max(baseWidth, 2);
+      nextWidth = Math.max(baseWidth, 2.5);
     }
 
     if (isDouble) {

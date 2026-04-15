@@ -11,6 +11,7 @@ import 高针指示单View from "../../file/sections/高针指示单View";
 import { to制品规格书Frontend } from "../../../shared/frontend/converters/to制品规格书Frontend";
 import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend";
 import { to高针指示单Frontend } from "../../../shared/frontend/converters/to高针指示单Frontend";
+import HighNeedleImportStep from "./components/HighNeedleImportStep";
 
 const STEPS = ["选择文件", "导入高针图", "导入手织图", "预览"] as const;
 const PREVIEW_TABS = [
@@ -106,7 +107,7 @@ function UploadCard({
 
 function buildDemoFile(params: {
   excelFileName: string;
-  highNeedleSvg: string;
+  highNeedle图: 沐茵丝假发成品稿["高针指示单"]["高针图"];
   handWovenSvg: string;
 }): 沐茵丝假发成品稿 {
   const guess = params.excelFileName.replace(/\.(xlsx|xls|csv)$/i, "");
@@ -189,16 +190,7 @@ function buildDemoFile(params: {
     },
     高针指示单: {
       注意事项: "高针：1. 高针后帽子不能变形。",
-      高针图: {
-        底图: {
-          svg: params.highNeedleSvg,
-          区域名: [],
-          区域线条: [],
-          档位标注: [],
-          文本节点: {},
-        },
-        自定义数据: { DML标注: [], 单双标注: [] },
-      },
+      高针图: params.highNeedle图,
     },
     手织指示单: {
       注意事项: "手织：1. 手织后帽子不能变形。",
@@ -214,16 +206,18 @@ export default function ImportExcelWizardPage() {
   const [step, setStep] = useState<StepIndex>(0);
   const [previewTab, setPreviewTab] = useState<PreviewTabKey>("规格书");
   const [excelFileName, setExcelFileName] = useState<string>("");
-  const [highNeedleFileName, setHighNeedleFileName] = useState<string>("");
+  const [highNeedleFileName, setHighNeedleFileName] = useState<string | null>(null);
   const [handWovenFileName, setHandWovenFileName] = useState<string>("");
-  const [highNeedleSvg, setHighNeedleSvg] = useState<string>("");
+  const [highNeedle图, setHighNeedle图] = useState(
+    () => emptyFile().高针指示单.高针图,
+  );
   const [handWovenSvg, setHandWovenSvg] = useState<string>("");
 
   const canGoNext =
     step === 0
       ? Boolean(excelFileName.trim())
       : step === 1
-        ? Boolean(highNeedleSvg.trim())
+        ? Boolean(highNeedle图.底图.svg.trim())
         : step === 2
           ? Boolean(handWovenSvg.trim())
           : true;
@@ -231,10 +225,10 @@ export default function ImportExcelWizardPage() {
     () =>
       buildDemoFile({
         excelFileName,
-        highNeedleSvg,
+        highNeedle图,
         handWovenSvg,
       }),
-    [excelFileName, handWovenSvg, highNeedleSvg],
+    [excelFileName, handWovenSvg, highNeedle图],
   );
   const 规格书数据 = useMemo(
     () => to制品规格书Frontend(demoFile, DEMO_RATIO_LIST),
@@ -247,6 +241,7 @@ export default function ImportExcelWizardPage() {
     <PageShell
       title="导入 Excel（Demo）"
       onBack={() => navigate("/designs/create")}
+      fullWidth={step === 1}
       actions={
         <div className="flex items-center gap-2">
           {step > 0 ? (
@@ -302,27 +297,14 @@ export default function ImportExcelWizardPage() {
       ) : null}
 
       {step === 1 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="text-sm font-semibold text-slate-900">导入高针图</div>
-          <div className="mt-1 text-xs text-slate-500">
-            请选择高针图 SVG 文件，下一步将进入手织图导入。
-          </div>
-
-          <div className="mt-4">
-            <UploadCard
-              title="高针图 SVG"
-              accept=".svg"
-              fileName={highNeedleFileName}
-              hint="点击上传高针图 SVG"
-              onFileSelect={(file) => {
-                setHighNeedleFileName(file.name);
-                const reader = new FileReader();
-                reader.onload = () => setHighNeedleSvg(String(reader.result ?? ""));
-                reader.readAsText(file);
-              }}
-            />
-          </div>
-        </div>
+        <HighNeedleImportStep
+          description="请选择高针图 SVG 文件，并在当前页面完成标注；下一步将进入手织图导入。"
+          value={highNeedle图}
+          onChange={setHighNeedle图}
+          fileName={highNeedleFileName}
+          onFileNameChange={setHighNeedleFileName}
+          fullscreen
+        />
       ) : null}
 
       {step === 2 ? (

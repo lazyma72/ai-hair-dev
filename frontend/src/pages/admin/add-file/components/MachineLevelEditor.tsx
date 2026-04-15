@@ -16,6 +16,7 @@ import {
   QuarterFractionInput,
   TextInput,
 } from "./ui";
+import { useEffect } from "react";
 
 type 机器档位 = 制品规格书["机器规格清单"][number];
 type DMLKey = "D" | "M" | "L";
@@ -159,6 +160,7 @@ export default function MachineLevelEditor({
   const hasL尺数 = value.双针.尺数.L != null;
   const 密度 = value.双针.密度;
   const 尺数D = value.双针.尺数.D;
+  const dmlKeysSig = dmlKeys.join(",");
 
   const activeWeightKeys: DMLKey[] = (() => {
     if (是间色) return [...dmlKeys];
@@ -191,7 +193,6 @@ export default function MachineLevelEditor({
         ((row.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) *
         rowFactor *
         (totalDML > 0 ? ratio / totalDML : 0);
-      if (key === "D" && has对裁) w /= 2;
       return w;
     }
     if (是上下分) {
@@ -202,7 +203,6 @@ export default function MachineLevelEditor({
             ? (value.双针.尺数.M ?? 0)
             : (value.双针.尺数.L ?? 0);
       let w = ((row.裁断 * 密度 * 对应尺数 * 2.54) / 100 / 2) * rowFactor;
-      if (key === "D" && has对裁) w /= 2;
       return w;
     }
     if (是单T色) {
@@ -211,14 +211,103 @@ export default function MachineLevelEditor({
       if (!shouldShowWeight) return 0;
 
       let w = ((row.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
-      if (key === "D" && has对裁) w /= 2;
       return w;
     }
     // 纯色
     let w = ((row.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
-    if (has对裁) w /= 2;
     return w;
   }
+
+  // Debug logging for weight calculation.
+  // Default: logs in dev. In production, set `localStorage.debug_weight=1` to enable.
+  useEffect(() => {
+    const canLog =
+      import.meta.env.DEV ||
+      (typeof window !== "undefined" &&
+        window.localStorage?.getItem("debug_weight") === "1");
+    if (!canLog) return;
+
+    const rows = value.裁断与重量 ?? [];
+    const totalRows = rows.length;
+    const d = dml?.D ?? 1;
+    const m = dml?.M ?? 0;
+    const l = dml?.L ?? 0;
+    const totalDML = d + m + l;
+    const keys = activeWeightKeys;
+
+    const logs = rows.flatMap((row, rowIndex) => {
+      const rowFactor = getRowFactor(rowIndex, totalRows);
+
+      return keys.map((key) => {
+        const base =
+          ((row.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
+        const ratio = key === "D" ? d : key === "M" ? m : l;
+        const ratioPart = totalDML > 0 ? ratio / totalDML : 0;
+
+        const 对应尺数 =
+          key === "D"
+            ? 尺数D
+            : key === "M"
+              ? (value.双针.尺数.M ?? 0)
+              : (value.双针.尺数.L ?? 0);
+
+        const shouldShowWeight =
+          !是单T色
+            ? true
+            : totalRows === 1
+              ? key === "D" || key === "L"
+              : key === (rowIndex % 2 === 0 ? "D" : "L");
+
+        const weight = getWeight(row, rowIndex, totalRows, key);
+
+        return {
+          档位: value.档位,
+          假发类型: type,
+          行: rowIndex + 1,
+          裁断: row.裁断,
+          密度,
+          尺数D,
+          尺数M: value.双针.尺数.M ?? 0,
+          尺数L: value.双针.尺数.L ?? 0,
+          对应尺数,
+          rowFactor,
+          对裁: has对裁,
+          DML模式: dmlMode,
+          key,
+          ratio,
+          totalDML,
+          ratioPart,
+          base,
+          shouldShowWeight,
+          weight,
+        };
+      });
+    });
+
+    console.group(
+      `[重量计算] 档位=${value.档位} 类型=${type} 模式=${dmlMode} D=${d} M=${m} L=${l} 密度=${密度} 尺数D=${尺数D} 对裁=${has对裁} 行数=${totalRows}`,
+    );
+    console.table(logs);
+    console.groupEnd();
+  }, [
+    type,
+    是间色,
+    是上下分,
+    是单T色,
+    dml?.D,
+    dml?.M,
+    dml?.L,
+    dmlMode,
+    dmlKeysSig,
+    activeWeightKeys.join(","),
+    has对裁,
+    密度,
+    尺数D,
+    value.双针.尺数.M,
+    value.双针.尺数.L,
+    value.档位,
+    value.裁断与重量,
+  ]);
 
   return (
     <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">

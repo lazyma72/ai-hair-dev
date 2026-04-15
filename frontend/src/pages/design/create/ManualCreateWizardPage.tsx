@@ -1,6 +1,6 @@
 import * as React from "react";
 import { message } from "antd";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { callApi } from "../../../api/callApi";
 import PageShell from "../../../components/PageShell";
@@ -17,15 +17,13 @@ import MachineSpecSection from "../../admin/add-file/sections/MachineSpecSection
 import ManualSpecSection from "../../admin/add-file/sections/ManualSpecSection";
 import ProcessNotesSection from "../../admin/add-file/sections/ProcessNotesSection";
 import RatioSection from "../../admin/add-file/sections/RatioSection";
-import HighNeedleSvgAnnotator from "../../../modules/highNeedleAnnotator/HighNeedleSvgAnnotator";
+import HighNeedleImportStep from "./components/HighNeedleImportStep";
 
 const STEPS = ["导入数据", "导入高针图", "导入手织图"] as const;
 
 type StepIndex = 0 | 1 | 2;
 
 type FieldErrors = Partial<Record<string, string>>;
-
-type 高针图值 = 沐茵丝假发成品稿["高针指示单"]["高针图"];
 
 function Stepper({ step }: { step: StepIndex }) {
   return (
@@ -103,14 +101,9 @@ export default function ManualCreateWizardPage() {
   const [ratioList, setRatioList] = useState<胶丝比例ListItem[]>([]);
   const [form, setForm] = useState<沐茵丝假发成品稿>(() => emptyFile());
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [highNeedleSvgRevision, setHighNeedleSvgRevision] = useState(0);
   const [highNeedleSvgFileName, setHighNeedleSvgFileName] = useState<string | null>(
     null,
   );
-  const [annotatorSvg, setAnnotatorSvg] = useState("");
-  const [annotatorInitialValue, setAnnotatorInitialValue] =
-    useState<高针图值 | null>(null);
-  const lastStepRef = useRef<StepIndex>(0);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -134,24 +127,6 @@ export default function ManualCreateWizardPage() {
       手织指示单: { ...f.手织指示单, 手织图: { svg: "" } },
     }));
   }, [step]);
-
-  useEffect(() => {
-    if (step !== 1) {
-      lastStepRef.current = step;
-      return;
-    }
-
-    if (lastStepRef.current === 1) return;
-
-    const svg = form.高针指示单.高针图.底图.svg.trim();
-    if (svg) {
-      setAnnotatorSvg(svg);
-      setAnnotatorInitialValue(form.高针指示单.高针图);
-      setHighNeedleSvgRevision((v) => v + 1);
-    }
-
-    lastStepRef.current = step;
-  }, [form.高针指示单.高针图, step]);
 
   const clearFieldError = React.useCallback((key: string) => {
     setFieldErrors((prev) => {
@@ -368,117 +343,18 @@ export default function ManualCreateWizardPage() {
       ) : null}
 
       {step === 1 ? (
-        <>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
-            Step2：导入高针图（复用「测试页面 → 高针图标注 Demo」的标注能力）。
-            先选择高针图 SVG，在本页完成标注；完成后生成的 JSON 会自动写入成品稿。
-          </div>
-
-          <section className="rounded-xl border border-slate-100 bg-slate-50 p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="mb-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                高针图标注
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="cursor-pointer rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200">
-                  选择 SVG 文件
-                  <input
-                    type="file"
-                    accept="image/svg+xml,.svg"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        const text = typeof reader.result === "string" ? reader.result : "";
-                        const emptyHighNeedle = emptyFile().高针指示单.高针图;
-                        emptyHighNeedle.底图.svg = text;
-                        setHighNeedleSvgFileName(file.name);
-                        setAnnotatorSvg(text);
-                        setAnnotatorInitialValue(emptyHighNeedle);
-                        setHighNeedleSvgRevision((v) => v + 1);
-                        setForm((f) => ({
-                          ...f,
-                          高针指示单: { ...f.高针指示单, 高针图: emptyHighNeedle },
-                        }));
-                      };
-                      reader.readAsText(file);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(
-                        JSON.stringify(form.高针指示单.高针图, null, 2),
-                      );
-                      message.success("已复制 JSON");
-                    } catch {
-                      message.error("复制失败");
-                    }
-                  }}
-                >
-                  复制 JSON
-                </button>
-
-                <button
-                  type="button"
-                  className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
-                  onClick={() => {
-                    const blob = new Blob([
-                      JSON.stringify(form.高针指示单.高针图, null, 2),
-                    ], {
-                      type: "application/json;charset=utf-8",
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "high-needle.json";
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  下载 JSON
-                </button>
-              </div>
-            </div>
-
-            {highNeedleSvgFileName ? (
-              <div className="mb-3 text-xs text-slate-500">
-                当前 SVG：{highNeedleSvgFileName}
-              </div>
-            ) : null}
-
-            {annotatorSvg.trim() ? (
-              <div className="h-[70vh] min-h-[560px] overflow-hidden">
-                <HighNeedleSvgAnnotator
-                  key={highNeedleSvgRevision}
-                  initialSvg={annotatorSvg}
-                  initialValue={annotatorInitialValue ?? undefined}
-                  startAt="begin"
-                  enableDml
-                  enableDouble
-                  showPreview={false}
-                  onChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      高针指示单: { ...f.高针指示单, 高针图: v },
-                    }))
-                  }
-                />
-              </div>
-            ) : (
-              <div className="text-sm text-slate-600">
-                请先选择一份高针图 SVG 文件。
-              </div>
-            )}
-          </section>
-        </>
+        <HighNeedleImportStep
+          description="Step2：导入高针图（复用「测试页面 → 高针图标注 Demo」的标注能力）。先选择高针图 SVG，在本页完成标注；完成后生成的 JSON 会自动写入成品稿。"
+          value={form.高针指示单.高针图}
+          onChange={(v) =>
+            setForm((f) => ({
+              ...f,
+              高针指示单: { ...f.高针指示单, 高针图: v },
+            }))
+          }
+          fileName={highNeedleSvgFileName}
+          onFileNameChange={setHighNeedleSvgFileName}
+        />
       ) : null}
 
       {step === 2 ? (

@@ -1,4 +1,4 @@
-import { message } from "antd";
+import { message, Modal } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { callApi } from "../../api/callApi";
 import type { Column } from "../../components/DataTable";
@@ -13,7 +13,7 @@ export default function CustomerListPage() {
   const [keyword, setKeyword] = useState("");
   const [newCustomerNo, setNewCustomerNo] = useState("");
   const [newCustomerName, setNewCustomerName] = useState("");
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [pageNum, setPageNum] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -93,7 +93,7 @@ export default function CustomerListPage() {
     setPageNum(1);
     setNewCustomerNo("");
     setNewCustomerName("");
-    setShowCreateForm(false);
+    setCreateOpen(false);
     reload();
   }
 
@@ -104,13 +104,49 @@ export default function CustomerListPage() {
         <button
           type="button"
           className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-          onClick={() => setShowCreateForm((v) => !v)}
+          onClick={() => setCreateOpen(true)}
         >
-          {showCreateForm ? "收起表单" : "+ 新增客户"}
+          + 新增客户
         </button>
       }
     >
       <div className="space-y-3">
+        <Modal
+          title="新增客户"
+          open={createOpen}
+          onCancel={() => setCreateOpen(false)}
+          okText="新增"
+          cancelText="取消"
+          onOk={() => void handleAdd()}
+        >
+          <div className="grid gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                客户编号 *
+              </label>
+              <input
+                type="text"
+                className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                placeholder="例如：XM"
+                value={newCustomerNo}
+                onChange={(e) => setNewCustomerNo(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                客户名称 *
+              </label>
+              <input
+                type="text"
+                className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                placeholder="例如：Museen Hair"
+                value={newCustomerName}
+                onChange={(e) => setNewCustomerName(e.target.value)}
+              />
+            </div>
+          </div>
+        </Modal>
+
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-72">
@@ -148,46 +184,6 @@ export default function CustomerListPage() {
             </button>
           </div>
         </div>
-
-        {showCreateForm ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="grid gap-3 lg:grid-cols-[18rem_18rem_auto]">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">
-                  客户编号 *
-                </label>
-                <input
-                  type="text"
-                  className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                  placeholder="例如：XM"
-                  value={newCustomerNo}
-                  onChange={(e) => setNewCustomerNo(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">
-                  客户名称 *
-                </label>
-                <input
-                  type="text"
-                  className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                  placeholder="例如：Museen Hair"
-                  value={newCustomerName}
-                  onChange={(e) => setNewCustomerName(e.target.value)}
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                  onClick={() => void handleAdd()}
-                >
-                  新增
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
 
         <StatusView
           loading={loading}

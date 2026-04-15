@@ -9,6 +9,9 @@ import { ReqGetPreview, ResGetPreview } from './admin/PtlGetPreview';
 import { ReqGetDetail as ReqGetDetail_1, ResGetDetail as ResGetDetail_1 } from './admin/ratio/PtlGetDetail';
 import { ReqGetList as ReqGetList_2, ResGetList as ResGetList_2 } from './admin/ratio/PtlGetList';
 import { ReqUpdate as ReqUpdate_1, ResUpdate as ResUpdate_1 } from './admin/ratio/PtlUpdate';
+import { ReqAdd as ReqAdd_2, ResAdd as ResAdd_2 } from './admin/user/PtlAdd';
+import { ReqDelete, ResDelete } from './admin/user/PtlDelete';
+import { ReqGetList as ReqGetList_3, ResGetList as ResGetList_3 } from './admin/user/PtlGetList';
 
 export interface ServiceType {
     api: {
@@ -51,6 +54,18 @@ export interface ServiceType {
         "admin/ratio/Update": {
             req: ReqUpdate_1,
             res: ResUpdate_1
+        },
+        "admin/user/Add": {
+            req: ReqAdd_2,
+            res: ResAdd_2
+        },
+        "admin/user/Delete": {
+            req: ReqDelete,
+            res: ResDelete
+        },
+        "admin/user/GetList": {
+            req: ReqGetList_3,
+            res: ResGetList_3
         }
     },
     msg: {
@@ -128,6 +143,24 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 6,
             "name": "admin/ratio/Update",
+            "type": "api",
+            "conf": {}
+        },
+        {
+            "id": 14,
+            "name": "admin/user/Add",
+            "type": "api",
+            "conf": {}
+        },
+        {
+            "id": 15,
+            "name": "admin/user/Delete",
+            "type": "api",
+            "conf": {}
+        },
+        {
+            "id": 16,
+            "name": "admin/user/GetList",
             "type": "api",
             "conf": {}
         }
@@ -3169,6 +3202,190 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "type": {
                         "type": "Reference",
                         "target": "base/BaseResponse"
+                    }
+                }
+            ]
+        },
+        "admin/user/PtlAdd/ReqAdd": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "name",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "username",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "password",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/user/PtlAdd/ResAdd": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "id",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/user/PtlDelete/ReqDelete": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "id",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/user/PtlDelete/ResDelete": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ]
+        },
+        "admin/user/PtlGetList/ReqGetList": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "keyword",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/user/PtlGetList/ResGetList": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "list",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "admin/user/PtlGetList/UserListItem"
+                        }
+                    }
+                }
+            ]
+        },
+        "admin/user/PtlGetList/UserListItem": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "_id",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "name",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "username",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "role",
+                    "type": {
+                        "type": "Literal",
+                        "literal": "admin"
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "createTime",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 5,
+                    "name": "updateTime",
+                    "type": {
+                        "type": "String"
                     }
                 }
             ]

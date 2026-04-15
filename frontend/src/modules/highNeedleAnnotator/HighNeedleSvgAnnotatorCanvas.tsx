@@ -48,6 +48,7 @@ type Props = {
     {
       regionNo?: number;
       regionTextNodeId?: string;
+      regionColor?: string;
       levelNo?: number;
       levelTextNodeId?: string;
       dml?: DmlValue;
@@ -191,51 +192,6 @@ function screenDeltaToParent(
   return { dx: moved.x - origin.x, dy: moved.y - origin.y };
 }
 
-/** 以 2×3 affine 矩阵变换一个点（避免 createSVGPoint 开销）。 */
-function applyMatrix(
-  x: number,
-  y: number,
-  m: DOMMatrix,
-): { x: number; y: number } {
-  return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
-}
-
-
-function getSegmentIntersectionPoint(
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number,
-  cx: number,
-  cy: number,
-  dx: number,
-  dy: number,
-): { x: number; y: number } | null {
-  const d1x = bx - ax;
-  const d1y = by - ay;
-  const d2x = dx - cx;
-  const d2y = dy - cy;
-  const denom = d1x * d2y - d1y * d2x;
-  if (Math.abs(denom) < 1e-10) return null;
-
-  const ex = cx - ax;
-  const ey = cy - ay;
-  const t = (ex * d2y - ey * d2x) / denom;
-  const u = (ex * d1y - ey * d1x) / denom;
-  if (t < -1e-6 || t > 1 + 1e-6 || u < -1e-6 || u > 1 + 1e-6) return null;
-
-  return {
-    x: ax + d1x * t,
-    y: ay + d1y * t,
-  };
-}
-
-/**
- * 每根线段的几何缓存：一组折线段坐标（SVG root 用户空间），
- * 格式 [x1, y1, x2, y2]。
- */
-type LineSegment4 = readonly [number, number, number, number];
-type LineGeometryCache = Map<string, LineSegment4[]>;
 
 function clientToSvgPoint(
   svgRoot: SVGSVGElement,
@@ -297,6 +253,24 @@ function scaleSvgViewport(svg: string, scale: number): string {
   }
 }
 
+function getLineIdsFromPoint(
+  clientX: number,
+  clientY: number,
+  lineSelector: string,
+  allowedIds: Set<string>,
+): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  const elements = document.elementsFromPoint(clientX, clientY);
+  for (const el of elements) {
+    const id = getEventLineId(el, lineSelector, allowedIds);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
 export default function HighNeedleSvgAnnotatorCanvas({
   step,
   lineSelector,
@@ -340,6 +314,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
       {
         regionNo?: number;
         regionTextNodeId?: string;
+        regionColor?: string;
         levelNo?: number;
         levelTextNodeId?: string;
         dml?: DmlValue;
@@ -356,6 +331,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
         !marks.regionTextNodeId
       ) {
         filtered.regionNo = marks.regionNo;
+        filtered.regionColor = marks.regionColor;
       }
       if (
         layerToggles.level &&
@@ -380,8 +356,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
   const brushVisitedRef = useRef<Set<string>>(new Set());
   const brushLastPointRef = useRef<{ x: number; y: number } | null>(null);
 
-  /** 几何缓存：各线段在 SVG root 用户空间中的折线段列表，renderSvg 变化后重建。 */
-  const geomCacheRef = useRef<LineGeometryCache>(new Map());
   /** 刷选描边叠加层 canvas。 */
   const brushCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -428,57 +402,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
       anchor.contentY * svgScale - (anchor.clientY - rect.top);
     zoomAnchorRef.current = null;
   }, [svgScale]);
-
-  /**
-   * 在 DOM 更新（renderSvg 变化）后，把所有线条元素的几何数据采样到
-   * SVG root 用户空间的 LineGeometryCache，供刷选时的相交检测使用。
-   */
-  useEffect(() => {
-    const wrap = canvasWrapRef.current;
-    if (!wrap) return;
-
-    const raf = requestAnimationFrame(() => {
-      const cache: LineGeometryCache = new Map();
-
-      for (const id of allLineIdSet) {
-        const el = wrap.querySelector<SVGGeometryElement>(
-          `#${cssEscapeId(id)}`,
-        );
-        if (!el || typeof el.getTotalLength !== "function") continue;
-
-        const elCTM = el.getScreenCTM();
-        if (!elCTM) continue;
-
-        // element local space → client pixel space (directly, no rootInv needed).
-        // Storing in client-pixel space means the intersection test uses the same
-        // coordinate system as e.clientX/Y without any further conversion, so a
-        // stale rootCTM after SVG re-render never causes a mismatch.
-        const localToClient = elCTM;
-
-        const totalLen = el.getTotalLength();
-        // 用元素屏幕 bbox 对角线近似估算采样数，保证足够密度
-        const bbox = el.getBoundingClientRect();
-        const screenDiag = Math.hypot(bbox.width, bbox.height);
-        const numPts = Math.max(4, Math.min(200, Math.ceil(screenDiag / 3)));
-
-        const segments: LineSegment4[] = [];
-        let prev: { x: number; y: number } | null = null;
-
-        for (let i = 0; i <= numPts; i++) {
-          const lp = el.getPointAtLength((i / numPts) * totalLen);
-          const sp = applyMatrix(lp.x, lp.y, localToClient);
-          if (prev) segments.push([prev.x, prev.y, sp.x, sp.y]);
-          prev = sp;
-        }
-
-        if (segments.length > 0) cache.set(id, segments);
-      }
-
-      geomCacheRef.current = cache;
-    });
-
-    return () => cancelAnimationFrame(raf);
-  }, [scaledRenderSvg, allLineIdSet]);
 
   /** 保证 canvas 尺寸始终与内层包裹 div 一致（device-pixel-ratio 无关）。 */
   useEffect(() => {
@@ -1051,7 +974,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
             toggleSelect(id, {
               silent: true,
               markerPos:
-                step === "档位" && svgRoot
+                (step === "区域" || step === "档位") && svgRoot
                   ? (clientToSvgPoint(svgRoot, e.clientX, e.clientY) ??
                     undefined)
                   : undefined,
@@ -1090,36 +1013,34 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
           if (!prev) return;
 
-          // ── 几何相交检测（缓存与鼠标坐标均为 client 像素，无需转换）──────
-          for (const [id, segs] of geomCacheRef.current) {
-            if (brushVisitedRef.current.has(id)) continue;
-            for (const [ax, ay, bx, by] of segs) {
-              const intersection = getSegmentIntersectionPoint(
-                prev.x,
-                prev.y,
-                cur.x,
-                cur.y,
-                ax,
-                ay,
-                bx,
-                by,
-              );
-              if (intersection) {
-                brushVisitedRef.current.add(id);
-                const svgRoot = wrap2?.querySelector<SVGSVGElement>("svg");
-                toggleSelect(id, {
-                  silent: true,
-                  markerPos:
-                    step === "档位" && svgRoot
-                      ? (clientToSvgPoint(
-                          svgRoot,
-                          intersection.x,
-                          intersection.y,
-                        ) ?? undefined)
-                      : undefined,
-                });
-                break;
-              }
+          // 沿鼠标刷选轨迹做原生命中测试，避免几何相交误差导致未真正相交的线也被选中。
+          const dx = cur.x - prev.x;
+          const dy = cur.y - prev.y;
+          const distance = Math.hypot(dx, dy);
+          const steps = Math.max(1, Math.ceil(distance / 4));
+          const svgRoot = wrap2?.querySelector<SVGSVGElement>("svg");
+
+          for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            const sampleX = prev.x + dx * t;
+            const sampleY = prev.y + dy * t;
+            const lineIds = getLineIdsFromPoint(
+              sampleX,
+              sampleY,
+              lineSelector,
+              allLineIdSet,
+            );
+
+            for (const id of lineIds) {
+              if (brushVisitedRef.current.has(id)) continue;
+              brushVisitedRef.current.add(id);
+              toggleSelect(id, {
+                silent: true,
+                markerPos:
+                  (step === "区域" || step === "档位") && svgRoot
+                    ? (clientToSvgPoint(svgRoot, sampleX, sampleY) ?? undefined)
+                    : undefined,
+              });
             }
           }
         }}
@@ -1217,7 +1138,10 @@ export default function HighNeedleSvgAnnotatorCanvas({
                 >
                   <div className="flex flex-col items-center gap-1">
                     {typeof marks.regionNo === "number" ? (
-                      <div className="flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-semibold leading-none text-white shadow">
+                      <div
+                        className="flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold leading-none text-white shadow"
+                        style={{ backgroundColor: marks.regionColor ?? "#0284c7" }}
+                      >
                         {marks.regionNo}
                       </div>
                     ) : null}
