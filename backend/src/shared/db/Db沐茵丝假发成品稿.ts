@@ -101,6 +101,7 @@ export interface 制品规格书 {
       毛长: number
       /* 单位:g,展示为‘按15g/扎’ */
       磅发: number
+      密度: number
     }
     形态?: string
     美容: {

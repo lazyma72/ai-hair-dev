@@ -5,3 +5,4 @@ ProdConfig.ts
 html/
 youngo/
 *.html
+.env
