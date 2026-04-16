@@ -751,11 +751,13 @@ export default function useHighNeedleSvgAnnotator({
 
   const draggableMarkerTextIdSet = useMemo(() => {
     const ids = new Set<string>();
+    actualRegionTextNodeIdByLineId.forEach((id) => ids.add(id));
     effectiveLevelTextNodeIdByLineId.forEach((id) => ids.add(id));
     actualDmlTextNodeIdByLineId.forEach((id) => ids.add(id));
     actualDoubleTextNodeIdByLineId.forEach((id) => ids.add(id));
     return ids;
   }, [
+    actualRegionTextNodeIdByLineId,
     actualDmlTextNodeIdByLineId,
     actualDoubleTextNodeIdByLineId,
     effectiveLevelTextNodeIdByLineId,
@@ -2121,31 +2123,15 @@ export default function useHighNeedleSvgAnnotator({
     setDirty(true);
     setDraftSelected([]);
 
-    const addedTextIds: string[] = [];
-
     setValue((v) => {
-      let nextSvg = v.底图.svg;
       const regionNameList = [...v.底图.区域名, draft.name];
 
       const startNo = v.底图.区域线条.length;
       const newLines = selected.map((lineId, i) => {
-        const markerPos = draftMarkerPosByLineIdRef.current.get(lineId);
-        const result = upsertMarkerTextNode(nextSvg, {
-          textNodeId: "",
-          createNodeId: allocLocalId("region_text"),
-          createWhenMissing: Boolean(markerPos),
-          text: String(startNo + i + 1),
-          pos: markerPos,
-          fontStyle: getMarkerTextFontStyle("region"),
-        });
-        nextSvg = result.svg;
-        if (result.created && result.textNodeId) {
-          addedTextIds.push(result.textNodeId);
-        }
-
+        // 不在 finishRegion 中创建文本节点，让画布自动创建效果使用线条中点位置，避免刷选位置导致数字偏移过远
         return {
           区域名: draft.name,
-          textNodeIds: result.textNodeId ? [result.textNodeId] : [],
+          textNodeIds: [] as string[],
           lineNodeIds: [lineId],
           lineLength: draft.lineLength,
           区域内位置占比:
@@ -2157,16 +2143,12 @@ export default function useHighNeedleSvgAnnotator({
         ...v,
         底图: {
           ...v.底图,
-          svg: nextSvg,
           区域名: regionNameList,
           区域线条: [...v.底图.区域线条, ...newLines],
         },
       };
     });
 
-    if (addedTextIds.length > 0) {
-      setAllTextIds((prev) => mergeTextIdList(prev, addedTextIds, []));
-    }
     selected.forEach((id) => draftMarkerPosByLineIdRef.current.delete(id));
 
     if (gotoNextStage) {

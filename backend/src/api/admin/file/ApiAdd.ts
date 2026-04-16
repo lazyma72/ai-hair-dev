@@ -20,6 +20,18 @@ export default async function (call: ApiCall<ReqAdd, ResAdd>) {
     })
   }
 
+  // 制帽编号必须存在于「制帽」集合
+  const hatMakingId = file.制品规格书?.制帽?.编号
+  if (hatMakingId) {
+    const hatMakingCol = Global.getCollection("制帽")
+    const hatMaking = await hatMakingCol.findOne({ _id: hatMakingId })
+    if (!hatMaking) {
+      return call.error(`制帽编号「${hatMakingId}」不存在，请先在制帽列表中创建`, {
+        code: "INVALID_HAT_MAKING_NO",
+      })
+    }
+  }
+
   const col = Global.getCollection("沐茵丝假发成品稿")
   const existing = await col.findOne({ _id: file._id })
   if (existing) {

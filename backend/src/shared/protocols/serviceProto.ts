@@ -2,6 +2,7 @@ import { ServiceProto } from 'tsrpc-proto';
 import { ReqAdd, ResAdd } from './admin/customer/PtlAdd';
 import { ReqGetList, ResGetList } from './admin/customer/PtlGetList';
 import { ReqAdd as ReqAdd_1, ResAdd as ResAdd_1 } from './admin/file/PtlAdd';
+import { ReqDelete, ResDelete } from './admin/file/PtlDelete';
 import { ReqGetDetail, ResGetDetail } from './admin/file/PtlGetDetail';
 import { ReqGetList as ReqGetList_1, ResGetList as ResGetList_1 } from './admin/file/PtlGetList';
 import { ReqUpdate, ResUpdate } from './admin/file/PtlUpdate';
@@ -13,7 +14,7 @@ import { ReqGetDetail as ReqGetDetail_2, ResGetDetail as ResGetDetail_2 } from '
 import { ReqGetList as ReqGetList_3, ResGetList as ResGetList_3 } from './admin/ratio/PtlGetList';
 import { ReqUpdate as ReqUpdate_1, ResUpdate as ResUpdate_1 } from './admin/ratio/PtlUpdate';
 import { ReqAdd as ReqAdd_3, ResAdd as ResAdd_3 } from './admin/user/PtlAdd';
-import { ReqDelete, ResDelete } from './admin/user/PtlDelete';
+import { ReqDelete as ReqDelete_1, ResDelete as ResDelete_1 } from './admin/user/PtlDelete';
 import { ReqGetList as ReqGetList_4, ResGetList as ResGetList_4 } from './admin/user/PtlGetList';
 
 export interface ServiceType {
@@ -29,6 +30,10 @@ export interface ServiceType {
         "admin/file/Add": {
             req: ReqAdd_1,
             res: ResAdd_1
+        },
+        "admin/file/Delete": {
+            req: ReqDelete,
+            res: ResDelete
         },
         "admin/file/GetDetail": {
             req: ReqGetDetail,
@@ -75,8 +80,8 @@ export interface ServiceType {
             res: ResAdd_3
         },
         "admin/user/Delete": {
-            req: ReqDelete,
-            res: ResDelete
+            req: ReqDelete_1,
+            res: ResDelete_1
         },
         "admin/user/GetList": {
             req: ReqGetList_4,
@@ -89,7 +94,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 17,
+    "version": 18,
     "services": [
         {
             "id": 9,
@@ -108,6 +113,12 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 2,
             "name": "admin/file/Add",
+            "type": "api",
+            "conf": {}
+        },
+        {
+            "id": 20,
+            "name": "admin/file/Delete",
             "type": "api",
             "conf": {}
         },
@@ -1905,6 +1916,30 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "id",
                     "type": {
                         "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/file/PtlDelete/ReqDelete": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ]
+        },
+        "admin/file/PtlDelete/ResDelete": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
                     }
                 }
             ]

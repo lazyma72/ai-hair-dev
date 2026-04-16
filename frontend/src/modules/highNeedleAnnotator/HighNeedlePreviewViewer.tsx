@@ -2,9 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import InlineSvg from "../../components/InlineSvg";
 import { makeDmlMap, makeDoubleSet } from "./helpers";
 import type { 高针图 } from "./types";
-import { collectSvgTextNodes, pruneSvgTextNodes } from "./svgUtils";
+import { collectSvgTextNodes, decorateLines, pruneSvgTextNodes } from "./svgUtils";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+
+const REGION_COLOR_PALETTE = [
+  "#ef4444",
+  "#f59e0b",
+  "#10b981",
+  "#3b82f6",
+  "#a855f7",
+  "#ec4899",
+  "#14b8a6",
+  "#f97316",
+] as const;
 
 type PreviewToggles = {
   level: boolean;
@@ -171,7 +182,7 @@ function buildPreviewLabels(
       out.push({
         lineId,
         text: levelText,
-        ratio: 0.2,
+        ratio: 0.5,
         fill: "#0f172a",
       });
     });
@@ -268,7 +279,59 @@ export default function HighNeedlePreviewViewer({
       });
     }
 
-    return pruneSvgTextNodes(data.底图.svg, Array.from(visibleTextIds));
+    let svg = pruneSvgTextNodes(data.底图.svg, Array.from(visibleTextIds));
+
+    // 给各区域/档位/DML/单双线条施加颜色和加粗
+    const regionColorByName = new Map<string, string>();
+    const orderedNames = (data.底图.区域名 ?? [])
+      .map((n) => String(n ?? "").trim())
+      .filter(Boolean);
+    orderedNames.forEach((name, idx) => {
+      regionColorByName.set(
+        name,
+        REGION_COLOR_PALETTE[idx % REGION_COLOR_PALETTE.length],
+      );
+    });
+
+    const regionStrokeById = new Map<string, string>();
+    const allTouchIds: string[] = [];
+    data.底图.区域线条.forEach((d) => {
+      const regionName = String(d.区域名 ?? "").trim();
+      const color = regionColorByName.get(regionName);
+      d.lineNodeIds.forEach((id) => {
+        const lineId = String(id ?? "").trim();
+        if (!lineId) return;
+        allTouchIds.push(lineId);
+        if (color) regionStrokeById.set(lineId, color);
+      });
+    });
+
+    const levelNoById = new Map<string, number>();
+    data.底图.档位标注.forEach((d, idx) => {
+      const match = String(d.区域名 ?? "")
+        .trim()
+        .match(/\d+/);
+      const no = match ? Number(match[0]) : idx + 1;
+      d.lineNodeIds.forEach((id) => {
+        const lineId = String(id ?? "").trim();
+        if (!lineId) return;
+        if (!allTouchIds.includes(lineId)) allTouchIds.push(lineId);
+        levelNoById.set(lineId, Number.isFinite(no) && no > 0 ? no : idx + 1);
+      });
+    });
+
+    const previewDml = makeDmlMap(data.自定义数据.DML标注);
+    const previewDouble = makeDoubleSet(data.自定义数据.单双标注);
+
+    svg = decorateLines(svg, {
+      touchIds: allTouchIds,
+      regionStrokeById,
+      levelNoById,
+      dmlById: previewDml,
+      doubleById: previewDouble,
+    });
+
+    return svg;
   }, [data, toggles]);
 
   const previewLabels = useMemo(() => {

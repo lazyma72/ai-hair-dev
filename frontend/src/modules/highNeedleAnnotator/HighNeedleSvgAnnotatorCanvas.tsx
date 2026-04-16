@@ -155,11 +155,16 @@ type Props = {
 
   // 文本阶段
   activeTextNodeId: string;
+  activeTextKey: string;
+  setActiveTextKey: (key: string) => void;
   onTextActivate: (textNodeId: string) => void;
   onTextPositionCommit: (
     textNodeId: string,
     pos: { x: number; y: number },
   ) => void;
+  onTextRemove: (key: string) => void;
+  onTextStyleChange: (key: string, patch: Record<string, unknown>) => void;
+  textNodeMap: Record<string, { textNodeId: string; text?: string; fontStyle?: Record<string, unknown> }>;
 };
 
 type DragState = {
@@ -389,8 +394,13 @@ export default function HighNeedleSvgAnnotatorCanvas({
   layerToggles,
   setLayerToggles,
   activeTextNodeId,
+  activeTextKey,
+  setActiveTextKey,
   onTextActivate,
   onTextPositionCommit,
+  onTextRemove,
+  onTextStyleChange,
+  textNodeMap,
 }: Props) {
   const [svgScale, setSvgScale] = useState(1);
   const scaledRenderSvg = useMemo(
@@ -466,6 +476,35 @@ export default function HighNeedleSvgAnnotatorCanvas({
   const pendingAutoLevelTextNodeIdsRef = useRef<Set<string>>(new Set());
   const pendingAutoDmlTextNodeIdsRef = useRef<Set<string>>(new Set());
   const pendingAutoDoubleTextNodeIdsRef = useRef<Set<string>>(new Set());
+
+  // --- 文本缩放拖拽手柄 ---
+  const resizeRef = useRef<{
+    startY: number;
+    startFontSize: number;
+    key: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const rs = resizeRef.current;
+      if (!rs) return;
+      const deltaY = rs.startY - e.clientY; // 向上拖 → 放大
+      const scaleFactor = 1 + deltaY / 80;
+      const nextSize = Math.round(
+        Math.max(4, Math.min(200, rs.startFontSize * scaleFactor)),
+      );
+      onTextStyleChange(rs.key, { fontSize: nextSize });
+    };
+    const onUp = () => {
+      resizeRef.current = null;
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [onTextStyleChange]);
 
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const [anchorById, setAnchorById] = useState<
@@ -570,9 +609,25 @@ export default function HighNeedleSvgAnnotatorCanvas({
     resetBrushState();
   }, [canvasEpoch, resetBrushState]);
 
+  // Delete / Backspace 快捷键删除选中文本
   useEffect(() => {
-    let hasMoved = false;
+    if (step !== "自定义文本" || !activeTextKey) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      // 排除用户正在输入框中
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        onTextRemove(activeTextKey);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [step, activeTextKey, onTextRemove]);
 
+  const dragHasMovedRef = useRef(false);
+
+  useEffect(() => {
     const onMove = (e: MouseEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
@@ -582,7 +637,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
         e.clientY - drag.startClientY,
       );
       if (moveDistance < 3) return;
-      hasMoved = true;
+      dragHasMovedRef.current = true;
       // #region debug-point D:drag-move
       reportDoubleMarkDragDebug("D", "HighNeedleSvgAnnotatorCanvas:onMove", "marker drag move", {
         step,
@@ -626,7 +681,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
       const drag = dragRef.current;
       if (!drag) return;
 
-      if (hasMoved) {
+      if (dragHasMovedRef.current) {
         const { dx, dy } = screenDeltaToParent(
           drag.svgRoot,
           drag.parentCTM,
@@ -641,6 +696,8 @@ export default function HighNeedleSvgAnnotatorCanvas({
         });
         drag.textEl.removeAttribute("transform");
       } else {
+        // 点击标记文本（未拖动）不触发 handleLineAction，避免误删 DML/单双标注
+        // 用户应直接点击线条本身来切换 DML/单双
         const lineId = markerLineIdByTextId.get(drag.textNodeId);
         // #region debug-point C:text-click
         reportDoubleMarkDragDebug("C", "HighNeedleSvgAnnotatorCanvas:onUp", "marker text click without drag", {
@@ -649,16 +706,8 @@ export default function HighNeedleSvgAnnotatorCanvas({
           lineId,
         });
         // #endregion
-        if (lineId && drag.svgRoot) {
-          const pos = clientToSvgPoint(drag.svgRoot, e.clientX, e.clientY);
-          if (step === "DML") {
-            handleLineAction(lineId, { markerPos: pos ?? undefined });
-          } else if (step === "单双") {
-            handleLineAction(lineId, { markerPos: pos ?? undefined });
-          }
-        }
       }
-      hasMoved = false;
+      dragHasMovedRef.current = false;
       dragRef.current = null;
     };
 
@@ -1065,7 +1114,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
         el.style.setProperty("cursor", "move", "important");
         // 用几乎不可见的描边扩大文字命中范围，提升档位/DML/单双拖拽手感
         el.style.setProperty("stroke", "rgba(15,23,42,0.01)", "important");
-        el.style.setProperty("stroke-width", "12", "important");
+        el.style.setProperty("stroke-width", "20", "important");
         el.style.setProperty("paint-order", "stroke", "important");
       } else {
         el.style.removeProperty("cursor");
@@ -1395,13 +1444,18 @@ export default function HighNeedleSvgAnnotatorCanvas({
             };
 
             dragRef.current = nextDragState;
+            dragHasMovedRef.current = false;
 
             return;
           }
 
           // 区域/档位/DML/单双阶段都支持按住鼠标沿线刷过；
           // 自定义文本阶段只允许拖动文本。
-          if (step === "自定义文本") return;
+          if (step === "自定义文本") {
+            // 点击空白处取消选中
+            setActiveTextKey("");
+            return;
+          }
 
           brushRef.current = true;
           brushVisitedRef.current = new Set();
@@ -1459,7 +1513,63 @@ export default function HighNeedleSvgAnnotatorCanvas({
             style={{ zIndex: 10 }}
           />
 
-          {activeTextBox ? (
+          {activeTextBox && step === "自定义文本" ? (
+            <>
+              {/* 选中框 */}
+              <div
+                className="pointer-events-none absolute rounded border-2 border-blue-500"
+                style={{
+                  left: activeTextBox.left - 4,
+                  top: activeTextBox.top - 4,
+                  width: activeTextBox.width + 8,
+                  height: activeTextBox.height + 8,
+                }}
+              />
+              {/* 右上角删除按钮 */}
+              <button
+                type="button"
+                className="absolute z-20 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold leading-none text-white shadow hover:bg-red-600"
+                style={{
+                  left: activeTextBox.left + activeTextBox.width + 4 - 2,
+                  top: activeTextBox.top - 4 - 8,
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (activeTextKey) onTextRemove(activeTextKey);
+                }}
+                title="删除文本"
+              >
+                ×
+              </button>
+              {/* 右下角缩放手柄 — 上下拖拽改变字号 */}
+              <div
+                className="absolute z-20 flex h-4 w-4 cursor-ns-resize items-center justify-center rounded-sm border border-blue-500 bg-white shadow"
+                style={{
+                  left: activeTextBox.left + activeTextBox.width + 4 - 4,
+                  top: activeTextBox.top + activeTextBox.height + 4 - 4,
+                }}
+                title={`字号 ${Number(textNodeMap[activeTextKey]?.fontStyle?.fontSize ?? 14)} — 上下拖动缩放`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!activeTextKey) return;
+                  resizeRef.current = {
+                    startY: e.clientY,
+                    startFontSize: Number(
+                      textNodeMap[activeTextKey]?.fontStyle?.fontSize ?? 14,
+                    ),
+                    key: activeTextKey,
+                  };
+                }}
+              >
+                <svg width="8" height="8" viewBox="0 0 8 8" className="text-blue-500">
+                  <path d="M2 1L4 0L6 1M2 7L4 8L6 7" stroke="currentColor" fill="none" strokeWidth="1.2" />
+                  <line x1="4" y1="1" x2="4" y2="7" stroke="currentColor" strokeWidth="1" />
+                </svg>
+              </div>
+            </>
+          ) : activeTextBox ? (
             <div
               className="pointer-events-none absolute rounded border-2 border-blue-500"
               style={{

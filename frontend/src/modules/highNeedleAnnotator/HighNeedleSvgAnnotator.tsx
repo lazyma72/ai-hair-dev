@@ -64,8 +64,13 @@ export default function HighNeedleSvgAnnotator(props: Props) {
           layerToggles={state.layerToggles}
           setLayerToggles={state.setLayerToggles}
           activeTextNodeId={activeTextNodeId}
+          activeTextKey={state.activeTextKey}
+          setActiveTextKey={state.setActiveTextKey}
           onTextActivate={state.ensureTextNodeKept}
           onTextPositionCommit={state.commitTextNodePosition}
+          onTextRemove={state.removeTextNode}
+          onTextStyleChange={state.updateTextNodeStyle}
+          textNodeMap={state.value.底图.文本节点 as Record<string, { textNodeId: string; text?: string; fontStyle?: Record<string, unknown> }>}
           showPreview={showPreview}
         />
       </div>

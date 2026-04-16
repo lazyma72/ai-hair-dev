@@ -118,13 +118,17 @@ export default function HighNeedleImportStep({
         >
           <div className="flex flex-col items-center justify-center gap-3 text-center">
             <div>
-              <div className="text-sm font-semibold text-slate-900">选择 SVG 文件</div>
+              <div className="text-sm font-semibold text-slate-900">
+                {annotatorSvg.trim() ? "重新导入 SVG 文件" : "选择 SVG 文件"}
+              </div>
               <div className="mt-1 text-xs text-slate-500">
-                这里作为导入入口单独展示，避免后续标注时找不到上传位置。
+                {annotatorSvg.trim()
+                  ? "重新导入将覆盖当前标注并重新开始。"
+                  : "请选择高针图 SVG 文件，完成后在下方编辑器中标注。"}
               </div>
             </div>
             <label className="cursor-pointer rounded-lg bg-slate-900 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
-              选择 SVG 文件
+              {annotatorSvg.trim() ? "重新选择 SVG 文件" : "选择 SVG 文件"}
               <input
                 type="file"
                 accept="image/svg+xml,.svg"
@@ -150,7 +154,11 @@ export default function HighNeedleImportStep({
               />
             </label>
             <div className="text-xs text-slate-500">
-              {fileName ? `当前 SVG：${fileName}` : "暂未选择 SVG 文件"}
+              {fileName
+                ? `当前 SVG：${fileName}`
+                : annotatorSvg.trim()
+                  ? "当前 SVG：已导入"
+                  : "暂未选择 SVG 文件"}
             </div>
           </div>
         </div>

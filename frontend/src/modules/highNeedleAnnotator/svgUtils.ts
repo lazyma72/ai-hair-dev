@@ -347,8 +347,13 @@ export function setSvgTextNodeStyle(
     };
 
     // 同时写入 style（更高优先级）+ attribute（便于回读）
+    // font-size 在 CSS style 中需要带 px 单位，属性值可不带
+    const fontSizeWithUnit =
+      fontStyle.fontSize != null && fontStyle.fontSize !== ""
+        ? `${fontStyle.fontSize}px`
+        : fontStyle.fontSize;
     setOrRemoveStyle("fill", fontStyle.fill);
-    setOrRemoveStyle("font-size", fontStyle.fontSize);
+    setOrRemoveStyle("font-size", fontSizeWithUnit);
     setOrRemoveStyle("font-weight", fontStyle.fontWeight);
     setOrRemoveStyle("text-anchor", fontStyle.textAnchor);
     setOrRemoveStyle("dominant-baseline", fontStyle.dominantBaseline);

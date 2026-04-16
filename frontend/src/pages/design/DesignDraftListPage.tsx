@@ -9,29 +9,12 @@ import StatusView from "../../components/StatusView";
 import { useApi } from "../../hooks/useApi";
 import type { 沐茵丝假发成品稿ListItem } from "../../shared/frontend/model/model";
 
-const LS_HIDDEN = "demo_design_hidden_ids";
-
-function readHiddenIds(): string[] {
-  try {
-    const raw = localStorage.getItem(LS_HIDDEN);
-    if (!raw) return [];
-    const val = JSON.parse(raw);
-    return Array.isArray(val) ? val.filter((x) => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeHiddenIds(ids: string[]) {
-  localStorage.setItem(LS_HIDDEN, JSON.stringify(ids));
-}
-
 export default function DesignDraftListPage() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
-  const [hiddenIds, setHiddenIds] = useState<string[]>(() => readHiddenIds());
   const [pageNum, setPageNum] = useState(1);
   const [pageSize, setPageSize] = useState(12);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const { data, loading, error, reload } = useApi(() =>
     callApi("admin/file/GetList", {
@@ -44,16 +27,14 @@ export default function DesignDraftListPage() {
 
   const filteredList = useMemo(() => {
     const kw = keyword.trim();
-    return list
-      .filter((x) => !hiddenIds.includes(x._id))
-      .filter((x) =>
-        !kw
-          ? true
-          : `${x._id} ${x.客户编号} ${x.品名} ${x.CAP}`
-              .toLowerCase()
-              .includes(kw.toLowerCase()),
-      );
-  }, [hiddenIds, keyword, list]);
+    return list.filter((x) =>
+      !kw
+        ? true
+        : `${x._id} ${x.客户编号} ${x.品名} ${x.CAP}`
+            .toLowerCase()
+            .includes(kw.toLowerCase()),
+    );
+  }, [keyword, list]);
 
   const total = filteredList.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -68,12 +49,20 @@ export default function DesignDraftListPage() {
     }
   }, [pageNum, totalPages]);
 
-  function handleHide(id: string) {
-    if (!window.confirm("确认删除？（Demo：仅从列表隐藏，不影响数据）")) return;
-    const next = Array.from(new Set([...hiddenIds, id]));
-    setHiddenIds(next);
-    writeHiddenIds(next);
-    message.success("已删除（Demo：已从列表隐藏）");
+  async function handleDelete(id: string) {
+    if (!window.confirm(`确认删除「${id}」？此操作不可恢复。`)) return;
+    setDeleting(id);
+    try {
+      const res = await callApi("admin/file/Delete", { id });
+      if (res) {
+        message.success("已删除");
+        reload();
+      }
+    } catch {
+      message.error("删除失败");
+    } finally {
+      setDeleting(null);
+    }
   }
 
   return (
@@ -113,18 +102,6 @@ export default function DesignDraftListPage() {
               onClick={reload}
             >
               刷新
-            </button>
-            <button
-              type="button"
-              className="rounded bg-slate-100 px-3 py-2 text-sm text-slate-700 hover:bg-slate-200"
-              onClick={() => {
-                setKeyword("");
-                setHiddenIds([]);
-                setPageNum(1);
-                localStorage.removeItem(LS_HIDDEN);
-              }}
-            >
-              重置（Demo）
             </button>
           </div>
         </div>
@@ -170,10 +147,11 @@ export default function DesignDraftListPage() {
                 </button>
                 <button
                   type="button"
-                  className="rounded bg-rose-50 px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-100"
-                  onClick={() => handleHide(item._id)}
+                  className="rounded bg-rose-50 px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                  disabled={deleting === item._id}
+                  onClick={() => handleDelete(item._id)}
                 >
-                  删除
+                  {deleting === item._id ? "删除中…" : "删除"}
                 </button>
               </div>
             </div>

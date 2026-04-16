@@ -149,6 +149,7 @@ export default function HighNeedleBlock({
             onChange={(v) => onChange?.({ ...value, 高针图: v })}
             showJsonActions
             showUploader={showUploader}
+            fileName={fileName}
           />
         </div>
       </Section>
@@ -178,6 +179,7 @@ export default function HighNeedleBlock({
                 onChange={(v) => onChange?.({ ...value, 高针图: v })}
                 showJsonActions
                 showUploader={showUploader}
+                fileName={fileName}
               />
             </div>
           </div>
