@@ -7,16 +7,12 @@
  *   if (result.isSucc) { ... result.res.list }
  */
 import { HttpClient } from "tsrpc-browser";
+import { getApiBase } from "./apiBase";
 import { serviceProto } from "../shared/protocols/serviceProto";
 import type { ServiceType } from "../shared/protocols/serviceProto";
 
-// In dev Vite proxies /api → http://localhost:3000; in prod set VITE_API_BASE.
-const apiBase =
-  (import.meta as { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE ??
-  "/api/";
-
 const client = new HttpClient(serviceProto, {
-  server: apiBase,
+  server: getApiBase(),
   json: true,
 });
 

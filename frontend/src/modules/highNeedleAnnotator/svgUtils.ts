@@ -421,6 +421,50 @@ export function setSvgTextNodePosition(
   }
 }
 
+export function getSvgTextNodePosition(
+  svg: string,
+  nodeId: string,
+): { x: number; y: number } | null {
+  if (!svg || !nodeId) return null;
+  const doc = parseSvg(svg);
+  if (!doc) return null;
+
+  try {
+    const el = doc.getElementById(nodeId);
+    if (!el) return null;
+
+    const parseFirst = (v: string | null): number | null => {
+      if (!v) return null;
+      const n = Number(v.trim().split(/[ ,]+/)[0]);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const firstTspan = el.querySelector("tspan");
+    const rawX =
+      parseFirst(firstTspan?.getAttribute("x") ?? null) ??
+      parseFirst(el.getAttribute("x")) ??
+      0;
+    const rawY =
+      parseFirst(firstTspan?.getAttribute("y") ?? null) ??
+      parseFirst(el.getAttribute("y")) ??
+      0;
+
+    const transform = (el.getAttribute("transform") ?? "").trim();
+    const translateMatch = transform.match(
+      /translate\(\s*([^\s,)]+)(?:[\s,]+([^\s,)]+))?\s*\)/i,
+    );
+    const tx = translateMatch ? Number(translateMatch[1]) : 0;
+    const ty = translateMatch ? Number(translateMatch[2] ?? "0") : 0;
+
+    return {
+      x: rawX + (Number.isFinite(tx) ? tx : 0),
+      y: rawY + (Number.isFinite(ty) ? ty : 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function getDefaultTextPos(root: SVGSVGElement): { x: number; y: number } {
   const vb = (root.getAttribute("viewBox") ?? "").trim();
   if (vb) {

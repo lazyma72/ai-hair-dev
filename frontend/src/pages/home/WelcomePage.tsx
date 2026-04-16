@@ -58,13 +58,14 @@ export default function WelcomePage() {
           今天想从哪里开始？
         </div>
         <div className="mt-3 max-w-3xl text-sm text-white/80">
-          这里把“设计稿管理 / 添加设计稿 / 胶丝比例 / 客户 / 用户管理 / 测试页面”串成一个可浏览的 Demo。
+          这里把“设计稿管理 / 添加设计稿 / 制帽 / 胶丝比例 / 客户 / 用户管理 / 测试页面”串成一个可浏览的 Demo。
           现有的详情页、导入页和高针工具页会在对应入口继续复用。
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <StatCard label="设计稿总数" value={statValue(data?.设计稿总数)} />
+        <StatCard label="制帽总数" value={statValue(data?.制帽总数)} />
         <StatCard label="胶丝比例总数" value={statValue(data?.胶丝比例总数)} />
       </div>
 
@@ -73,6 +74,11 @@ export default function WelcomePage() {
           title="进入设计稿管理"
           desc="卡片式 CRUD 列表（新增入口在列表页右上角）"
           to="/designs"
+        />
+        <ActionCard
+          title="制帽管理"
+          desc="制帽规格列表、详情与新增"
+          to="/hat-making"
         />
         <ActionCard
           title="胶丝比例管理"

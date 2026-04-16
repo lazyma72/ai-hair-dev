@@ -1,6 +1,7 @@
-import { 沐茵丝假发成品稿 } from "../../db/Db沐茵丝假发成品稿";
-import { Db胶丝比例 } from "../../db/Db胶丝比例";
-import { 制品规格书Frontend } from "../model/model";
+import { 沐茵丝假发成品稿 } from "../../db/Db沐茵丝假发成品稿"
+import { Db胶丝比例 } from "../../db/Db胶丝比例"
+import { 制品规格书Frontend } from "../model/model"
+import { Db制帽 } from "../../db/Db制帽"
 
 /**
  * 将 沐茵丝假发成品稿 转换为 制品规格书Frontend
@@ -27,9 +28,10 @@ import { 制品规格书Frontend } from "../model/model";
  */
 export function to制品规格书Frontend(
   稿: 沐茵丝假发成品稿,
-  胶丝比例列表: Db胶丝比例[],
+  胶丝比例: Db胶丝比例,
+  制帽: Db制帽
 ): 制品规格书Frontend {
-  const db工程重量 = 稿.制品规格书.工程重量;
+  const db工程重量 = 稿.制品规格书.工程重量
 
   // 当前重量：累加机器规格清单 + 人工规格清单中所有档位、所有裁断的 D/M/L 重量
   const 当前重量 =
@@ -37,46 +39,46 @@ export function to制品规格书Frontend(
       return (
         total +
         档.裁断与重量.reduce((sum, item) => {
-          const g = item.重量g;
-          if (!g) return sum;
-          return sum + g.D + (g.M ?? 0) + (g.L ?? 0);
+          const g = item.重量g
+          if (!g) return sum
+          return sum + g.D + (g.M ?? 0) + (g.L ?? 0)
         }, 0)
-      );
+      )
     }, 0) +
     稿.制品规格书.人工规格清单.reduce((total, 档) => {
       return (
         total +
         档.裁断与重量.reduce((sum, item) => {
-          const g = item.重量g;
-          if (!g) return sum;
-          return sum + g.D + (g.M ?? 0) + (g.L ?? 0);
+          const g = item.重量g
+          if (!g) return sum
+          return sum + g.D + (g.M ?? 0) + (g.L ?? 0)
         }, 0)
-      );
-    }, 0);
+      )
+    }, 0)
 
   // 各工序加减（来自 db.加减，正数增重负数减重）
-  const 整毛加减 = db工程重量.整毛?.加减 ?? 0;
-  const 双针加减 = db工程重量.双针?.加减 ?? 0;
-  const 美容加减 = db工程重量.美容?.加减 ?? 0;
-  const 制帽加减 = db工程重量.制帽?.加减 ?? 0;
-  const 高针加减 = db工程重量.高针?.加减 ?? 0;
-  const 手织加减 = db工程重量.手织?.加减 ?? 0;
-  const 剪驳加减 = db工程重量.剪驳?.加减 ?? 0;
-  const 发网加减 = db工程重量.发网?.加减 ?? 0;
+  const 整毛加减 = db工程重量.整毛?.加减 ?? 0
+  const 双针加减 = db工程重量.双针?.加减 ?? 0
+  const 美容加减 = db工程重量.美容?.加减 ?? 0
+  const 制帽加减 = db工程重量.制帽?.加减 ?? 0
+  const 高针加减 = db工程重量.高针?.加减 ?? 0
+  const 手织加减 = db工程重量.手织?.加减 ?? 0
+  const 剪驳加减 = db工程重量.剪驳?.加减 ?? 0
+  const 发网加减 = db工程重量.发网?.加减 ?? 0
 
   // 数值按工序顺序累计：当前项 = 上一项累加结果 + 当前加减
-  const 整毛数值 = 整毛加减;
-  const 双针数值 = 整毛数值 + 双针加减;
-  const 美容数值 = 双针数值 + 美容加减;
-  const SKIN数值 = 美容数值;
-  const 制帽数值 = SKIN数值 + 制帽加减;
-  const 高针数值 = 制帽数值 + 高针加减;
-  const 手织数值 = 制帽数值 + 手织加减;
-  const 剪驳数值 = 手织数值 + 剪驳加减;
-  const 发网数值 = 剪驳数值 + 发网加减;
+  const 整毛数值 = 整毛加减
+  const 双针数值 = 整毛数值 + 双针加减
+  const 美容数值 = 双针数值 + 美容加减
+  const SKIN数值 = 美容数值
+  const 制帽数值 = SKIN数值 + 制帽加减
+  const 高针数值 = 制帽数值 + 高针加减
+  const 手织数值 = 制帽数值 + 手织加减
+  const 剪驳数值 = 手织数值 + 剪驳加减
+  const 发网数值 = 剪驳数值 + 发网加减
 
   // 完成数值 = 当前重量 + 所有工序加减之和
-  const 完成数值 = 当前重量 + 发网数值;
+  const 完成数值 = 当前重量 + 发网数值
 
   const 工程重量: 制品规格书Frontend["工程重量"] = {
     整毛: { 加减: 整毛加减, 数值: 整毛数值 },
@@ -92,7 +94,7 @@ export function to制品规格书Frontend(
     完成: { 加减: 完成数值, 数值: 完成数值 },
     // 格式："{完成数值}±2g"
     重量: `${完成数值}±2g`,
-  };
+  }
 
   return {
     title: {
@@ -109,12 +111,18 @@ export function to制品规格书Frontend(
     机器规格清单: 稿.制品规格书.机器规格清单,
     人工规格清单: 稿.制品规格书.人工规格清单,
     // 胶丝比例列表由调用方从数据库查询后传入，通过 稿.制品规格书.胶丝比例列表[*].颜色编号 关联
-    胶丝比例列表,
-    制帽: 稿.制品规格书.制帽,
+    胶丝比例,
+    制帽: {
+      帽围: 制帽.帽围,
+      帽深: 制帽.帽深,
+      前后: 制帽.前后,
+      唛头: 稿.制品规格书.制帽.唛头,
+      编号: 稿.制品规格书.制帽.编号,
+    },
     当前重量,
     工程重量,
     工艺说明: 稿.制品规格书.工艺说明,
     发型图片: 稿.头型图片,
     染色档位列表: 稿.染色档位列表,
-  };
+  }
 }

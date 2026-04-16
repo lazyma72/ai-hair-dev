@@ -5,13 +5,16 @@ import { ReqAdd as ReqAdd_1, ResAdd as ResAdd_1 } from './admin/file/PtlAdd';
 import { ReqGetDetail, ResGetDetail } from './admin/file/PtlGetDetail';
 import { ReqGetList as ReqGetList_1, ResGetList as ResGetList_1 } from './admin/file/PtlGetList';
 import { ReqUpdate, ResUpdate } from './admin/file/PtlUpdate';
+import { ReqAdd as ReqAdd_2, ResAdd as ResAdd_2 } from './admin/hatMaking/PtlAdd';
+import { ReqGetDetail as ReqGetDetail_1, ResGetDetail as ResGetDetail_1 } from './admin/hatMaking/PtlGetDetail';
+import { ReqGetList as ReqGetList_2, ResGetList as ResGetList_2 } from './admin/hatMaking/PtlGetList';
 import { ReqGetPreview, ResGetPreview } from './admin/PtlGetPreview';
-import { ReqGetDetail as ReqGetDetail_1, ResGetDetail as ResGetDetail_1 } from './admin/ratio/PtlGetDetail';
-import { ReqGetList as ReqGetList_2, ResGetList as ResGetList_2 } from './admin/ratio/PtlGetList';
+import { ReqGetDetail as ReqGetDetail_2, ResGetDetail as ResGetDetail_2 } from './admin/ratio/PtlGetDetail';
+import { ReqGetList as ReqGetList_3, ResGetList as ResGetList_3 } from './admin/ratio/PtlGetList';
 import { ReqUpdate as ReqUpdate_1, ResUpdate as ResUpdate_1 } from './admin/ratio/PtlUpdate';
-import { ReqAdd as ReqAdd_2, ResAdd as ResAdd_2 } from './admin/user/PtlAdd';
+import { ReqAdd as ReqAdd_3, ResAdd as ResAdd_3 } from './admin/user/PtlAdd';
 import { ReqDelete, ResDelete } from './admin/user/PtlDelete';
-import { ReqGetList as ReqGetList_3, ResGetList as ResGetList_3 } from './admin/user/PtlGetList';
+import { ReqGetList as ReqGetList_4, ResGetList as ResGetList_4 } from './admin/user/PtlGetList';
 
 export interface ServiceType {
     api: {
@@ -39,33 +42,45 @@ export interface ServiceType {
             req: ReqUpdate,
             res: ResUpdate
         },
+        "admin/hatMaking/Add": {
+            req: ReqAdd_2,
+            res: ResAdd_2
+        },
+        "admin/hatMaking/GetDetail": {
+            req: ReqGetDetail_1,
+            res: ResGetDetail_1
+        },
+        "admin/hatMaking/GetList": {
+            req: ReqGetList_2,
+            res: ResGetList_2
+        },
         "admin/GetPreview": {
             req: ReqGetPreview,
             res: ResGetPreview
         },
         "admin/ratio/GetDetail": {
-            req: ReqGetDetail_1,
-            res: ResGetDetail_1
+            req: ReqGetDetail_2,
+            res: ResGetDetail_2
         },
         "admin/ratio/GetList": {
-            req: ReqGetList_2,
-            res: ResGetList_2
+            req: ReqGetList_3,
+            res: ResGetList_3
         },
         "admin/ratio/Update": {
             req: ReqUpdate_1,
             res: ResUpdate_1
         },
         "admin/user/Add": {
-            req: ReqAdd_2,
-            res: ResAdd_2
+            req: ReqAdd_3,
+            res: ResAdd_3
         },
         "admin/user/Delete": {
             req: ReqDelete,
             res: ResDelete
         },
         "admin/user/GetList": {
-            req: ReqGetList_3,
-            res: ResGetList_3
+            req: ReqGetList_4,
+            res: ResGetList_4
         }
     },
     msg: {
@@ -74,7 +89,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 13,
+    "version": 16,
     "services": [
         {
             "id": 9,
@@ -117,6 +132,28 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "name": "admin/file/Update",
             "type": "api",
             "conf": {}
+        },
+        {
+            "id": 17,
+            "name": "admin/hatMaking/Add",
+            "type": "api",
+            "conf": {}
+        },
+        {
+            "id": 18,
+            "name": "admin/hatMaking/GetDetail",
+            "type": "api",
+            "conf": {
+                "allowNoLogin": true
+            }
+        },
+        {
+            "id": 19,
+            "name": "admin/hatMaking/GetList",
+            "type": "api",
+            "conf": {
+                "allowNoLogin": true
+            }
         },
         {
             "id": 13,
@@ -1159,27 +1196,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Interface",
                         "properties": [
                             {
-                                "id": 0,
-                                "name": "帽围",
-                                "type": {
-                                    "type": "Number"
-                                }
-                            },
-                            {
-                                "id": 1,
-                                "name": "帽深",
-                                "type": {
-                                    "type": "Number"
-                                }
-                            },
-                            {
-                                "id": 2,
-                                "name": "前后",
-                                "type": {
-                                    "type": "Number"
-                                }
-                            },
-                            {
                                 "id": 3,
                                 "name": "唛头",
                                 "type": {
@@ -1187,8 +1203,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 }
                             },
                             {
-                                "id": 4,
-                                "name": "号码",
+                                "id": 5,
+                                "name": "编号",
                                 "type": {
                                     "type": "String"
                                 }
@@ -1933,6 +1949,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Reference",
                         "target": "../frontend/model/model/沐茵丝假发成品稿Frontend"
                     }
+                },
+                {
+                    "id": 1,
+                    "name": "rawFile",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿"
+                    }
                 }
             ]
         },
@@ -2051,26 +2075,55 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 3,
-                    "name": "胶丝比例列表",
+                    "id": 10,
+                    "name": "胶丝比例",
                     "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../db/Db胶丝比例/Db胶丝比例"
-                        }
+                        "type": "Reference",
+                        "target": "../db/Db胶丝比例/Db胶丝比例"
                     }
                 },
                 {
                     "id": 4,
                     "name": "制帽",
                     "type": {
-                        "type": "IndexedAccess",
-                        "index": "制帽",
-                        "objectType": {
-                            "type": "Reference",
-                            "target": "../db/Db沐茵丝假发成品稿/制品规格书"
-                        }
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "帽围",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "帽深",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 2,
+                                "name": "前后",
+                                "type": {
+                                    "type": "Number"
+                                }
+                            },
+                            {
+                                "id": 3,
+                                "name": "唛头",
+                                "type": {
+                                    "type": "String"
+                                }
+                            },
+                            {
+                                "id": 4,
+                                "name": "编号",
+                                "type": {
+                                    "type": "String"
+                                }
+                            }
+                        ]
                     }
                 },
                 {
@@ -2868,6 +2921,23 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "target": "base/BaseRequest"
                     }
                 }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "id",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "file",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿"
+                    }
+                }
             ]
         },
         "admin/file/PtlUpdate/ResUpdate": {
@@ -2878,6 +2948,262 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "type": {
                         "type": "Reference",
                         "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "id",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/hatMaking/PtlAdd/ReqAdd": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "制帽编号",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "帽围",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "帽深",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "前后",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "admin/hatMaking/PtlAdd/ResAdd": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "id",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/hatMaking/PtlGetDetail/ReqGetDetail": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "id",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/hatMaking/PtlGetDetail/ResGetDetail": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "制帽",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../db/Db制帽/Db制帽"
+                    }
+                }
+            ]
+        },
+        "../db/Db制帽/Db制帽": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "_id",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "帽围",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "帽深",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "前后",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "admin/hatMaking/PtlGetList/ReqGetList": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "pageNum",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "pageSize",
+                    "type": {
+                        "type": "Number"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "keyword",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "orderSort",
+                    "type": {
+                        "type": "Union",
+                        "members": [
+                            {
+                                "id": 0,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "asc"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "desc"
+                                }
+                            }
+                        ]
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/hatMaking/PtlGetList/ResGetList": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "list",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../db/Db制帽/Db制帽"
+                        }
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "total",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "pageNum",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "pageSize",
+                    "type": {
+                        "type": "Number"
                     }
                 }
             ]
@@ -2909,6 +3235,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 0,
                     "name": "设计稿总数",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "制帽总数",
                     "type": {
                         "type": "Number"
                     }

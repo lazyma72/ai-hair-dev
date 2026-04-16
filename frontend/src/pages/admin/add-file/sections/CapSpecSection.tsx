@@ -1,6 +1,5 @@
-import * as React from "react";
 import type { 制品规格书 } from "../../../../shared/db/Db沐茵丝假发成品稿";
-import { Field, NumInput, Section, TextInput } from "../components/ui";
+import { Field, Section, TextInput } from "../components/ui";
 
 type Props = {
   value: 制品规格书["制帽"];
@@ -8,22 +7,17 @@ type Props = {
 };
 
 export default function CapSpecSection({ value, onChange }: Props) {
+  const nextValue = value as unknown as { 编号: string; 唛头: string };
   return (
     <Section title="制帽规格">
       <div className="grid grid-cols-1 gap-3">
-        {(["帽围", "帽深", "前后"] as const).map((k) => (
-          <Field key={k} label={`${k} (cm)`}>
-            <NumInput
-              value={value[k]}
-              onChange={(n) => onChange({ ...value, [k]: n })}
-            />
-          </Field>
-        ))}
-        {(["唛头", "号码"] as const).map((k) => (
+        {(["编号", "唛头"] as const).map((k) => (
           <Field key={k} label={k} required>
             <TextInput
-              value={value[k]}
-              onChange={(v) => onChange({ ...value, [k]: v })}
+              value={nextValue[k]}
+              onChange={(v) =>
+                onChange({ ...(value as object), [k]: v } as unknown as 制品规格书["制帽"])
+              }
             />
           </Field>
         ))}

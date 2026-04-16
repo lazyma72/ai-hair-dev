@@ -1,4 +1,3 @@
-import * as React from "react";
 import {
   BrowserRouter,
   Navigate,
@@ -11,6 +10,7 @@ import {
 import AdminFileListPage from "./pages/admin/AdminFileListPage";
 import AddFilePage from "./pages/admin/AddFilePage";
 import CustomerListPage from "./pages/admin/CustomerListPage";
+import EditFilePage from "./pages/admin/EditFilePage";
 import LoginPage from "./pages/auth/LoginPage";
 import HighNeedleAnnotatorDemoPage from "./pages/dev/HighNeedleAnnotatorDemo";
 import HighNeedlePreviewPage from "./pages/dev/HighNeedlePreviewPage";
@@ -21,6 +21,8 @@ import ManualCreateWizardPage from "./pages/design/create/ManualCreateWizardPage
 import ImportExcelWizardPage from "./pages/design/create/ImportExcelWizardPage";
 import FileDetailPage from "./pages/file/FileDetailPage";
 import FileListPage from "./pages/file/FileListPage";
+import HatMakingDetailPage from "./pages/hatMaking/HatMakingDetailPage";
+import HatMakingListPage from "./pages/hatMaking/HatMakingListPage";
 import WelcomePage from "./pages/home/WelcomePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import RatioDetailPage from "./pages/ratio/RatioDetailPage";
@@ -63,9 +65,20 @@ function AdminRatioDetailRedirect() {
   return <Navigate to={`/ratio/${id}`} replace />;
 }
 
+function HatMakingDetailRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/hat-making/${id}`} replace />;
+}
+
 function App() {
+  const baseUrl =
+    ((import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/").replace(
+      /\/$/,
+      "",
+    ) || "/";
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={baseUrl === "/" ? undefined : baseUrl}>
       <Routes>
         {/* 登录页是公共页面；已登录则跳到首页 */}
         <Route
@@ -92,6 +105,10 @@ function App() {
             element={<ImportExcelWizardPage />}
           />
 
+          <Route path="/hat-making" element={<HatMakingListPage />} />
+          <Route path="/hat-making/:id" element={<HatMakingDetailPage />} />
+          <Route path="/hatMaking/:id" element={<HatMakingDetailRedirect />} />
+
           <Route path="/ratio" element={<RatioListPage />} />
           <Route path="/ratio/:id" element={<RatioDetailPage />} />
           <Route path="/ratios/:id" element={<RatioDetailRedirect />} />
@@ -103,6 +120,7 @@ function App() {
           <Route path="/test/files" element={<FileListPage />} />
           <Route path="/test/admin/files" element={<AdminFileListPage />} />
           <Route path="/test/admin/add" element={<AddFilePage />} />
+          <Route path="/test/admin/files/:id/edit" element={<EditFilePage />} />
           <Route path="/test/admin/customers" element={<CustomerListPage />} />
           <Route path="/test/ratio" element={<RatioListPage />} />
           <Route path="/test/ratio/:id" element={<RatioDetailPage />} />
@@ -125,12 +143,24 @@ function App() {
             element={<Navigate to="/test/admin/files" replace />}
           />
           <Route
+            path="/admin/files/:id/edit"
+            element={<EditFilePage />}
+          />
+          <Route
             path="/admin/add"
             element={<Navigate to="/test/admin/add" replace />}
           />
           <Route
             path="/admin/customers"
             element={<Navigate to="/customers" replace />}
+          />
+          <Route
+            path="/admin/hat-making"
+            element={<Navigate to="/hat-making" replace />}
+          />
+          <Route
+            path="/admin/hat-making/:id"
+            element={<HatMakingDetailRedirect />}
           />
           <Route path="/admin/ratio" element={<Navigate to="/ratio" replace />} />
           <Route path="/admin/ratio/:id" element={<AdminRatioDetailRedirect />} />

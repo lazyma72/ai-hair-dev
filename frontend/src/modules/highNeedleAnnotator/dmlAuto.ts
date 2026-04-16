@@ -65,10 +65,16 @@ export function getDmlPatternPresets(): string[] {
   ];
 
   const uniq = new Set(presets.map(normalizePattern).filter(Boolean));
-  return Array.from(uniq).sort((a, b) => a.length - b.length || a.localeCompare(b));
+  return Array.from(uniq).sort(
+    (a, b) => a.length - b.length || a.localeCompare(b),
+  );
 }
 
-export function replacePatternChar(patternRaw: string, slotIndex: number, next: Exclude<DmlValue, "">): string {
+export function replacePatternChar(
+  patternRaw: string,
+  slotIndex: number,
+  next: Exclude<DmlValue, "">,
+): string {
   const pattern = normalizePattern(patternRaw);
   if (!pattern) return pattern;
   const idx = ((slotIndex % pattern.length) + pattern.length) % pattern.length;
@@ -78,9 +84,10 @@ export function replacePatternChar(patternRaw: string, slotIndex: number, next: 
 export function computeAutoDml(
   configs: DmlAutoConfig[],
   regionLines: RegionLineItem[],
-  options?: { allowedLineIdSet?: Set<string> },
+  options?: { allowedLineIdSet?: Set<string>; regionOrder?: string[] },
 ): AutoDmlComputeResult {
   const allowed = options?.allowedLineIdSet;
+  const regionOrder = options?.regionOrder ?? [];
 
   const linesByRegion = new Map<string, RegionLineItem[]>();
   regionLines.forEach((line) => {
@@ -100,9 +107,31 @@ export function computeAutoDml(
 
   const assignments = new Map<string, DmlValue>();
   const managedLineIds = new Set<string>();
-  const slotByLineId = new Map<string, { configId: string; slotIndex: number }>();
+  const slotByLineId = new Map<
+    string,
+    { configId: string; slotIndex: number }
+  >();
+  const configByRegionName = new Map(
+    configs.map((config) => [config.regionName, config] as const),
+  );
+  const seenRegionNames = new Set<string>();
+  const orderedRegionNames = [
+    ...regionOrder.filter((name) => linesByRegion.has(name)),
+    ...Array.from(linesByRegion.keys()).filter(
+      (name) => !seenRegionNames.has(name),
+    ),
+  ].filter((name) => {
+    if (seenRegionNames.has(name)) return false;
+    seenRegionNames.add(name);
+    return true;
+  });
 
-  configs.forEach((config) => {
+  let prevRuleKey = "";
+  let phaseOffset = 0;
+
+  orderedRegionNames.forEach((regionName) => {
+    const config = configByRegionName.get(regionName);
+    if (!config) return;
     const pattern = normalizePattern(config.pattern);
     if (!pattern) return;
 
@@ -117,12 +146,19 @@ export function computeAutoDml(
       return percent >= rangeMin && percent <= rangeMax;
     });
 
+    const ruleKey = `${pattern}@${rangeMin}-${rangeMax}`;
+    const slotStartIndex = prevRuleKey === ruleKey ? phaseOffset : 0;
+
     targetLines.forEach((line, idx) => {
-      const ch = pattern[idx % pattern.length] as DmlValue;
+      const slotIndex = slotStartIndex + idx;
+      const ch = pattern[slotIndex % pattern.length] as DmlValue;
       assignments.set(line.lineId, ch);
       managedLineIds.add(line.lineId);
-      slotByLineId.set(line.lineId, { configId: config.id, slotIndex: idx });
+      slotByLineId.set(line.lineId, { configId: config.id, slotIndex });
     });
+
+    prevRuleKey = ruleKey;
+    phaseOffset = (slotStartIndex + targetLines.length) % pattern.length;
   });
 
   return { assignments, managedLineIds, slotByLineId };

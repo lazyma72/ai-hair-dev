@@ -20,18 +20,6 @@ const tsrpcConf: TsrpcConfig = {
       clean: true,
       type: "symlink", // Change this to 'copy' if your environment not support symlink
     },
-    {
-      from: "src/shared",
-      to: "../admin/src/shared",
-      clean: true,
-      type: "symlink", // Change this to 'copy' if your environment not support symlink
-    },
-    {
-      from: "src/shared",
-      to: "../factory/src/shared",
-      clean: true,
-      type: "symlink", // Change this to 'copy' if your environment not support symlink
-    },
   ],
   // Dev server
   dev: {

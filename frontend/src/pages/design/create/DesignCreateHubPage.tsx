@@ -41,7 +41,7 @@ export default function DesignCreateHubPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <OptionCard
           title="手动上传设计稿"
-          desc="三步：1 导入数据 2 导入高针图(JSON) 3 导入手织图（Demo 为空）"
+          desc="三个页面：制品规格书 / 高针指示单 / 手织指示单"
           to="/designs/create/manual"
         />
         <OptionCard

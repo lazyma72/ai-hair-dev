@@ -1,10 +1,5 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
-import {
-  type 分数字符,
-  整数加分数组合值,
-  数字转分数,
-} from "../../../../shared/models/分数转换";
 
 export const inputCls =
   "w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300";
@@ -194,36 +189,59 @@ export function QuarterFractionInput({
   onChange: (n: number) => void;
   disabled?: boolean;
 }) {
-  const parsed = 数字转分数(value);
+  const fmt = (n: number) => {
+    const normalized = Math.round(n * 4) / 4;
+    return Number.isInteger(normalized) ? String(normalized) : normalized.toFixed(2);
+  };
+  const isAllowedQuarter = (n: number) => {
+    const normalized = Math.round(n * 100) / 100;
+    const frac = ((normalized % 1) + 1) % 1;
+    return (
+      frac === 0 ||
+      frac === 0.25 ||
+      frac === 0.5 ||
+      frac === 0.75
+    );
+  };
+  const [raw, setRaw] = useState(fmt(value));
+
+  useEffect(() => {
+    const current = parseFloat(raw);
+    if (isNaN(current) || Math.round(current * 4) / 4 !== Math.round(value * 4) / 4) {
+      setRaw(fmt(value));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   return (
-    <div className="flex items-center gap-1">
-      <input
-        type="number"
-        step="1"
-        disabled={disabled}
-        className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}`}
-        value={parsed.整数}
-        onChange={(e) => {
-          const n = parseInt(e.target.value, 10);
-          onChange(整数加分数组合值(isNaN(n) ? 0 : n, parsed.分数));
-        }}
-      />
-
-      <select
-        disabled={disabled}
-        className={`${inputCls} min-w-[68px] px-2${disabled ? " opacity-40 cursor-not-allowed" : ""}`}
-        value={parsed.分数}
-        onChange={(e) => {
-          onChange(整数加分数组合值(parsed.整数, e.target.value as 分数字符));
-        }}
-      >
-        <option value="">0</option>
-        <option value="¼">¼</option>
-        <option value="½">½</option>
-        <option value="¾">¾</option>
-      </select>
-    </div>
+    <input
+      type="number"
+      step="0.25"
+      min="0"
+      disabled={disabled}
+      className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}`}
+      value={raw}
+      onChange={(e) => {
+        const nextRaw = e.target.value;
+        setRaw(nextRaw);
+        if (nextRaw === "" || nextRaw === "." || nextRaw.endsWith(".")) return;
+        const n = parseFloat(nextRaw);
+        if (isNaN(n)) return;
+        if (isAllowedQuarter(n)) {
+          onChange(Math.round(n * 4) / 4);
+        }
+      }}
+      onBlur={() => {
+        const n = parseFloat(raw);
+        if (isNaN(n)) {
+          setRaw(fmt(value));
+          return;
+        }
+        const normalized = Math.round(n * 4) / 4;
+        setRaw(fmt(normalized));
+        onChange(normalized);
+      }}
+    />
   );
 }
 
@@ -298,16 +316,16 @@ export function Section({
   return (
     <section
       id={id}
-      className="scroll-mt-24 rounded-xl border border-slate-100 bg-slate-50 p-5"
+      className="scroll-mt-24 overflow-hidden rounded-xl bg-white ring-1 ring-slate-200"
     >
-      <div className="mb-3 flex items-center justify-between">
-        <SectionTitle>{title}</SectionTitle>
+      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
         {action}
       </div>
-      {error ? (
-        <div className="-mt-1 mb-3 text-xs text-rose-500">{error}</div>
-      ) : null}
-      {children}
+      <div className="p-5">
+        {error ? <div className="-mt-1 mb-3 text-xs text-rose-500">{error}</div> : null}
+        {children}
+      </div>
     </section>
   );
 }

@@ -13,64 +13,90 @@
  *   - 增加 Tab：在 TABS 数组加一项，在 renderTab() 加对应条件
  *   - 修改某个区块布局：在对应小组件里改，不影响其他 Tab
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import PageShell from "../../components/PageShell";
 import StatusView from "../../components/StatusView";
 import { useApi } from "../../hooks/useApi";
+import DocumentTabs from "../../modules/fileDraft/DocumentTabs";
+import FileDraftDataSections from "../../modules/fileDraft/FileDraftDataSections";
+import type { FileDraftViewModel } from "../../shared/fileDraft/model";
 import type { 沐茵丝假发成品稿Frontend } from "../../shared/frontend/model/model";
-import 规格书View from "./sections/规格书View";
 import 高针指示单View from "./sections/高针指示单View";
 import 手织指示单View from "./sections/手织指示单View";
 
 const TABS = [
-  { key: "规格书", label: "制品规格书" },
+  { key: "制品规格书", label: "制品规格书" },
   { key: "高针指示单", label: "高针指示单" },
   { key: "手织指示单", label: "手织指示单" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
+type HatMakingOption = {
+  _id: string;
+  帽围: number;
+  帽深: number;
+  前后: number;
+};
 
 export default function FileDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<TabKey>("规格书");
+  const [tab, setTab] = useState<TabKey>("制品规格书");
+  const [hatMakingList, setHatMakingList] = useState<HatMakingOption[]>([]);
 
   const { data, loading, error } = useApi(() =>
     callApi("admin/file/GetDetail", { id: id! }),
   );
 
   const file: 沐茵丝假发成品稿Frontend | null = data?.file ?? null;
+  const rawFile: FileDraftViewModel | null =
+    ((data as { rawFile?: FileDraftViewModel } | undefined)?.rawFile as
+      | FileDraftViewModel
+      | undefined) ?? null;
+
+  useEffect(() => {
+    callApi("admin/hatMaking/GetList" as never, {
+      pageNum: 1,
+      pageSize: 1000,
+      orderSort: "asc",
+    } as never).then((r) => {
+      const res = r as
+        | { isSucc: true; res: { list: HatMakingOption[] } }
+        | { isSucc: false };
+      if (res.isSucc) setHatMakingList(res.res.list);
+    });
+  }, []);
 
   return (
     <PageShell
       title={file ? `${file.制品规格书.title.品名}` : "成品稿详情"}
       onBack={() => navigate(-1)}
+      actions={
+        id ? (
+          <button
+            type="button"
+            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+            onClick={() => navigate(`/admin/files/${id}/edit`)}
+          >
+            编辑稿件
+          </button>
+        ) : undefined
+      }
     >
       <StatusView loading={loading} error={error}>
         {file && (
           <>
-            {/* Tab 切换栏 */}
-            <div className="flex gap-2">
-              {TABS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={
-                    key === tab
-                      ? "rounded bg-slate-900 px-3 py-1.5 text-sm text-white"
-                      : "rounded bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                  }
-                  onClick={() => setTab(key)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <DocumentTabs items={TABS} activeKey={tab} onChange={setTab} />
 
-            {/* Tab 内容 */}
-            {tab === "规格书" && <规格书View data={file.制品规格书} />}
+            {tab === "制品规格书" && rawFile ? (
+              <FileDraftDataSections
+                mode="readonly"
+                value={rawFile}
+                hatMakingList={hatMakingList}
+              />
+            ) : null}
             {tab === "高针指示单" && <高针指示单View data={file.高针指示单} />}
             {tab === "手织指示单" && <手织指示单View data={file.手织指示单} />}
           </>

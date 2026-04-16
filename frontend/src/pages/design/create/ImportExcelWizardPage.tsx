@@ -30,6 +30,13 @@ type UploadCardProps = {
   onFileSelect: (file: File) => void;
 };
 
+type HatMakingOption = {
+  _id: string;
+  帽围: number;
+  帽深: number;
+  前后: number;
+};
+
 const DEMO_RATIO_LIST: Db胶丝比例[] = [
   {
     _id: {
@@ -43,6 +50,13 @@ const DEMO_RATIO_LIST: Db胶丝比例[] = [
     ],
   },
 ];
+
+const DEMO_HAT_MAKING: HatMakingOption = {
+  _id: "P-025",
+  帽围: 58,
+  帽深: 36,
+  前后: 37,
+};
 
 function Stepper({ step }: { step: number }) {
   return (
@@ -125,12 +139,9 @@ function buildDemoFile(params: {
       ...file.制品规格书,
       胶丝比例id: { 颜色编号: "TT6/1062", 发丝种类: "HL+FU" },
       制帽: {
-        帽围: 58,
-        帽深: 36,
-        前后: 37,
         唛头: "2个标",
-        号码: "P-025",
-      },
+        编号: "P-025",
+      } as unknown as 沐茵丝假发成品稿["制品规格书"]["制帽"],
       工艺说明: {
         作业方法: '本规格书为 "TT6/1062#" 作业',
         整毛: "按 MIX 比例各整毛计量。",
@@ -231,7 +242,16 @@ export default function ImportExcelWizardPage() {
     [excelFileName, handWovenSvg, highNeedle图],
   );
   const 规格书数据 = useMemo(
-    () => to制品规格书Frontend(demoFile, DEMO_RATIO_LIST),
+    () =>
+      (to制品规格书Frontend as unknown as (
+        稿: 沐茵丝假发成品稿,
+        胶丝比例: Db胶丝比例,
+        制帽: HatMakingOption,
+      ) => ReturnType<typeof to制品规格书Frontend>)(
+        demoFile,
+        DEMO_RATIO_LIST[0],
+        DEMO_HAT_MAKING,
+      ),
     [demoFile],
   );
   const 高针数据 = useMemo(() => to高针指示单Frontend(demoFile), [demoFile]);

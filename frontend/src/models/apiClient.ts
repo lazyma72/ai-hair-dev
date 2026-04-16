@@ -1,10 +1,11 @@
 import { message } from "antd";
 import { HttpClient } from "tsrpc-browser";
+import { getApiBase } from "../api/apiBase";
 import { frontConfig, isDebug } from "../frontConfig";
 import { serviceProto } from "../shared/protocols/serviceProto";
 
 export const apiClient = new HttpClient(serviceProto, {
-  server: frontConfig.apiServer,
+  server: getApiBase() || frontConfig.apiServer,
   json: true,
   // logger
   [atob("bG9nZ2Vy")]: isDebug ? console : undefined,

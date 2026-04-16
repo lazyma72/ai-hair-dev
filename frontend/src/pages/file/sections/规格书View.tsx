@@ -5,12 +5,16 @@
  *
  * 如何改？
  *   - 增加字段：在对应 Section 中加一行 <Row>
- *   - 调整机器规格清单列：修改下方 columns 数组
+ *   - 调整机器/人工规格清单预览：修改 ExcelStyleSpecTables 组件
  */
 import DataTable, { type Column } from "../../../components/DataTable";
 import InlineSvg from "../../../components/InlineSvg";
 import Row from "../../../components/Row";
 import Section from "../../../components/Section";
+import {
+  ExcelStyleMachineTable,
+  ExcelStyleManualTable,
+} from "../../../modules/fileDraft/ExcelStyleSpecTables";
 import {
   buildPreviewSvg,
   formatInchText,
@@ -21,70 +25,6 @@ import type { 制品规格书Frontend } from "../../../shared/frontend/model/mod
 import { 数字转分数字符串 } from "../../../shared/models/分数转换";
 
 type Props = { data: 制品规格书Frontend };
-
-// 机器规格清单的表格列定义
-const 机器规格列: Column<制品规格书Frontend["机器规格清单"][number]>[] = [
-  { key: "档位", title: "档位", render: (r) => r.档位 },
-  {
-    key: "裁断",
-    title: "裁断 / 重量 D",
-    render: (r) =>
-      r.裁断与重量.map((x) => `${x.裁断}→${x.重量g?.D ?? "-"}g`).join("  "),
-  },
-  {
-    key: "整毛",
-    title: "整毛(拉尖/对裁)",
-    render: (r) =>
-      `${数字转分数字符串(r.整毛.拉尖)}${r.整毛.对裁 != null ? " / " + 数字转分数字符串(r.整毛.对裁) : ""}`,
-  },
-  {
-    key: "形态",
-    title: "形态",
-    render: (r) => r.形态 ?? "—",
-  },
-  {
-    key: "双针",
-    title: "双针 毛长/尺D/密度",
-    render: (r) =>
-      `${数字转分数字符串(r.双针.毛长)}寸 · D:${r.双针.尺数.D} · ${r.双针.密度}`,
-  },
-  {
-    key: "美容",
-    title: "美容 铝管/方向/层数",
-    render: (r) => `${r.美容.铝管}mm · ${r.美容.方向} · ${r.美容.层数}层`,
-  },
-  { key: "备注", title: "备注", render: (r) => r.备注 ?? "—" },
-];
-
-// 人工规格清单的表格列定义
-const 人工规格列: Column<制品规格书Frontend["人工规格清单"][number]>[] = [
-  { key: "档位", title: "档位", render: (r) => r.档位 },
-  {
-    key: "裁断",
-    title: "裁断 / 重量 D",
-    render: (r) =>
-      r.裁断与重量.map((x) => `${x.裁断}→${x.重量g?.D ?? "-"}g`).join("  "),
-  },
-  {
-    key: "整毛",
-    title: "整毛(拉尖/对裁)",
-    render: (r) =>
-      `${数字转分数字符串(r.整毛.拉尖)}${r.整毛.对裁 != null ? " / " + 数字转分数字符串(r.整毛.对裁) : ""}`,
-  },
-  {
-    key: "形态",
-    title: "形态",
-    render: (r) => r.形态 ?? "—",
-  },
-  {
-    key: "双针",
-    title: "双针 毛长/磅发",
-    render: (r) => `${数字转分数字符串(r.双针.毛长)}寸 / ${r.双针.磅发}g`,
-  },
-  { key: "美容", title: "美容 铝管", render: (r) => `${r.美容.铝管}mm` },
-  { key: "位置", title: "位置", render: (r) => r.位置 ?? "—" },
-  { key: "备注", title: "备注", render: (r) => r.备注 ?? "—" },
-];
 
 // 胶丝配比表格列定义
 const 配比列: Column<KLS胶丝比例>[] = [
@@ -153,6 +93,10 @@ function 染色档位卡片({ item, index }: { item: 染色档位; index: number
 }
 
 export default function 规格书View({ data }: Props) {
+  const normalized = data as unknown as 制品规格书Frontend & {
+    胶丝比例: 制品规格书Frontend extends { 胶丝比例: infer T } ? T : any;
+    制帽: { 帽围: number; 帽深: number; 前后: number; 唛头: string; 编号: string };
+  };
   const {
     title,
     制帽,
@@ -161,10 +105,10 @@ export default function 规格书View({ data }: Props) {
     工艺说明,
     机器规格清单,
     人工规格清单,
-    胶丝比例列表,
+    胶丝比例,
     发型图片,
     染色档位列表,
-  } = data;
+  } = normalized;
 
   return (
     <div className="space-y-5">
@@ -189,7 +133,7 @@ export default function 规格书View({ data }: Props) {
               ["帽深", `${制帽.帽深} cm`],
               ["前后", `${制帽.前后} cm`],
               ["唛头", 制帽.唛头],
-              ["号码", 制帽.号码],
+              ["编号", 制帽.编号],
             ] as const
           ).map(([k, v]) => (
             <Row key={k} label={k} value={v} />
@@ -199,82 +143,51 @@ export default function 规格书View({ data }: Props) {
 
       {/* ── 机器规格清单 ── */}
       <Section title="机器规格清单">
-        <div className="overflow-x-auto">
-          <DataTable
-            columns={机器规格列}
-            rows={机器规格清单}
-            rowKey={(r) => r.档位}
-          />
+        <div className="p-4">
+          <ExcelStyleMachineTable rows={机器规格清单} />
         </div>
       </Section>
 
       {/* ── 人工规格清单 ── */}
       <Section title="人工规格清单">
-        <div className="overflow-x-auto">
-          <DataTable
-            columns={人工规格列}
-            rows={人工规格清单}
-            rowKey={(r) => r.档位}
-          />
+        <div className="p-4">
+          <ExcelStyleManualTable rows={人工规格清单} />
         </div>
       </Section>
 
       {/* ── 胶丝比例列表 ── */}
-      {胶丝比例列表.length > 0 && (
+      {胶丝比例 ? (
         <Section title="胶丝比例">
-          {胶丝比例列表.map((item) => (
-            <div
-              key={`${item._id.颜色编号}-${item._id.发丝种类}`}
-              className="mb-4"
-            >
-              <div className="divide-y divide-slate-100 px-4 py-2 text-xs">
-                <Row label="颜色编号" value={item._id.颜色编号} />
-                <Row label="发丝种类" value={item._id.发丝种类} />
-                {item.线色 ? <Row label="线色" value={item.线色} /> : null}
-                {item.备注 ? <Row label="备注" value={item.备注} /> : null}
-              </div>
-              <div className="space-y-2 px-4">
-                {item.D.length > 0 && (
-                  <div>
-                    <div className="mb-1 text-xs font-medium text-slate-500">
-                      D
-                    </div>
-                    <DataTable
-                      columns={配比列}
-                      rows={item.D}
-                      rowKey={(r) => r.色号}
-                    />
-                  </div>
-                )}
-                {item.M && item.M.length > 0 && (
-                  <div>
-                    <div className="mb-1 text-xs font-medium text-slate-500">
-                      M
-                    </div>
-                    <DataTable
-                      columns={配比列}
-                      rows={item.M}
-                      rowKey={(r) => r.色号}
-                    />
-                  </div>
-                )}
-                {item.L && item.L.length > 0 && (
-                  <div>
-                    <div className="mb-1 text-xs font-medium text-slate-500">
-                      L
-                    </div>
-                    <DataTable
-                      columns={配比列}
-                      rows={item.L}
-                      rowKey={(r) => r.色号}
-                    />
-                  </div>
-                )}
-              </div>
+          <div className="mb-4">
+            <div className="divide-y divide-slate-100 px-4 py-2 text-xs">
+              <Row label="颜色编号" value={胶丝比例._id.颜色编号} />
+              <Row label="发丝种类" value={胶丝比例._id.发丝种类} />
+              {胶丝比例.线色 ? <Row label="线色" value={胶丝比例.线色} /> : null}
+              {胶丝比例.备注 ? <Row label="备注" value={胶丝比例.备注} /> : null}
             </div>
-          ))}
+            <div className="space-y-2 px-4">
+              {胶丝比例.D.length > 0 && (
+                <div>
+                  <div className="mb-1 text-xs font-medium text-slate-500">D</div>
+                  <DataTable columns={配比列} rows={胶丝比例.D} rowKey={(r) => r.色号} />
+                </div>
+              )}
+              {胶丝比例.M && 胶丝比例.M.length > 0 && (
+                <div>
+                  <div className="mb-1 text-xs font-medium text-slate-500">M</div>
+                  <DataTable columns={配比列} rows={胶丝比例.M} rowKey={(r) => r.色号} />
+                </div>
+              )}
+              {胶丝比例.L && 胶丝比例.L.length > 0 && (
+                <div>
+                  <div className="mb-1 text-xs font-medium text-slate-500">L</div>
+                  <DataTable columns={配比列} rows={胶丝比例.L} rowKey={(r) => r.色号} />
+                </div>
+              )}
+            </div>
+          </div>
         </Section>
-      )}
+      ) : null}
 
       {/* ── 工程重量 ── */}
       <Section title={`工程重量（当前重量：${当前重量}g）`}>

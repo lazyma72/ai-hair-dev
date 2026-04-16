@@ -1,4 +1,4 @@
-import * as React from "react";
+import { ExcelStyleMachineTable } from "../../../../modules/fileDraft/ExcelStyleSpecTables";
 import type { 制品规格书 } from "../../../../shared/db/Db沐茵丝假发成品稿";
 import { 假发类型 } from "../../../../shared/db/Db沐茵丝假发成品稿";
 import { AddBtn, DelBtn, Section } from "../components/ui";
@@ -43,6 +43,17 @@ export default function MachineSpecSection({
         <p className="text-xs text-slate-400">暂无档位</p>
       ) : (
         <div className="space-y-3">
+          <div>
+            <div className="mb-2 text-xs font-medium text-slate-500">
+              当前预览
+            </div>
+            <ExcelStyleMachineTable rows={list} />
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-3 text-xs font-medium text-slate-500">
+              编辑明细
+            </div>
           {list.map((档位, i) => (
             <div key={档位.档位}>
               <div className="mb-1.5 flex items-center justify-between">
@@ -63,6 +74,7 @@ export default function MachineSpecSection({
               />
             </div>
           ))}
+          </div>
         </div>
       )}
     </Section>

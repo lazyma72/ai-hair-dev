@@ -1,9 +1,7 @@
-import * as React from "react";
 import CustomTextStagePanel from "./CustomTextStagePanel";
 import DoneStagePanel from "./DoneStagePanel";
 import LevelStagePanel from "./LevelStagePanel";
 import MarkStagePanel from "./MarkStagePanel";
-import type { DmlAutoConfig } from "./dmlAuto";
 import RegionStagePanel from "./RegionStagePanel";
 import HighNeedleStepTabs from "./HighNeedleStepTabs";
 
@@ -22,10 +20,14 @@ type Props = {
   enableDouble?: boolean;
 
   step: StepKey;
-  progress: number;
   stepTips: string;
 
   value: any;
+  missingLevelLineIds?: string[];
+  canEditRegion?: boolean;
+  canEditDml?: boolean;
+  canEditDouble?: boolean;
+  canEnterDone?: boolean;
 
   regionPresetValue: string;
   setRegionPresetValue: (v: string) => void;
@@ -36,7 +38,6 @@ type Props = {
   draftSelected: string[];
   setDraftSelected: (v: string[]) => void;
 
-  stepToIndex: (s: StepKey) => number;
   setStep: (s: StepKey) => void;
 
   confirmExit: () => void;
@@ -51,18 +52,10 @@ type Props = {
   clearDmlStage: () => void;
   clearDoubleStage: () => void;
 
-  dmlAutoConfigs: DmlAutoConfig[];
-  addDmlAutoConfig: () => void;
-  updateDmlAutoConfig: (
-    configId: string,
-    patch: Partial<
-      Pick<DmlAutoConfig, "regionName" | "pattern" | "rangeStart" | "rangeEnd">
-    >,
-  ) => void;
-  removeDmlAutoConfig: (configId: string) => void;
-  resetDmlAutoConfigs: () => void;
+  dmlPattern: string;
+  setDmlPattern: (value: string) => void;
 
-  goNextStep: () => void;
+  completeTextStage: () => void;
 
   activeTextKey: string;
   setActiveTextKey: (v: string) => void;
@@ -87,13 +80,16 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     enableDml,
     enableDouble,
     step,
-    progress,
     stepTips,
     value,
+    missingLevelLineIds,
+    canEditRegion,
+    canEditDml,
+    canEditDouble,
+    canEnterDone,
     confirmExit,
     setStep,
     setDraftSelected,
-    stepToIndex,
 
     regionPresetValue,
     setRegionPresetValue,
@@ -110,13 +106,8 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     clearDmlStage,
     clearDoubleStage,
 
-    dmlAutoConfigs,
-    addDmlAutoConfig,
-    updateDmlAutoConfig,
-    removeDmlAutoConfig,
-    resetDmlAutoConfigs,
-
-    goNextStep,
+    dmlPattern,
+    setDmlPattern,
     requestCanvasReset,
 
     activeTextKey,
@@ -128,11 +119,32 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     updateTextNodeStyle,
     removeTextNode,
     clearCustomText,
+    completeTextStage,
   } = props;
 
   const textNodeEntries = Object.entries(value.底图?.文本节点 ?? {}) as Array<
     [string, TextNodeRecord]
   >;
+  const regionItems = (value.底图?.区域线条 ?? []) as Array<{
+    区域名: string;
+    lineNodeIds: string[];
+  }>;
+  const levelItems = (value.底图?.档位标注 ?? []) as Array<{
+    区域名: string;
+    lineNodeIds: string[];
+  }>;
+  const regionCountByName: Record<string, number> = {};
+  regionItems.forEach((item) => {
+    regionCountByName[item.区域名] =
+      (regionCountByName[item.区域名] ?? 0) + item.lineNodeIds.length;
+  });
+  const savedRegions = Object.entries(regionCountByName).map(
+    ([name, lineCount]) => ({ name, lineCount }),
+  );
+  const savedLevels = levelItems.map((item) => ({
+    name: item.区域名,
+    lineCount: item.lineNodeIds.length,
+  }));
 
   return (
     <div className="h-full min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -154,15 +166,39 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
 
       <HighNeedleStepTabs
         step={step}
-        progress={progress}
         enableDml={enableDml}
         enableDouble={enableDouble}
-        stepToIndex={stepToIndex}
+        canEnterDone={canEnterDone}
         onSelect={(next) => {
           setStep(next);
           setDraftSelected([]);
         }}
       />
+
+      {step !== "档位" && (missingLevelLineIds?.length ?? 0) > 0 ? (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          档位未补齐：还有 {missingLevelLineIds?.length ?? 0} 条区域线未标注档位。
+          DML/单双/完成会被阻止写入。
+        </div>
+      ) : null}
+
+      {step === "区域" && canEditRegion === false ? (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          区域已锁定：当前存在档位或 DML/单双数据。若需重做区域，请使用“清空区域阶段”。
+        </div>
+      ) : null}
+
+      {step === "DML" && canEditDml === false ? (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          DML 只允许在档位补齐后编辑。
+        </div>
+      ) : null}
+
+      {step === "单双" && canEditDouble === false ? (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          单双只允许在档位补齐后编辑。
+        </div>
+      ) : null}
 
       {step === "区域" ? (
         <RegionStagePanel
@@ -173,11 +209,11 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
           setRegionDraft={setRegionDraft}
           draftSelected={draftSelected}
           savedLineCount={value.底图.区域线条.length}
+          savedRegions={savedRegions}
           requestCanvasReset={requestCanvasReset}
           setDraftSelected={setDraftSelected}
           finishRegion={finishRegion}
           clearRegionStage={clearRegionStage}
-          goNextStep={goNextStep}
         />
       ) : null}
 
@@ -186,11 +222,11 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
           levelNo={levelNo}
           draftSelected={draftSelected}
           savedLevelCount={value.底图.档位标注.length}
+          savedLevels={savedLevels}
           requestCanvasReset={requestCanvasReset}
           setDraftSelected={setDraftSelected}
           finishLevel={finishLevel}
           clearLevelStage={clearLevelStage}
-          goNextStep={goNextStep}
         />
       ) : null}
 
@@ -199,13 +235,8 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
           step={step}
           clearDmlStage={clearDmlStage}
           clearDoubleStage={clearDoubleStage}
-          goNextStep={goNextStep}
-          regionNames={value.底图?.区域名 ?? []}
-          dmlAutoConfigs={dmlAutoConfigs}
-          addDmlAutoConfig={addDmlAutoConfig}
-          updateDmlAutoConfig={updateDmlAutoConfig}
-          removeDmlAutoConfig={removeDmlAutoConfig}
-          resetDmlAutoConfigs={resetDmlAutoConfigs}
+          dmlPattern={dmlPattern}
+          setDmlPattern={setDmlPattern}
         />
       ) : null}
 
@@ -221,7 +252,7 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
           updateTextNodeStyle={updateTextNodeStyle}
           removeTextNode={removeTextNode}
           clearCustomText={clearCustomText}
-          goNextStep={goNextStep}
+          completeTextStage={completeTextStage}
         />
       ) : null}
 

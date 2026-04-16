@@ -1,26 +1,24 @@
-import * as React from "react";
-
 type Props = {
   levelNo: number;
   draftSelected: string[];
   savedLevelCount: number;
+  savedLevels: Array<{ name: string; lineCount: number }>;
   requestCanvasReset: () => void;
   setDraftSelected: (v: string[]) => void;
 
   finishLevel: () => void;
   clearLevelStage: () => void;
-  goNextStep: () => void;
 };
 
 export default function LevelStagePanel({
   levelNo,
   draftSelected,
   savedLevelCount,
+  savedLevels,
   requestCanvasReset,
   setDraftSelected,
   finishLevel,
   clearLevelStage,
-  goNextStep,
 }: Props) {
   return (
     <div className="mt-4 space-y-3">
@@ -35,14 +33,6 @@ export default function LevelStagePanel({
           onClick={finishLevel}
         >
           保存当前档位
-        </button>
-
-        <button
-          type="button"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
-          onClick={goNextStep}
-        >
-          下一阶段
         </button>
       </div>
 
@@ -69,6 +59,26 @@ export default function LevelStagePanel({
 
       <div className="text-[11px] text-slate-500">
         已选 {draftSelected.length} 条；已标注 {savedLevelCount} 个档位
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+        <div className="mb-2 text-[11px] font-medium text-slate-600">
+          已标注档位
+        </div>
+        {savedLevels.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {savedLevels.map((level) => (
+              <div
+                key={level.name}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700"
+              >
+                {level.name} · {level.lineCount} 条
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-[11px] text-slate-400">暂未保存档位</div>
+        )}
       </div>
     </div>
   );

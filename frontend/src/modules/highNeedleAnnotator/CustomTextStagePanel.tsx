@@ -1,5 +1,3 @@
-import * as React from "react";
-
 type TextNodeRecord = {
   textNodeId: string;
   text?: string;
@@ -25,7 +23,7 @@ type Props = {
   updateTextNodeStyle: (key: string, patch: Record<string, unknown>) => void;
   removeTextNode: (key: string) => void;
   clearCustomText: () => void;
-  goNextStep: () => void;
+  completeTextStage: () => void;
 };
 
 const COLOR_OPTIONS = [
@@ -60,15 +58,14 @@ export default function CustomTextStagePanel({
   updateTextNodeStyle,
   removeTextNode,
   clearCustomText,
-  goNextStep,
+  completeTextStage,
 }: Props) {
   const activeEntry = textNodeEntries.find(([k]) => k === activeTextKey)?.[1];
 
   return (
     <div className="mt-4 space-y-4">
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-        文本阶段：已自动清理 D/M/L/单/双
-        文本节点，其余文本已加入“已保留文本节点”；可拖动文字调整位置；不需要的文本可在列表中删除。
+        文本阶段：默认隐藏 D/M/L/单/双 文本节点（不会立刻删除），其余文本已加入“已保留文本节点”；可拖动文字调整位置；不需要的文本可在列表中删除。最终完成时会清理无关文本。
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-3">
@@ -163,10 +160,10 @@ export default function CustomTextStagePanel({
 
           <button
             type="button"
-            className="rounded bg-slate-100 px-4 py-2 text-sm text-slate-700 hover:bg-slate-200"
-            onClick={goNextStep}
+            className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+            onClick={completeTextStage}
           >
-            下一阶段
+            完成标注
           </button>
         </div>
       </div>
@@ -189,10 +186,19 @@ export default function CustomTextStagePanel({
                   key={k}
                   className={
                     active
-                      ? "rounded border border-slate-200 bg-slate-50 p-2"
-                      : "rounded border border-slate-100 p-2"
+                      ? "relative rounded border border-slate-200 bg-slate-50 p-2"
+                      : "relative rounded border border-slate-100 p-2"
                   }
                 >
+                  {active ? (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs font-semibold text-red-500 shadow-sm hover:bg-red-50"
+                      onClick={() => removeTextNode(k)}
+                    >
+                      x
+                    </button>
+                  ) : null}
                   <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"

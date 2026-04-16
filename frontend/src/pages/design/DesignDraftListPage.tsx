@@ -10,9 +10,6 @@ import { useApi } from "../../hooks/useApi";
 import type { 沐茵丝假发成品稿ListItem } from "../../shared/frontend/model/model";
 
 const LS_HIDDEN = "demo_design_hidden_ids";
-const LS_ALIAS = "demo_design_alias_map";
-
-type AliasMap = Record<string, string>;
 
 function readHiddenIds(): string[] {
   try {
@@ -29,26 +26,10 @@ function writeHiddenIds(ids: string[]) {
   localStorage.setItem(LS_HIDDEN, JSON.stringify(ids));
 }
 
-function readAliasMap(): AliasMap {
-  try {
-    const raw = localStorage.getItem(LS_ALIAS);
-    if (!raw) return {};
-    const val = JSON.parse(raw);
-    return val && typeof val === "object" ? (val as AliasMap) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeAliasMap(map: AliasMap) {
-  localStorage.setItem(LS_ALIAS, JSON.stringify(map));
-}
-
 export default function DesignDraftListPage() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
   const [hiddenIds, setHiddenIds] = useState<string[]>(() => readHiddenIds());
-  const [aliasMap, setAliasMap] = useState<AliasMap>(() => readAliasMap());
   const [pageNum, setPageNum] = useState(1);
   const [pageSize, setPageSize] = useState(12);
 
@@ -95,16 +76,6 @@ export default function DesignDraftListPage() {
     message.success("已删除（Demo：已从列表隐藏）");
   }
 
-  function handleEditAlias(item: 沐茵丝假发成品稿ListItem) {
-    const cur = aliasMap[item._id] ?? "";
-    const next = window.prompt("编辑显示名称（Demo）", cur);
-    if (next === null || next === undefined) return;
-    const map = { ...aliasMap, [item._id]: next };
-    setAliasMap(map);
-    writeAliasMap(map);
-    message.success("已保存（Demo）");
-  }
-
   return (
     <PageShell
       title="设计稿管理"
@@ -149,10 +120,8 @@ export default function DesignDraftListPage() {
               onClick={() => {
                 setKeyword("");
                 setHiddenIds([]);
-                setAliasMap({});
                 setPageNum(1);
                 localStorage.removeItem(LS_HIDDEN);
-                localStorage.removeItem(LS_ALIAS);
               }}
             >
               重置（Demo）
@@ -179,9 +148,6 @@ export default function DesignDraftListPage() {
                     样品编号：{item._id}
                   </div>
                   <div className="mt-1 space-y-0.5 text-xs text-slate-500">
-                    {aliasMap[item._id] ? (
-                      <div>显示名称：{aliasMap[item._id]}</div>
-                    ) : null}
                     <div>假发类型：{item.假发类型}</div>
                     <div>品名：{item.品名}</div>
                     <div>原材料：{item.原材料 || "—"}</div>
@@ -201,13 +167,6 @@ export default function DesignDraftListPage() {
                   onClick={() => navigate(`/file/${item._id}`)}
                 >
                   查看详情
-                </button>
-                <button
-                  type="button"
-                  className="rounded bg-slate-100 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200"
-                  onClick={() => handleEditAlias(item)}
-                >
-                  编辑
                 </button>
                 <button
                   type="button"

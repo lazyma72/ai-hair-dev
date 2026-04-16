@@ -1,13 +1,11 @@
-import * as React from "react";
-
 type StepKey = "区域" | "档位" | "DML" | "单双" | "自定义文本" | "完成";
 
 type Props = {
   step: StepKey;
-  progress: number;
   enableDml?: boolean;
   enableDouble?: boolean;
-  stepToIndex: (step: StepKey) => number;
+  /** 是否可进入完成态（用于禁用“完成”tab） */
+  canEnterDone?: boolean;
   onSelect: (step: StepKey) => void;
 };
 
@@ -22,23 +20,19 @@ const STEP_TAB_LIST: Array<{ key: StepKey; label: string }> = [
 
 export default function HighNeedleStepTabs({
   step,
-  progress,
   enableDml,
   enableDouble,
-  stepToIndex,
+  canEnterDone,
   onSelect,
 }: Props) {
   return (
     <div className="mt-4 flex flex-wrap gap-1.5">
       {STEP_TAB_LIST.map((s) => {
         const active = step === s.key;
-        const futureLocked =
-          stepToIndex(s.key) > stepToIndex(step) ||
-          stepToIndex(s.key) > progress;
         const disabled =
-          futureLocked ||
           (s.key === "DML" && !enableDml) ||
-          (s.key === "单双" && !enableDouble);
+          (s.key === "单双" && !enableDouble) ||
+          (s.key === "完成" && canEnterDone === false);
 
         return (
           <button

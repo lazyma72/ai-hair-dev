@@ -1,4 +1,3 @@
-import * as React from "react";
 import { message } from "antd";
 
 const CUSTOM_REGION_PRESET_VALUE = "__custom__";
@@ -14,13 +13,13 @@ type Props = {
 
   draftSelected: string[];
   savedLineCount: number;
+  savedRegions: Array<{ name: string; lineCount: number }>;
 
   requestCanvasReset: () => void;
   setDraftSelected: (v: string[]) => void;
 
   finishRegion: (options?: { gotoNextStage?: boolean }) => void;
   clearRegionStage: () => void;
-  goNextStep: () => void;
 };
 
 export default function RegionStagePanel({
@@ -31,11 +30,11 @@ export default function RegionStagePanel({
   setRegionDraft,
   draftSelected,
   savedLineCount,
+  savedRegions,
   requestCanvasReset,
   setDraftSelected,
   finishRegion,
   clearRegionStage,
-  goNextStep,
 }: Props) {
   return (
     <div className="mt-4 space-y-3">
@@ -124,25 +123,7 @@ export default function RegionStagePanel({
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
           onClick={() => finishRegion()}
         >
-          保存 · 下一区域
-        </button>
-
-        {draftSelected.length > 0 && (
-          <button
-            type="button"
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-500"
-            onClick={() => finishRegion({ gotoNextStage: true })}
-          >
-            保存 · 下一阶段
-          </button>
-        )}
-
-        <button
-          type="button"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
-          onClick={() => goNextStep()}
-        >
-          跳至下一阶段
+          保存当前区域
         </button>
       </div>
 
@@ -176,6 +157,26 @@ export default function RegionStagePanel({
         操作：按住鼠标左键拖动经过线条，可连续勾选/取消（一次拖动内同一条线只会切换一次）。当前已选{" "}
         {draftSelected.length}
         条；已归档 {savedLineCount} 条。
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+        <div className="mb-2 text-[11px] font-medium text-slate-600">
+          已标注区域
+        </div>
+        {savedRegions.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {savedRegions.map((region) => (
+              <div
+                key={region.name}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700"
+              >
+                {region.name} · {region.lineCount} 条
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-[11px] text-slate-400">暂未保存区域</div>
+        )}
       </div>
     </div>
   );

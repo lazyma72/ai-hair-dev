@@ -31,6 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     group: "管理",
     items: [
+      { label: "制帽管理", to: "/hat-making" },
       { label: "胶丝比例", to: "/ratio" },
       { label: "客户管理", to: "/customers" },
       { label: "用户管理", to: "/users" },
@@ -74,6 +75,7 @@ function NavItemLink({ item }: { item: NavItem }) {
 export default function PageShell({ title, onBack, actions, children, fullWidth }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
+  const iconSrc = `${import.meta.env.BASE_URL}icon.png`;
 
   const containerMaxWidthCls = fullWidth ? "max-w-none" : "max-w-7xl";
 
@@ -89,7 +91,7 @@ export default function PageShell({ title, onBack, actions, children, fullWidth 
         <div className={`mx-auto flex ${containerMaxWidthCls} items-center justify-between gap-4 px-4 py-3 sm:px-6`}>
           <div className="flex items-center gap-3">
             <img
-              src="/icon.png"
+              src={iconSrc}
               alt="沐茵丝"
               className="h-9 w-9 rounded-lg object-contain"
             />
@@ -98,7 +100,7 @@ export default function PageShell({ title, onBack, actions, children, fullWidth 
                 AI 设计稿工作台
               </div>
               <div className="text-xs text-slate-500">
-                成品稿 / 胶丝比例 / 客户管理（Demo）
+                成品稿 / 制帽 / 胶丝比例 / 客户管理（Demo）
               </div>
             </div>
           </div>

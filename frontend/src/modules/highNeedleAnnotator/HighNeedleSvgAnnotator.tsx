@@ -1,4 +1,3 @@
-import * as React from "react";
 import HighNeedleSvgAnnotatorCanvas from "./HighNeedleSvgAnnotatorCanvas";
 import HighNeedleSvgAnnotatorSidebar from "./HighNeedleSvgAnnotatorSidebar";
 import type { 高针图 } from "./types";
@@ -36,31 +35,40 @@ export default function HighNeedleSvgAnnotator(props: Props) {
       : "";
 
   return (
-    <div className="grid h-full min-h-0 gap-4 overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
-      <HighNeedleSvgAnnotatorSidebar {...state} />
-      <HighNeedleSvgAnnotatorCanvas
-        step={state.step}
-        lineSelector={state.lineSelector}
-        allLineIdSet={state.allLineIdSet}
-        allTextIds={state.allTextIds}
-        renderSvg={state.renderSvg}
-        previewValue={state.previewValue}
-        canvasEpoch={state.canvasEpoch}
-        visibleMarkerById={state.visibleMarkerById}
-        markerTextIdSet={state.markerTextIdSet}
-        draggableMarkerTextIdSet={state.draggableMarkerTextIdSet}
-        regionLabels={state.regionLabelItems}
-        toggleSelect={state.toggleSelect}
-        handleLineAction={state.handleLineAction}
-        ensureLevelMarkerTextNode={state.ensureLevelMarkerTextNode}
-        ensureDmlMarkerTextNode={state.ensureDmlMarkerTextNode}
-        layerToggles={state.layerToggles}
-        setLayerToggles={state.setLayerToggles}
-        activeTextNodeId={activeTextNodeId}
-        onTextActivate={state.ensureTextNodeKept}
-        onTextPositionCommit={state.commitTextNodePosition}
-        showPreview={showPreview}
-      />
+    <div className="h-full min-h-0">
+      <div className="grid h-[calc(100%-2.5rem)] min-h-0 gap-4 overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+        <HighNeedleSvgAnnotatorSidebar {...state} />
+        <HighNeedleSvgAnnotatorCanvas
+          step={state.step}
+          lineSelector={state.lineSelector}
+          allLineIdSet={state.allLineIdSet}
+          allTextIds={state.allTextIds}
+          renderSvg={state.renderSvg}
+          previewValue={state.previewValue}
+          canvasEpoch={state.canvasEpoch}
+          preferredDmlPosByLineId={state.preferredDmlPosByLineId}
+          preferredMarkerPosByLineId={state.preferredMarkerPosByLineId}
+          draftMarkerPosByLineId={state.draftMarkerPosByLineId}
+          dmlMarkerPosByLineId={state.dmlMarkerPosByLineId}
+          pendingDmlMarkerPosByLineId={state.pendingDmlMarkerPosByLineId}
+          visibleMarkerById={state.visibleMarkerById}
+          markerTextIdSet={state.markerTextIdSet}
+          draggableMarkerTextIdSet={state.draggableMarkerTextIdSet}
+          regionLabels={state.regionLabelItems}
+          toggleSelect={state.toggleSelect}
+          handleLineAction={state.handleLineAction}
+          ensureRegionMarkerTextNode={state.ensureRegionMarkerTextNode}
+          ensureLevelMarkerTextNode={state.ensureLevelMarkerTextNode}
+          ensureDmlMarkerTextNode={state.ensureDmlMarkerTextNode}
+          ensureDoubleMarkerTextNode={state.ensureDoubleMarkerTextNode}
+          layerToggles={state.layerToggles}
+          setLayerToggles={state.setLayerToggles}
+          activeTextNodeId={activeTextNodeId}
+          onTextActivate={state.ensureTextNodeKept}
+          onTextPositionCommit={state.commitTextNodePosition}
+          showPreview={showPreview}
+        />
+      </div>
     </div>
   );
 }
