@@ -243,7 +243,6 @@ export default function FileEditorPage({
       title={title}
       onBack={onBack}
       actions={actions}
-      fullWidth={activeTab === "高针指示单"}
     >
       <DocumentTabs
         items={EDITOR_TABS}
