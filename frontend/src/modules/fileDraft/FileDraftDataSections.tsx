@@ -3,8 +3,8 @@ import { Select } from "antd";
 import InlineSvg from "../../components/InlineSvg";
 import Section from "../../components/Section";
 import type { DbCustomer } from "../../shared/db/DbCustomer";
+import { 假发类型 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type {
-  假发类型,
   制品规格书,
   染色档位,
 } from "../../shared/db/Db沐茵丝假发成品稿";
@@ -300,21 +300,14 @@ function FileDraftEditSections({
                   ...prev,
                   假发类型: next,
                   制品规格书:
-                    next !== "间色" && next !== "T色"
+                    next !== 假发类型.间色
                       ? {
                           ...prev.制品规格书,
                           机器规格清单: prev.制品规格书.机器规格清单.map(
                             ({ DML比值: _omit, ...rest }) => rest,
                           ),
                         }
-                      : next === "T色"
-                        ? {
-                            ...prev.制品规格书,
-                            机器规格清单: prev.制品规格书.机器规格清单.map(
-                              ({ DML比值: _omit, ...rest }) => rest,
-                            ),
-                          }
-                        : prev.制品规格书,
+                      : prev.制品规格书,
                 }));
               }}
             >
