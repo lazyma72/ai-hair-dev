@@ -1,13 +1,9 @@
-import { BaseRequest, BaseResponse, BaseConf } from "../../base";
+import { BaseConf, BaseRequest, BaseResponse } from "../../base"
 
 export interface ReqDelete extends BaseRequest {
-    
+  id: string
 }
 
-export interface ResDelete extends BaseResponse {
-    
-}
+export interface ResDelete extends BaseResponse {}
 
-export const conf: BaseConf = {
-    
-}
+export const conf: BaseConf = {}
