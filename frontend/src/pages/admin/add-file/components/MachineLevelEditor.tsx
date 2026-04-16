@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type {
   制品规格书,
   裁断重量项,
@@ -16,7 +17,6 @@ import {
   QuarterFractionInput,
   TextInput,
 } from "./ui";
-import { useEffect } from "react";
 
 type 机器档位 = 制品规格书["机器规格清单"][number];
 type DMLKey = "D" | "M" | "L";
@@ -34,6 +34,21 @@ function getDMLMode(dml?: 机器档位["DML比值"]): DMLMode {
   if (dml?.M != null && dml?.L != null) return "D:M:L";
   if (dml?.L != null) return "D:L";
   return "D:M";
+}
+
+/** T色固定比值：D:M=4:6, D:M:L=3:3:4, D:L=4:6 */
+function getT色DML比值(hasM: boolean, hasL: boolean): 机器档位["DML比值"] | undefined {
+  if (hasM && hasL) return { D: 3, M: 3, L: 4 };
+  if (hasM) return { D: 4, M: 6 };
+  if (hasL) return { D: 4, L: 6 };
+  return undefined;
+}
+
+function getT色HasM(dml?: 机器档位["DML比值"]): boolean {
+  return dml?.M != null;
+}
+function getT色HasL(dml?: 机器档位["DML比值"]): boolean {
+  return dml?.L != null;
 }
 
 function fmtDML值(v: number | undefined): string {
@@ -66,7 +81,12 @@ function getMachineActiveWeightKeys(
         : ["D", "M", "L"];
 
   if (type === 假发类型.间色) return dmlKeys;
-  if (String(type) === "单T色") return ["D", "L"];
+  if (type === 假发类型.T色) {
+    const keys: DMLKey[] = ["D"];
+    if (getT色HasM(row.DML比值)) keys.push("M");
+    if (getT色HasL(row.DML比值)) keys.push("L");
+    return keys;
+  }
   if (type === 假发类型.上下分) {
     const keys: DMLKey[] = ["D"];
     if (row.双针.尺数.M != null) keys.push("M");
@@ -76,15 +96,20 @@ function getMachineActiveWeightKeys(
   return ["D"];
 }
 
+type T色重量行Map = Partial<Record<DMLKey, number>>;
+
 function shouldStoreMachineWeight(
   row: 机器档位,
   type: 假发类型,
   rowIndex: number,
   totalRows: number,
   key: DMLKey,
+  t色重量行: T色重量行Map = {},
 ): boolean {
-  if (String(type) === "单T色") {
-    return totalRows === 1 ? key === "D" || key === "L" : key === (rowIndex % 2 === 0 ? "D" : "L");
+  if (type === 假发类型.T色) {
+    const targetRow = t色重量行[key] ?? 0;
+    if (rowIndex !== targetRow) return false;
+    return getMachineActiveWeightKeys(row, type).includes(key);
   }
 
   return getMachineActiveWeightKeys(row, type).includes(key);
@@ -97,6 +122,7 @@ function calcMachineWeight(
   rowIndex: number,
   totalRows: number,
   key: DMLKey,
+  t色重量行: T色重量行Map = {},
 ): number {
   const rowFactor = getRowFactor(rowIndex, totalRows);
   const 密度 = row.双针.密度;
@@ -128,15 +154,21 @@ function calcMachineWeight(
     return ((item.裁断 * 密度 * 对应尺数 * 2.54) / 100 / 2) * rowFactor;
   }
 
-  if (String(type) === "单T色") {
-    if (!shouldStoreMachineWeight(row, type, rowIndex, totalRows, key)) return 0;
-    return ((item.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
+  if (type === 假发类型.T色) {
+    const targetRow = t色重量行[key] ?? 0;
+    if (rowIndex !== targetRow) return 0;
+    const dml = row.DML比值;
+    const base = (item.裁断 * 密度 * 尺数D * 2.54) / 100 / 2;
+    if (!dml) return key === "D" ? base : 0;
+    const totalDML = (dml.D ?? 0) + (dml.M ?? 0) + (dml.L ?? 0);
+    const ratio = key === "D" ? (dml.D ?? 0) : key === "M" ? (dml.M ?? 0) : (dml.L ?? 0);
+    return totalDML > 0 ? base * ratio / totalDML : (key === "D" ? base : 0);
   }
 
   return ((item.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
 }
 
-function syncMachineWeights(row: 机器档位, type: 假发类型): 机器档位 {
+function syncMachineWeights(row: 机器档位, type: 假发类型, t色重量行: T色重量行Map = {}): 机器档位 {
   const totalRows = row.裁断与重量.length;
 
   return {
@@ -145,10 +177,10 @@ function syncMachineWeights(row: 机器档位, type: 假发类型): 机器档位
       const 重量g: { D: number; M?: number; L?: number } = { D: 0 };
 
       (["D", "M", "L"] as const).forEach((key) => {
-        if (!shouldStoreMachineWeight(row, type, rowIndex, totalRows, key)) {
+        if (!shouldStoreMachineWeight(row, type, rowIndex, totalRows, key, t色重量行)) {
           return;
         }
-        重量g[key] = calcMachineWeight(row, type, item, rowIndex, totalRows, key);
+        重量g[key] = calcMachineWeight(row, type, item, rowIndex, totalRows, key, t色重量行);
       });
 
       return {
@@ -245,7 +277,7 @@ export default function MachineLevelEditor({
   假发类型: type,
 }: Props) {
   function p<K extends keyof 机器档位>(key: K, val: 机器档位[K]) {
-    onChange(syncMachineWeights({ ...value, [key]: val }, type));
+    onChange(syncMachineWeights({ ...value, [key]: val }, type, t色重量行));
   }
 
   const dml = value.DML比值;
@@ -253,7 +285,20 @@ export default function MachineLevelEditor({
   const has对裁 = value.整毛.对裁 != null;
   const 是间色 = type === 假发类型.间色;
   const 是上下分 = type === 假发类型.上下分;
-  const 是单T色 = String(type) === "单T色";
+  const 是T色 = type === 假发类型.T色;
+
+  // T色：从数据初始化每个权重键对应的行号
+  const [t色重量行, setT色重量行] = useState<T色重量行Map>(() => {
+    if (type !== 假发类型.T色) return {};
+    const result: T色重量行Map = {};
+    for (const key of ["D", "M", "L"] as const) {
+      const idx = value.裁断与重量.findIndex(
+        (item) => item.重量g?.[key] != null && (item.重量g[key] as number) > 0,
+      );
+      result[key] = idx >= 0 ? idx : 0;
+    }
+    return result;
+  });
 
   const dmlKeys: DMLKey[] =
     dmlMode === "D:M"
@@ -276,18 +321,18 @@ export default function MachineLevelEditor({
     totalRows: number,
     key: DMLKey,
   ): number {
-    return calcMachineWeight(value, type, row, rowIndex, totalRows, key);
+    return calcMachineWeight(value, type, row, rowIndex, totalRows, key, t色重量行);
   }
 
   useEffect(() => {
-    const synced = syncMachineWeights(value, type);
+    const synced = syncMachineWeights(value, type, t色重量行);
     const current = JSON.stringify(value.裁断与重量 ?? []);
     const next = JSON.stringify(synced.裁断与重量 ?? []);
 
     if (current !== next) {
       onChange(synced);
     }
-  }, [onChange, type, value]);
+  }, [onChange, type, value, t色重量行]);
 
   // Debug logging for weight calculation.
   // Default: logs in dev. In production, set `localStorage.debug_weight=1` to enable.
@@ -322,13 +367,6 @@ export default function MachineLevelEditor({
               ? (value.双针.尺数.M ?? 0)
               : (value.双针.尺数.L ?? 0);
 
-        const shouldShowWeight =
-          !是单T色
-            ? true
-            : totalRows === 1
-              ? key === "D" || key === "L"
-              : key === (rowIndex % 2 === 0 ? "D" : "L");
-
         const weight = getWeight(row, rowIndex, totalRows, key);
 
         return {
@@ -338,8 +376,6 @@ export default function MachineLevelEditor({
           裁断: row.裁断,
           密度,
           尺数D,
-          尺数M: value.双针.尺数.M ?? 0,
-          尺数L: value.双针.尺数.L ?? 0,
           对应尺数,
           rowFactor,
           对裁: has对裁,
@@ -349,7 +385,6 @@ export default function MachineLevelEditor({
           totalDML,
           ratioPart,
           base,
-          shouldShowWeight,
           weight,
         };
       });
@@ -364,7 +399,7 @@ export default function MachineLevelEditor({
     type,
     是间色,
     是上下分,
-    是单T色,
+    是T色,
     dml?.D,
     dml?.M,
     dml?.L,
@@ -378,6 +413,7 @@ export default function MachineLevelEditor({
     value.双针.尺数.L,
     value.档位,
     value.裁断与重量,
+    t色重量行,
   ]);
 
   return (
@@ -490,6 +526,41 @@ export default function MachineLevelEditor({
             </div>
           </>
         ) : null}
+
+        {是T色 ? (
+          <>
+            <div className="flex flex-col justify-end pb-2">
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
+                  checked={getT色HasM(dml)}
+                  onChange={(e) => {
+                    const hasM = e.target.checked;
+                    const hasL = getT色HasL(dml);
+                    p("DML比值", getT色DML比值(hasM, hasL));
+                  }}
+                />
+                <span>M重量 (4:6)</span>
+              </label>
+            </div>
+            <div className="flex flex-col justify-end pb-2">
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
+                  checked={getT色HasL(dml)}
+                  onChange={(e) => {
+                    const hasL = e.target.checked;
+                    const hasM = getT色HasM(dml);
+                    p("DML比值", getT色DML比值(hasM, hasL));
+                  }}
+                />
+                <span>L重量 {getT色HasM(dml) ? "(3:3:4)" : "(4:6)"}</span>
+              </label>
+            </div>
+          </>
+        ) : null}
       </div>
 
       {/* 整毛 */}
@@ -534,14 +605,45 @@ export default function MachineLevelEditor({
         <p className="mb-1.5 text-[11px] font-medium text-slate-500">
           裁断与重量
         </p>
-        {是单T色 ? (
-          <p className="mb-1.5 text-[10px] text-slate-400">
-            单T色规则：1 行时同时展示 D/L；多行时按 D → L → D → L 轮询展示重量。
-          </p>
+        {是T色 && value.裁断与重量.length > 1 ? (
+          <div className="mb-2 space-y-1">
+            {(activeWeightKeys as DMLKey[]).map((key) => (
+              <div key={key} className="flex flex-wrap items-center gap-2">
+                <span className="w-16 text-[10px] text-slate-500">{key} 重量在：</span>
+                {value.裁断与重量.map((_, i) => (
+                  <label key={i} className="flex cursor-pointer items-center gap-1 text-xs text-slate-700">
+                    <input
+                      type="radio"
+                      name={`t色重量行-${value.档位}-${key}`}
+                      checked={(t色重量行[key] ?? 0) === i}
+                      onChange={() => {
+                        const next = { ...t色重量行, [key]: i };
+                        setT色重量行(next);
+                        onChange(syncMachineWeights(value, type, next));
+                      }}
+                    />
+                    行 {i + 1}
+                  </label>
+                ))}
+              </div>
+            ))}
+          </div>
         ) : null}
         <裁断重量编辑器
           value={value.裁断与重量}
-          onChange={(v) => p("裁断与重量", v)}
+          onChange={(v) => {
+            const maxIdx = Math.max(0, v.length - 1);
+            const clamped: T色重量行Map = {};
+            let changed = false;
+            for (const key of ["D", "M", "L"] as const) {
+              const cur = t色重量行[key] ?? 0;
+              const next = Math.min(cur, maxIdx);
+              clamped[key] = next;
+              if (next !== cur) changed = true;
+            }
+            if (changed) setT色重量行(clamped);
+            p("裁断与重量", v);
+          }}
           activeKeys={activeWeightKeys}
           getWeight={getWeight}
         />

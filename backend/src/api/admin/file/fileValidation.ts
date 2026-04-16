@@ -139,12 +139,12 @@ const FileSchema = z
       }
     }
 
-    if (file.假发类型 !== 假发类型.间色) {
+    if (file.假发类型 !== 假发类型.间色 && file.假发类型 !== 假发类型.T色) {
       const hasDML = file.制品规格书.机器规格清单.some(row => row.DML比值 != null)
       if (hasDML) {
         ctx.addIssue({
           code: "custom",
-          message: "非间色假发的机器规格清单中不允许设置 DML比值",
+          message: "非间色/T色假发的机器规格清单中不允许设置 DML比值",
         })
       }
     }
@@ -161,7 +161,7 @@ export const ErrorCodeByMessage: Record<string, string> = {
   "染色尺寸必须是 0.25 的倍数": "INVALID_DYE_SIZE",
   "长尺寸必须是 0.25 的倍数": "INVALID_DYE_SIZE",
   "短尺寸必须是 0.25 的倍数": "INVALID_DYE_SIZE",
-  "非间色假发的机器规格清单中不允许设置 DML比值": "INVALID_DML",
+  "非间色/T色假发的机器规格清单中不允许设置 DML比值": "INVALID_DML",
   裁断重量项最多3个: "INVALID_CUT_WEIGHT_COUNT",
   DML比值最多1位小数: "INVALID_DML",
 }

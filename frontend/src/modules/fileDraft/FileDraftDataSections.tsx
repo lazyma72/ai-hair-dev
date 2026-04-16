@@ -300,18 +300,25 @@ function FileDraftEditSections({
                   ...prev,
                   假发类型: next,
                   制品规格书:
-                    next !== "间色"
+                    next !== "间色" && next !== "T色"
                       ? {
                           ...prev.制品规格书,
                           机器规格清单: prev.制品规格书.机器规格清单.map(
                             ({ DML比值: _omit, ...rest }) => rest,
                           ),
                         }
-                      : prev.制品规格书,
+                      : next === "T色"
+                        ? {
+                            ...prev.制品规格书,
+                            机器规格清单: prev.制品规格书.机器规格清单.map(
+                              ({ DML比值: _omit, ...rest }) => rest,
+                            ),
+                          }
+                        : prev.制品规格书,
                 }));
               }}
             >
-              {["间色", "纯色", "上下分", "单T色"].map((t) => (
+              {["间色", "纯色", "上下分", "T色"].map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
