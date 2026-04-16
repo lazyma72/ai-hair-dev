@@ -16,6 +16,7 @@ import { ReqUpdate as ReqUpdate_1, ResUpdate as ResUpdate_1 } from './admin/rati
 import { ReqAdd as ReqAdd_3, ResAdd as ResAdd_3 } from './admin/user/PtlAdd';
 import { ReqDelete as ReqDelete_1, ResDelete as ResDelete_1 } from './admin/user/PtlDelete';
 import { ReqGetList as ReqGetList_4, ResGetList as ResGetList_4 } from './admin/user/PtlGetList';
+import { ReqUpload, ResUpload } from './PtlUpload';
 
 export interface ServiceType {
     api: {
@@ -86,6 +87,10 @@ export interface ServiceType {
         "admin/user/GetList": {
             req: ReqGetList_4,
             res: ResGetList_4
+        },
+        "Upload": {
+            req: ReqUpload,
+            res: ResUpload
         }
     },
     msg: {
@@ -211,6 +216,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "name": "admin/user/GetList",
             "type": "api",
             "conf": {}
+        },
+        {
+            "id": 21,
+            "name": "Upload",
+            "type": "api",
+            "conf": {
+                "allowNoLogin": false
+            }
         }
     ],
     "types": {
@@ -1878,6 +1891,26 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "id": 1,
                     "name": "手织图",
                     "type": {
+                        "type": "Reference",
+                        "target": "../models/手织图/手织图"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "注意事项",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "../models/手织图/手织图": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "底图",
+                    "type": {
                         "type": "Interface",
                         "properties": [
                             {
@@ -1886,15 +1919,194 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "type": {
                                     "type": "String"
                                 }
+                            },
+                            {
+                                "id": 1,
+                                "name": "区域名",
+                                "type": {
+                                    "type": "Array",
+                                    "elementType": {
+                                        "type": "String"
+                                    }
+                                }
+                            },
+                            {
+                                "id": 2,
+                                "name": "区域线条",
+                                "type": {
+                                    "type": "Array",
+                                    "elementType": {
+                                        "type": "Interface",
+                                        "properties": [
+                                            {
+                                                "id": 0,
+                                                "name": "区域名",
+                                                "type": {
+                                                    "type": "String"
+                                                }
+                                            },
+                                            {
+                                                "id": 1,
+                                                "name": "lineNodeIds",
+                                                "type": {
+                                                    "type": "Array",
+                                                    "elementType": {
+                                                        "type": "String"
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "id": 2,
+                                                "name": "lineLength",
+                                                "type": {
+                                                    "type": "Number"
+                                                }
+                                            },
+                                            {
+                                                "id": 3,
+                                                "name": "区域内位置占比",
+                                                "type": {
+                                                    "type": "Number"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "id": 3,
+                                "name": "档位标注",
+                                "type": {
+                                    "type": "Array",
+                                    "elementType": {
+                                        "type": "Interface",
+                                        "properties": [
+                                            {
+                                                "id": 0,
+                                                "name": "区域名",
+                                                "type": {
+                                                    "type": "String"
+                                                }
+                                            },
+                                            {
+                                                "id": 1,
+                                                "name": "lineNodeIds",
+                                                "type": {
+                                                    "type": "Array",
+                                                    "elementType": {
+                                                        "type": "String"
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "id": 2,
+                                                "name": "textNodeIds",
+                                                "type": {
+                                                    "type": "Array",
+                                                    "elementType": {
+                                                        "type": "String"
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "id": 4,
+                                "name": "文本节点",
+                                "type": {
+                                    "type": "Interface",
+                                    "indexSignature": {
+                                        "keyType": "String",
+                                        "type": {
+                                            "type": "Interface",
+                                            "properties": [
+                                                {
+                                                    "id": 0,
+                                                    "name": "textNodeId",
+                                                    "type": {
+                                                        "type": "String"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1,
+                                                    "name": "text",
+                                                    "type": {
+                                                        "type": "String"
+                                                    },
+                                                    "optional": true
+                                                },
+                                                {
+                                                    "id": 2,
+                                                    "name": "created",
+                                                    "type": {
+                                                        "type": "Boolean"
+                                                    },
+                                                    "optional": true
+                                                },
+                                                {
+                                                    "id": 3,
+                                                    "name": "fontStyle",
+                                                    "type": {
+                                                        "type": "Interface",
+                                                        "indexSignature": {
+                                                            "keyType": "String",
+                                                            "type": {
+                                                                "type": "Any"
+                                                            }
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
                             }
                         ]
                     }
                 },
                 {
-                    "id": 2,
-                    "name": "注意事项",
+                    "id": 1,
+                    "name": "自定义数据",
                     "type": {
-                        "type": "String"
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "DML标注",
+                                "type": {
+                                    "type": "Array",
+                                    "elementType": {
+                                        "type": "Interface",
+                                        "properties": [
+                                            {
+                                                "id": 0,
+                                                "name": "lineNodeId",
+                                                "type": {
+                                                    "type": "String"
+                                                }
+                                            },
+                                            {
+                                                "id": 1,
+                                                "name": "标注DML",
+                                                "type": {
+                                                    "type": "String"
+                                                }
+                                            },
+                                            {
+                                                "id": 2,
+                                                "name": "textNodeId",
+                                                "type": {
+                                                    "type": "String"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
                     }
                 }
             ]
@@ -3768,6 +3980,63 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 5,
                     "name": "updateTime",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "PtlUpload/ReqUpload": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "fileData",
+                    "type": {
+                        "type": "Buffer",
+                        "arrayType": "Uint8Array"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "fileName",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "dirName",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "PtlUpload/ResUpload": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "path",
                     "type": {
                         "type": "String"
                     }

@@ -34,9 +34,7 @@ export interface 沐茵丝假发成品稿 {
 }
 
 export interface 手织指示单 {
-  手织图: {
-    svg: string // 带
-  }
+  手织图: 手织图
   注意事项: string // 例如: "手织 :1.手织后帽子不能变形。"
 }
 

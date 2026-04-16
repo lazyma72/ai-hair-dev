@@ -35,6 +35,7 @@ type Props = {
   data: 高针图 | null;
   emptyText?: string;
   className?: string;
+  hideDoubleToggle?: boolean;
 };
 
 function parseLevelNo(levelLabel: string, fallbackNo: number): number {
@@ -222,6 +223,7 @@ export default function HighNeedlePreviewViewer({
   data,
   emptyText = "暂无高针图",
   className = "",
+  hideDoubleToggle = false,
 }: Props) {
   const [toggles, setToggles] = useState<PreviewToggles>({
     level: true,
@@ -403,16 +405,18 @@ export default function HighNeedlePreviewViewer({
             />
             档位
           </label>
-          <label className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              checked={toggles.double}
-              onChange={(e) =>
-                setToggles((v) => ({ ...v, double: e.target.checked }))
-              }
-            />
-            单双
-          </label>
+          {hideDoubleToggle ? null : (
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={toggles.double}
+                onChange={(e) =>
+                  setToggles((v) => ({ ...v, double: e.target.checked }))
+                }
+              />
+              单双
+            </label>
+          )}
           <label className="flex items-center gap-1">
             <input
               type="checkbox"
