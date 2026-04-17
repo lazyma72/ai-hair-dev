@@ -1,5 +1,8 @@
 import * as React from "react";
 import { Select } from "antd";
+import { message } from "antd";
+import { callApi } from "../../api/callApi";
+import { getApiBase } from "../../api/apiBase";
 import InlineSvg from "../../components/InlineSvg";
 import Section from "../../components/Section";
 import type { DbCustomer } from "../../shared/db/DbCustomer";
@@ -79,6 +82,16 @@ function EditableRow({
       </div>
     </div>
   );
+}
+
+function resolveImageUrl(src: string): string {
+  if (!src) return "";
+  if (/^https?:\/\//i.test(src)) return src;
+  try {
+    return new URL(src, getApiBase()).toString();
+  } catch {
+    return src;
+  }
 }
 
 function DyeLevelReadonlyCard({
@@ -244,6 +257,21 @@ function FileDraftReadonlySections({
           <div className="px-4 py-3 text-xs text-slate-400">暂无染色档位</div>
         )}
       </Section>
+
+      {value.头型图片.length > 0 ? (
+        <Section title="染色图片">
+          <div className="flex flex-wrap gap-3 p-4">
+            {value.头型图片.map((src, index) => (
+              <img
+                key={`${src}-${index}`}
+                src={resolveImageUrl(src)}
+                alt={`染色图片 ${index + 1}`}
+                className="h-40 rounded object-contain ring-1 ring-slate-200"
+              />
+            ))}
+          </div>
+        </Section>
+      ) : null}
     </div>
   );
 }
@@ -274,6 +302,43 @@ function FileDraftEditSections({
   const hatSpec = value.制品规格书.制帽 as unknown as { 编号: string; 唛头: string };
   const currentHatMaking =
     hatMakingList.find((item) => item._id === hatSpec.编号) ?? null;
+  const [uploadingImage, setUploadingImage] = React.useState(false);
+
+  async function handleUploadHeadImage(file: File) {
+    setUploadingImage(true);
+    try {
+      const fileData = new Uint8Array(await file.arrayBuffer());
+      const res = (await callApi("Upload" as never, {
+        fileData,
+        fileName: file.name,
+        dirName: "hair-draft",
+      } as never)) as
+        | { isSucc: true; res: { path: string } }
+        | { isSucc: false; err: { message: string } };
+
+      if (!res.isSucc) {
+        throw new Error(res.err.message || "上传失败");
+      }
+
+      onChange((prev) => ({
+        ...prev,
+        头型图片: [...prev.头型图片, res.res.path],
+      }));
+      message.success("图片上传成功");
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "图片上传失败";
+      message.error(msg);
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  function removeHeadImage(index: number) {
+    onChange((prev) => ({
+      ...prev,
+      头型图片: prev.头型图片.filter((_, currentIndex) => currentIndex !== index),
+    }));
+  }
 
   return (
     <div className="space-y-5">
@@ -488,6 +553,64 @@ function FileDraftEditSections({
               />
             </EditableRow>
           ))}
+        </div>
+      </Section>
+
+      <Section title="染色图片">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex cursor-pointer items-center rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
+              {uploadingImage ? "上传中…" : "上传图片"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingImage}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  void handleUploadHeadImage(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            <div className="text-xs text-slate-500">
+              支持 `jpg/png/webp/svg/pdf/json` 中的图片格式，上传后会加入制品规格书图片区。
+            </div>
+          </div>
+
+          {value.头型图片.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {value.头型图片.map((src, index) => (
+                <div
+                  key={`${src}-${index}`}
+                  className="overflow-hidden rounded-lg bg-white ring-1 ring-slate-200"
+                >
+                  <img
+                    src={resolveImageUrl(src)}
+                    alt={`染色图片 ${index + 1}`}
+                    className="h-40 w-32 bg-slate-50 object-contain"
+                  />
+                  <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-2 py-2">
+                    <span className="truncate text-xs text-slate-500">
+                      图片 {index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs text-rose-500 hover:text-rose-600"
+                      onClick={() => removeHeadImage(index)}
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded border border-dashed border-slate-200 px-4 py-6 text-center text-xs text-slate-400">
+              暂未上传染色图片
+            </div>
+          )}
         </div>
       </Section>
 
