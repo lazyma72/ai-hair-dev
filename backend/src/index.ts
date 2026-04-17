@@ -2,9 +2,9 @@ import dotenv from "dotenv"
 import "k8w-extend-native"
 import path from "path"
 import { HttpServer } from "tsrpc"
+import { useUserToken } from "./flows/useUserToken"
 import { Global } from "./models/Global"
 import { serviceProto } from "./shared/protocols/serviceProto"
-import { backConfig } from "./models/backConfig"
 
 async function main() {
   const server = new HttpServer(serviceProto, {
@@ -13,7 +13,6 @@ async function main() {
     logLevel: "debug",
     logReqBody: false,
     logResBody: false,
-    // ...(backConfig.logInOneLine ? { logger: getOnelineLogger(true) } : undefined),
     cors: "*",
     returnInnerError: true,
     apiTimeout: 100000,
@@ -22,12 +21,9 @@ async function main() {
 
   await Global.init()
 
-  await server.start()
+  useUserToken(server)
 
-  // setInterval(() => {
-  //   let used = process.memoryUsage().heapUsed / 1024 / 1024;
-  //   logger.log(`内存: ${Math.round(used * 100) / 100} MB`);
-  // }, 2000);
+  await server.start()
 }
 
 // 启动入口

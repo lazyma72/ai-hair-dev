@@ -9,6 +9,4 @@ export interface ResGetDetail extends BaseResponse {
   制帽: Db制帽
 }
 
-export const conf: BaseConf = {
-  allowNoLogin: true,
-}
+export const conf: BaseConf = {}

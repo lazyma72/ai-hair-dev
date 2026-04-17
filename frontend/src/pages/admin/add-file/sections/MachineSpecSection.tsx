@@ -54,26 +54,37 @@ export default function MachineSpecSection({
             <div className="mb-3 text-xs font-medium text-slate-500">
               编辑明细
             </div>
-          {list.map((档位, i) => (
-            <div key={档位.档位}>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500">
-                  档位 {i + 1}
-                </span>
-                <DelBtn onClick={() => onChange(list.filter((_, j) => j !== i))} />
+            {list.map((档位, i) => (
+              <div key={档位.档位}>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-500">
+                    档位 {i + 1}
+                  </span>
+                  <DelBtn
+                    onClick={() =>
+                      onChange(
+                        list
+                          .filter((_, j) => j !== i)
+                          .map((item, idx) => ({
+                            ...item,
+                            档位: String(idx + 1),
+                          })),
+                      )
+                    }
+                  />
+                </div>
+                <MachineLevelEditor
+                  value={档位}
+                  假发类型={假发类型}
+                  onChange={(v) => {
+                    clearError?.();
+                    const next = [...list];
+                    next[i] = v;
+                    onChange(next);
+                  }}
+                />
               </div>
-              <MachineLevelEditor
-                value={档位}
-                假发类型={假发类型}
-                onChange={(v) => {
-                  clearError?.();
-                  const next = [...list];
-                  next[i] = v;
-                  onChange(next);
-                }}
-              />
-            </div>
-          ))}
+            ))}
           </div>
         </div>
       )}

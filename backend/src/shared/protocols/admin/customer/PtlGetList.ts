@@ -9,6 +9,4 @@ export interface ResGetList extends BaseResponse {
   list: DbCustomer[]
 }
 
-export const conf: BaseConf = {
-  allowNoLogin: true,
-}
+export const conf: BaseConf = {}

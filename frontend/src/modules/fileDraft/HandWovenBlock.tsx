@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import DataTable, { type Column } from "../../components/DataTable";
 import Row from "../../components/Row";
 import Section from "../../components/Section";
+import { ExcelStyleHandWovenImageTable } from "./ExcelStyleSpecTables";
 import HandWovenImportStep from "../../pages/design/create/components/HandWovenImportStep";
 import type { 手织指示单 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { 手织指示单Frontend } from "../../shared/frontend/model/model";
@@ -16,18 +16,6 @@ type Props = {
   previewData?: 手织指示单Frontend | null;
   hideUploader?: boolean;
 };
-
-const 规格列: Column<手织指示单Frontend["人工规格清单_手织图"][number]>[] = [
-  { key: "档位", title: "档位", render: (r) => r.档位 },
-  { key: "整长", title: "整长", render: (r) => r.整长 || "—" },
-  { key: "毛长", title: "毛长", render: (r) => r.毛长 || "—" },
-  {
-    key: "重量",
-    title: "重量 D/M/L",
-    render: (r) =>
-      `D:${r.重量.D}${r.重量.M != null ? " M:" + r.重量.M : ""}${r.重量.L != null ? " L:" + r.重量.L : ""}`,
-  },
-];
 
 export default function HandWovenBlock({
   mode,
@@ -68,20 +56,18 @@ export default function HandWovenBlock({
 
         {previewData ? (
           <Section title="人工规格清单（手织图版）">
-            <div className="overflow-x-auto">
-              <DataTable
-                columns={规格列}
-                rows={previewData.人工规格清单_手织图}
-                rowKey={(r) => r.档位}
-              />
-            </div>
+            <ExcelStyleHandWovenImageTable
+              rows={previewData.人工规格清单_手织图}
+            />
           </Section>
         ) : null}
 
         <Section title="手织指示单">
           <div className="space-y-4 p-4">
             <div>
-              <div className="mb-1 text-xs font-medium text-slate-700">注意事项</div>
+              <div className="mb-1 text-xs font-medium text-slate-700">
+                注意事项
+              </div>
               <div className="whitespace-pre-line rounded border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                 {value.注意事项 || "—"}
               </div>
@@ -89,7 +75,9 @@ export default function HandWovenBlock({
 
             {preview高针 ? (
               <div>
-                <div className="mb-1 text-xs font-medium text-slate-700">手织图</div>
+                <div className="mb-1 text-xs font-medium text-slate-700">
+                  手织图
+                </div>
                 <div className="overflow-hidden rounded border border-slate-100 bg-white">
                   <HighNeedlePreviewViewer
                     data={preview高针}
@@ -110,13 +98,17 @@ export default function HandWovenBlock({
       <Section title="手织指示单">
         <div className="space-y-4 p-4">
           <div>
-            <div className="mb-1 text-xs font-medium text-slate-700">注意事项</div>
+            <div className="mb-1 text-xs font-medium text-slate-700">
+              注意事项
+            </div>
             <textarea
               rows={3}
               className={inputCls}
               placeholder="手织 :1.手织后帽子不能变形。"
               value={value.注意事项}
-              onChange={(e) => onChange?.({ ...value, 注意事项: e.target.value })}
+              onChange={(e) =>
+                onChange?.({ ...value, 注意事项: e.target.value })
+              }
             />
           </div>
 
@@ -180,7 +172,7 @@ export default function HandWovenBlock({
                 value={value.手织图}
                 onChange={(v) => onChange?.({ ...value, 手织图: v })}
                 showJsonActions
-                showUploader={showUploader}
+                showUploader={false}
                 fileName={fileName}
               />
             </div>

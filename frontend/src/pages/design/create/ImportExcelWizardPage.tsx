@@ -1,27 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageShell from "../../../components/PageShell";
-import type { Db胶丝比例 } from "../../../shared/db/Db胶丝比例";
 import type { 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import { 假发类型 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import { emptyFile } from "../../admin/add-file/defaults";
-import 规格书View from "../../file/sections/规格书View";
-import 手织指示单View from "../../file/sections/手织指示单View";
-import 高针指示单View from "../../file/sections/高针指示单View";
-import { to制品规格书Frontend } from "../../../shared/frontend/converters/to制品规格书Frontend";
+import { createEmpty手织图 } from "../../../modules/highNeedleAnnotator/types";
+import { callApi } from "../../../api/callApi";
+import FileEditorPage from "../../../modules/fileDraft/FileEditorPage";
+import { toDbPayload } from "../../../shared/fileDraft/adapters/toDbPayload";
+import DocumentTabs from "../../../modules/fileDraft/DocumentTabs";
+import FileDraftDataSections from "../../../modules/fileDraft/FileDraftDataSections";
 import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend";
 import { to高针指示单Frontend } from "../../../shared/frontend/converters/to高针指示单Frontend";
-import { createEmpty手织图 } from "../../../modules/highNeedleAnnotator/types";
+import 高针指示单View from "../../file/sections/高针指示单View";
+import 手织指示单View from "../../file/sections/手织指示单View";
 import HighNeedleImportStep from "./components/HighNeedleImportStep";
 
 const STEPS = ["选择文件", "导入高针图", "导入手织图", "预览"] as const;
 const PREVIEW_TABS = [
-  { key: "规格书", label: "制品规格书" },
+  { key: "制品规格书", label: "制品规格书" },
   { key: "高针指示单", label: "高针指示单" },
   { key: "手织指示单", label: "手织指示单" },
 ] as const;
 type PreviewTabKey = (typeof PREVIEW_TABS)[number]["key"];
-type StepIndex = 0 | 1 | 2 | 3;
 
 type UploadCardProps = {
   title: string;
@@ -29,34 +30,6 @@ type UploadCardProps = {
   fileName: string;
   hint: string;
   onFileSelect: (file: File) => void;
-};
-
-type HatMakingOption = {
-  _id: string;
-  帽围: number;
-  帽深: number;
-  前后: number;
-};
-
-const DEMO_RATIO_LIST: Db胶丝比例[] = [
-  {
-    _id: {
-      颜色编号: "TT6/1062",
-      发丝种类: "HL+FU",
-    },
-    线色: "8#",
-    D: [
-      { 发丝种类: "HL", 色号: "8#", 比例: 50 },
-      { 发丝种类: "FU", 色号: "8#", 比例: 50 },
-    ],
-  },
-];
-
-const DEMO_HAT_MAKING: HatMakingOption = {
-  _id: "P-025",
-  帽围: 58,
-  帽深: 36,
-  前后: 37,
 };
 
 function Stepper({ step }: { step: number }) {
@@ -88,23 +61,19 @@ function UploadCard({
   onFileSelect,
 }: UploadCardProps) {
   return (
-    <label className="block cursor-pointer rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 transition hover:border-slate-400 hover:bg-white">
-      <div className="text-sm font-semibold text-slate-900">{title}</div>
-      <div className="mt-1 text-xs text-slate-500">{hint}</div>
-
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <span className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white">
-          点击上传文件
+    <label className="block cursor-pointer rounded-2xl border border-dashed border-slate-300 bg-white/80 px-6 py-6 transition hover:border-slate-400 hover:bg-white">
+      <div className="flex flex-col items-center justify-center gap-3 text-center">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">{title}</div>
+          <div className="mt-1 text-xs text-slate-500">{hint}</div>
+        </div>
+        <span className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+          {fileName ? "重新选择文件" : "选择文件"}
         </span>
-        <span className="text-[11px] text-slate-400">
-          {fileName ? "已选择" : "未选择"}
+        <span className="text-xs text-slate-500">
+          {fileName ? `当前文件：${fileName}` : "暂未选择文件"}
         </span>
       </div>
-
-      <div className="mt-3 truncate rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
-        {fileName || "请选择文件"}
-      </div>
-
       <input
         type="file"
         accept={accept}
@@ -213,15 +182,20 @@ function buildDemoFile(params: {
 
 export default function ImportExcelWizardPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<StepIndex>(0);
-  const [previewTab, setPreviewTab] = useState<PreviewTabKey>("规格书");
+  const [step, setStep] = useState(0);
+  const [previewTab, setPreviewTab] = useState<PreviewTabKey>("制品规格书");
   const [excelFileName, setExcelFileName] = useState<string>("");
-  const [highNeedleFileName, setHighNeedleFileName] = useState<string | null>(null);
+  const [highNeedleFileName, setHighNeedleFileName] = useState<string | null>(
+    null,
+  );
   const [handWovenFileName, setHandWovenFileName] = useState<string>("");
   const [highNeedle图, setHighNeedle图] = useState(
     () => emptyFile().高针指示单.高针图,
   );
   const [handWovenSvg, setHandWovenSvg] = useState<string>("");
+  const [draft, setDraft] = useState<沐茵丝假发成品稿 | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const canGoNext =
     step === 0
@@ -231,6 +205,7 @@ export default function ImportExcelWizardPage() {
         : step === 2
           ? Boolean(handWovenSvg.trim())
           : true;
+  const isPreviewStep = step >= STEPS.length - 1;
   const demoFile = useMemo(
     () =>
       buildDemoFile({
@@ -240,21 +215,57 @@ export default function ImportExcelWizardPage() {
       }),
     [excelFileName, handWovenSvg, highNeedle图],
   );
-  const 规格书数据 = useMemo(
-    () =>
-      (to制品规格书Frontend as unknown as (
-        稿: 沐茵丝假发成品稿,
-        胶丝比例: Db胶丝比例,
-        制帽: HatMakingOption,
-      ) => ReturnType<typeof to制品规格书Frontend>)(
-        demoFile,
-        DEMO_RATIO_LIST[0],
-        DEMO_HAT_MAKING,
-      ),
-    [demoFile],
-  );
-  const 高针数据 = useMemo(() => to高针指示单Frontend(demoFile), [demoFile]);
-  const 手织数据 = useMemo(() => to手织指示单Frontend(demoFile), [demoFile]);
+
+  useEffect(() => {
+    if (!isPreviewStep) return;
+    if (draft) return;
+    setDraft(JSON.parse(JSON.stringify(demoFile)) as 沐茵丝假发成品稿);
+  }, [demoFile, draft, isPreviewStep]);
+
+  if (isPreviewStep && draft && editing) {
+    return (
+      <FileEditorPage
+        mode="add"
+        title={`编辑导入稿（未保存）· ${draft._id}`}
+        initialValue={draft}
+        submitLabel="保存成品稿"
+        submittingLabel="保存中…"
+        onBack={() => setEditing(false)}
+        extraActions={
+          <>
+            <button
+              type="button"
+              className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() => setEditing(false)}
+            >
+              返回预览
+            </button>
+            <button
+              type="button"
+              className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() => {
+                setEditing(false);
+                setStep(2);
+              }}
+            >
+              上一步
+            </button>
+          </>
+        }
+        onDraftChange={setDraft}
+        onSubmit={async (form) => {
+          const r = await callApi("admin/file/Add", {
+            file: toDbPayload(form),
+          });
+          if (!r.isSucc) {
+            throw new Error(r.err.message);
+          }
+          return { id: r.res.id };
+        }}
+        onSubmitted={(id) => navigate(`/file/${id}`, { replace: true })}
+      />
+    );
+  }
 
   return (
     <PageShell
@@ -267,17 +278,51 @@ export default function ImportExcelWizardPage() {
             <button
               type="button"
               className="rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200"
-              onClick={() => setStep((s) => ((s - 1) as StepIndex))}
+              onClick={() => setStep((s) => Math.max(0, s - 1))}
             >
               上一步
             </button>
           ) : null}
-          {step < 3 ? (
+          {isPreviewStep && draft ? (
+            <>
+              <button
+                type="button"
+                className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={() => setEditing(true)}
+              >
+                编辑
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                onClick={async () => {
+                  if (!draft) return;
+                  if (saving) return;
+                  setSaving(true);
+                  try {
+                    const r = await callApi("admin/file/Add", {
+                      file: toDbPayload(draft),
+                    });
+                    if (!r.isSucc) {
+                      throw new Error(r.err.message);
+                    }
+                    navigate(`/file/${r.res.id}`, { replace: true });
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                {saving ? "保存中…" : "保存"}
+              </button>
+            </>
+          ) : null}
+          {!isPreviewStep ? (
             <button
               type="button"
               disabled={!canGoNext}
               className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => setStep((s) => ((s + 1) as StepIndex))}
+              onClick={() => setStep((s) => Math.min(3, s + 1))}
             >
               下一步
             </button>
@@ -342,7 +387,8 @@ export default function ImportExcelWizardPage() {
               onFileSelect={(file) => {
                 setHandWovenFileName(file.name);
                 const reader = new FileReader();
-                reader.onload = () => setHandWovenSvg(String(reader.result ?? ""));
+                reader.onload = () =>
+                  setHandWovenSvg(String(reader.result ?? ""));
                 reader.readAsText(file);
               }}
             />
@@ -350,44 +396,25 @@ export default function ImportExcelWizardPage() {
         </div>
       ) : null}
 
-      {step === 3 ? (
-        <div className="space-y-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-slate-900">
-                  预览设计稿（Demo 假数据）
-                </div>
-                <div className="mt-1 text-xs text-slate-500">
-                  Excel 仅使用文件名生成样品编号；规格书/重量/工艺说明等内容均为写死示例数据。
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {PREVIEW_TABS.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={
-                      key === previewTab
-                        ? "rounded bg-slate-900 px-3 py-1.5 text-sm text-white"
-                        : "rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200"
-                    }
-                    onClick={() => setPreviewTab(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+      {isPreviewStep && draft ? (
+        <div className="space-y-4">
+          <DocumentTabs
+            items={PREVIEW_TABS}
+            activeKey={previewTab}
+            onChange={setPreviewTab}
+          />
 
-          {previewTab === "规格书" ? <规格书View data={规格书数据} /> : null}
-          {previewTab === "高针指示单" ? <高针指示单View data={高针数据} /> : null}
-          {previewTab === "手织指示单" ? <手织指示单View data={手织数据} /> : null}
+          {previewTab === "制品规格书" ? (
+            <FileDraftDataSections mode="readonly" value={draft} />
+          ) : null}
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-            当前仅为导入流程 Demo：可用于验收“选择文件 → 导入高针图 → 导入手织图 → 预览”的交互。正式落库逻辑仍建议走“手动上传设计稿”。
-          </div>
+          {previewTab === "高针指示单" ? (
+            <高针指示单View data={to高针指示单Frontend(draft)} />
+          ) : null}
+
+          {previewTab === "手织指示单" ? (
+            <手织指示单View data={to手织指示单Frontend(draft)} />
+          ) : null}
         </div>
       ) : null}
     </PageShell>

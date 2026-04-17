@@ -57,7 +57,6 @@ export interface 制品规格书Frontend {
     帽深: number
     前后: number
     唛头: string
-    编号: string
   }
   /* 通过D,M,L的所有档位重量累加得到 */
   当前重量: number

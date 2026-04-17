@@ -1,5 +1,6 @@
 import {
   BrowserRouter,
+  HashRouter,
   Navigate,
   Outlet,
   Route,
@@ -21,6 +22,7 @@ import ManualCreateWizardPage from "./pages/design/create/ManualCreateWizardPage
 import ImportExcelWizardPage from "./pages/design/create/ImportExcelWizardPage";
 import FileDetailPage from "./pages/file/FileDetailPage";
 import FileListPage from "./pages/file/FileListPage";
+import PrintSpecPage from "./pages/file/PrintSpecPage";
 import HatMakingDetailPage from "./pages/hatMaking/HatMakingDetailPage";
 import HatMakingListPage from "./pages/hatMaking/HatMakingListPage";
 import WelcomePage from "./pages/home/WelcomePage";
@@ -29,10 +31,7 @@ import RatioDetailPage from "./pages/ratio/RatioDetailPage";
 import RatioListPage from "./pages/ratio/RatioListPage";
 import TestPage from "./pages/test/TestPage";
 import UserManagementPage from "./pages/users/UserManagementPage";
-
-function isLoggedIn(): boolean {
-  return Boolean(localStorage.getItem("demo_login_account"));
-}
+import { isLoggedIn } from "./auth";
 
 function RequireLogin() {
   const location = useLocation();
@@ -56,13 +55,11 @@ function FileDetailRedirect() {
 }
 
 function RatioDetailRedirect() {
-  const { id } = useParams<{ id: string }>();
-  return <Navigate to={`/ratio/${id}`} replace />;
+  return <Navigate to="/ratio" replace />;
 }
 
 function AdminRatioDetailRedirect() {
-  const { id } = useParams<{ id: string }>();
-  return <Navigate to={`/ratio/${id}`} replace />;
+  return <Navigate to="/ratio" replace />;
 }
 
 function HatMakingDetailRedirect() {
@@ -71,14 +68,18 @@ function HatMakingDetailRedirect() {
 }
 
 function App() {
-  const baseUrl =
-    ((import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/").replace(
-      /\/$/,
-      "",
-    ) || "/";
+  const env = (
+    import.meta as {
+      env?: { BASE_URL?: string; MODE?: string; VITE_ROUTER_MODE?: string };
+    }
+  ).env;
+  const baseUrl = (env?.BASE_URL ?? "/").replace(/\/$/, "") || "/";
+  const routerMode =
+    env?.VITE_ROUTER_MODE ?? (env?.MODE === "development" ? "browser" : "hash");
+  const Router = routerMode === "hash" ? HashRouter : BrowserRouter;
 
   return (
-    <BrowserRouter basename={baseUrl === "/" ? undefined : baseUrl}>
+    <Router basename={baseUrl === "/" ? undefined : baseUrl}>
       <Routes>
         {/* 登录页是公共页面；已登录则跳到首页 */}
         <Route
@@ -110,7 +111,8 @@ function App() {
           <Route path="/hatMaking/:id" element={<HatMakingDetailRedirect />} />
 
           <Route path="/ratio" element={<RatioListPage />} />
-          <Route path="/ratio/:id" element={<RatioDetailPage />} />
+          <Route path="/ratio/detail" element={<RatioDetailPage />} />
+          <Route path="/ratio/:id" element={<RatioDetailRedirect />} />
           <Route path="/ratios/:id" element={<RatioDetailRedirect />} />
 
           <Route path="/customers" element={<CustomerListPage />} />
@@ -123,7 +125,8 @@ function App() {
           <Route path="/test/admin/files/:id/edit" element={<EditFilePage />} />
           <Route path="/test/admin/customers" element={<CustomerListPage />} />
           <Route path="/test/ratio" element={<RatioListPage />} />
-          <Route path="/test/ratio/:id" element={<RatioDetailPage />} />
+          <Route path="/test/ratio/detail" element={<RatioDetailPage />} />
+          <Route path="/test/ratio/:id" element={<RatioDetailRedirect />} />
           <Route
             path="/test/high-needle-annotator"
             element={<HighNeedleAnnotatorDemoPage />}
@@ -134,6 +137,7 @@ function App() {
           />
 
           <Route path="/file/:id" element={<FileDetailPage />} />
+          <Route path="/file/:id/print" element={<PrintSpecPage />} />
           <Route path="/files/:id" element={<FileDetailRedirect />} />
 
           {/* --- 旧路径兼容（便于从历史链接跳转） --- */}
@@ -142,10 +146,7 @@ function App() {
             path="/admin/files"
             element={<Navigate to="/test/admin/files" replace />}
           />
-          <Route
-            path="/admin/files/:id/edit"
-            element={<EditFilePage />}
-          />
+          <Route path="/admin/files/:id/edit" element={<EditFilePage />} />
           <Route
             path="/admin/add"
             element={<Navigate to="/test/admin/add" replace />}
@@ -162,8 +163,14 @@ function App() {
             path="/admin/hat-making/:id"
             element={<HatMakingDetailRedirect />}
           />
-          <Route path="/admin/ratio" element={<Navigate to="/ratio" replace />} />
-          <Route path="/admin/ratio/:id" element={<AdminRatioDetailRedirect />} />
+          <Route
+            path="/admin/ratio"
+            element={<Navigate to="/ratio" replace />}
+          />
+          <Route
+            path="/admin/ratio/:id"
+            element={<AdminRatioDetailRedirect />}
+          />
           <Route
             path="/admin/high-needle-annotator"
             element={<Navigate to="/test/high-needle-annotator" replace />}
@@ -184,7 +191,7 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 

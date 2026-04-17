@@ -7,20 +7,16 @@ type Props = {
 };
 
 export default function CapSpecSection({ value, onChange }: Props) {
-  const nextValue = value as unknown as { 编号: string; 唛头: string };
+  const nextValue = value as 制品规格书["制帽"];
   return (
     <Section title="制帽规格">
       <div className="grid grid-cols-1 gap-3">
-        {(["编号", "唛头"] as const).map((k) => (
-          <Field key={k} label={k} required>
-            <TextInput
-              value={nextValue[k]}
-              onChange={(v) =>
-                onChange({ ...(value as object), [k]: v } as unknown as 制品规格书["制帽"])
-              }
-            />
-          </Field>
-        ))}
+        <Field label="唛头" required>
+          <TextInput
+            value={nextValue.唛头}
+            onChange={(v) => onChange({ ...value, 唛头: v })}
+          />
+        </Field>
       </div>
     </Section>
   );

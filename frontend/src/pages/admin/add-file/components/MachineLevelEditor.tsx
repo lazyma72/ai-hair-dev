@@ -37,7 +37,10 @@ function getDMLMode(dml?: 机器档位["DML比值"]): DMLMode {
 }
 
 /** T色固定比值：D:M=4:6, D:M:L=3:3:4, D:L=4:6 */
-function getT色DML比值(hasM: boolean, hasL: boolean): 机器档位["DML比值"] | undefined {
+function getT色DML比值(
+  hasM: boolean,
+  hasL: boolean,
+): 机器档位["DML比值"] | undefined {
   if (hasM && hasL) return { D: 3, M: 3, L: 4 };
   if (hasM) return { D: 4, M: 6 };
   if (hasL) return { D: 4, L: 6 };
@@ -68,10 +71,7 @@ function getRowFactor(rowIndex: number, totalRows: number): number {
   return rowIndex < 2 ? 0.3 : 0.4;
 }
 
-function getMachineActiveWeightKeys(
-  row: 机器档位,
-  type: 假发类型,
-): DMLKey[] {
+function getMachineActiveWeightKeys(row: 机器档位, type: 假发类型): DMLKey[] {
   const dmlMode = getDMLMode(row.DML比值);
   const dmlKeys: DMLKey[] =
     dmlMode === "D:M"
@@ -132,11 +132,7 @@ function calcMachineWeight(
     const dml = row.DML比值;
     const totalDML = (dml?.D ?? 1) + (dml?.M ?? 0) + (dml?.L ?? 0);
     const ratio =
-      key === "D"
-        ? (dml?.D ?? 1)
-        : key === "M"
-          ? (dml?.M ?? 0)
-          : (dml?.L ?? 0);
+      key === "D" ? (dml?.D ?? 1) : key === "M" ? (dml?.M ?? 0) : (dml?.L ?? 0);
     return (
       ((item.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) *
       rowFactor *
@@ -161,14 +157,19 @@ function calcMachineWeight(
     const base = (item.裁断 * 密度 * 尺数D * 2.54) / 100 / 2;
     if (!dml) return key === "D" ? base : 0;
     const totalDML = (dml.D ?? 0) + (dml.M ?? 0) + (dml.L ?? 0);
-    const ratio = key === "D" ? (dml.D ?? 0) : key === "M" ? (dml.M ?? 0) : (dml.L ?? 0);
-    return totalDML > 0 ? base * ratio / totalDML : (key === "D" ? base : 0);
+    const ratio =
+      key === "D" ? (dml.D ?? 0) : key === "M" ? (dml.M ?? 0) : (dml.L ?? 0);
+    return totalDML > 0 ? (base * ratio) / totalDML : key === "D" ? base : 0;
   }
 
   return ((item.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
 }
 
-function syncMachineWeights(row: 机器档位, type: 假发类型, t色重量行: T色重量行Map = {}): 机器档位 {
+function syncMachineWeights(
+  row: 机器档位,
+  type: 假发类型,
+  t色重量行: T色重量行Map = {},
+): 机器档位 {
   const totalRows = row.裁断与重量.length;
 
   return {
@@ -177,10 +178,27 @@ function syncMachineWeights(row: 机器档位, type: 假发类型, t色重量行
       const 重量g: { D: number; M?: number; L?: number } = { D: 0 };
 
       (["D", "M", "L"] as const).forEach((key) => {
-        if (!shouldStoreMachineWeight(row, type, rowIndex, totalRows, key, t色重量行)) {
+        if (
+          !shouldStoreMachineWeight(
+            row,
+            type,
+            rowIndex,
+            totalRows,
+            key,
+            t色重量行,
+          )
+        ) {
           return;
         }
-        重量g[key] = calcMachineWeight(row, type, item, rowIndex, totalRows, key, t色重量行);
+        重量g[key] = calcMachineWeight(
+          row,
+          type,
+          item,
+          rowIndex,
+          totalRows,
+          key,
+          t色重量行,
+        );
       });
 
       return {
@@ -321,7 +339,15 @@ export default function MachineLevelEditor({
     totalRows: number,
     key: DMLKey,
   ): number {
-    return calcMachineWeight(value, type, row, rowIndex, totalRows, key, t色重量行);
+    return calcMachineWeight(
+      value,
+      type,
+      row,
+      rowIndex,
+      totalRows,
+      key,
+      t色重量行,
+    );
   }
 
   useEffect(() => {
@@ -355,8 +381,7 @@ export default function MachineLevelEditor({
       const rowFactor = getRowFactor(rowIndex, totalRows);
 
       return keys.map((key) => {
-        const base =
-          ((row.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
+        const base = ((row.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
         const ratio = key === "D" ? d : key === "M" ? m : l;
         const ratioPart = totalDML > 0 ? ratio / totalDML : 0;
 
@@ -417,16 +442,14 @@ export default function MachineLevelEditor({
   ]);
 
   return (
-    <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
       {/* 档位 + 类型相关控件 */}
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-2">
         <div className="w-20">
-          <Field label="档位" required>
-            <TextInput
-              value={value.档位}
-              onChange={(v) => p("档位", v)}
-              placeholder="1"
-            />
+          <Field label="档位">
+            <div className="flex h-[34px] items-center rounded border border-slate-100 bg-slate-50 px-2 text-sm font-medium text-slate-700">
+              {value.档位}
+            </div>
           </Field>
         </div>
 
@@ -564,7 +587,7 @@ export default function MachineLevelEditor({
       </div>
 
       {/* 整毛 */}
-      <div className="grid grid-cols-[140px_140px] gap-2">
+      <div className="grid grid-cols-[100px_110px] gap-2">
         <Field label="整毛·拉尖">
           <QuarterFractionInput
             value={value.整毛.拉尖}
@@ -609,9 +632,14 @@ export default function MachineLevelEditor({
           <div className="mb-2 space-y-1">
             {(activeWeightKeys as DMLKey[]).map((key) => (
               <div key={key} className="flex flex-wrap items-center gap-2">
-                <span className="w-16 text-[10px] text-slate-500">{key} 重量在：</span>
+                <span className="w-16 text-[10px] text-slate-500">
+                  {key} 重量在：
+                </span>
                 {value.裁断与重量.map((_, i) => (
-                  <label key={i} className="flex cursor-pointer items-center gap-1 text-xs text-slate-700">
+                  <label
+                    key={i}
+                    className="flex cursor-pointer items-center gap-1 text-xs text-slate-700"
+                  >
                     <input
                       type="radio"
                       name={`t色重量行-${value.档位}-${key}`}
@@ -651,7 +679,7 @@ export default function MachineLevelEditor({
 
       {/* 双针 + 尺数 */}
       <div className="flex flex-wrap gap-2">
-        <div className="w-[140px]">
+        <div className="w-[100px]">
           <Field label="双针·毛长">
             <QuarterFractionInput
               value={value.双针.毛长}
@@ -659,7 +687,7 @@ export default function MachineLevelEditor({
             />
           </Field>
         </div>
-        <div className="w-[90px]">
+        <div className="w-[70px]">
           <Field label="双针·密度">
             <NumInput
               value={value.双针.密度}
@@ -667,7 +695,7 @@ export default function MachineLevelEditor({
             />
           </Field>
         </div>
-        <div className="w-[90px]">
+        <div className="w-[70px]">
           <Field label="尺数·D">
             <NumInput
               value={value.双针.尺数.D}
@@ -696,7 +724,7 @@ export default function MachineLevelEditor({
           </div>
         ) : null}
         {是上下分 && hasL尺数 ? (
-          <div className="w-[90px]">
+          <div className="w-[70px]">
             <Field label="尺数·L">
               <NumInput
                 value={value.双针.尺数.L ?? 0}

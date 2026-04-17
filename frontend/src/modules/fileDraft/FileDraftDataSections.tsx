@@ -2,16 +2,16 @@ import * as React from "react";
 import { Select } from "antd";
 import { message } from "antd";
 import { callApi } from "../../api/callApi";
-import { getApiBase } from "../../api/apiBase";
+import DataTable, { type Column } from "../../components/DataTable";
+import { frontConfig } from "../../frontConfig";
 import InlineSvg from "../../components/InlineSvg";
 import Section from "../../components/Section";
 import type { DbCustomer } from "../../shared/db/DbCustomer";
+import type { KLS胶丝比例 } from "../../shared/db/Db胶丝比例";
 import { 假发类型 } from "../../shared/db/Db沐茵丝假发成品稿";
-import type {
-  制品规格书,
-  染色档位,
-} from "../../shared/db/Db沐茵丝假发成品稿";
+import type { 制品规格书, 染色档位 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { FileDraftViewModel } from "../../shared/fileDraft/model";
+import type { 制品规格书Frontend } from "../../shared/frontend/model/model";
 import {
   buildPreviewSvg,
   formatInchText,
@@ -21,20 +21,52 @@ import MachineSpecSection from "../../pages/admin/add-file/sections/MachineSpecS
 import ManualSpecSection from "../../pages/admin/add-file/sections/ManualSpecSection";
 import { 工艺说明Keys } from "../../pages/admin/add-file/defaults";
 import { inputCls } from "../../pages/admin/add-file/components/ui";
-import { ExcelStyleMachineTable, ExcelStyleManualTable } from "./ExcelStyleSpecTables";
+import {
+  ExcelStyleMachineTable,
+  ExcelStyleManualTable,
+} from "./ExcelStyleSpecTables";
 
 type HatMakingOption = {
   _id: string;
+  名称?: string;
   帽围: number;
   帽深: number;
   前后: number;
 };
 
+function getHatMakingIdFromCAP(cap: string): string {
+  return cap.trim().match(/^[^（(\s]+/)?.[0] ?? "";
+}
+
+function buildCapValue(item: HatMakingOption): string {
+  const name = item.名称?.trim();
+  return name ? `${item._id}(${name})` : item._id;
+}
+
 type FieldErrors = Partial<Record<string, string>>;
+
+const 胶丝比例列: Column<KLS胶丝比例>[] = [
+  {
+    key: "发丝",
+    title: "发丝",
+    render: (r) => r.发丝,
+  },
+  {
+    key: "色号",
+    title: "色号",
+    render: (r) => r.色号,
+  },
+  {
+    key: "比例",
+    title: "比例 %",
+    render: (r) => `${r.比例}%`,
+  },
+];
 
 type Props = {
   mode: "edit" | "readonly";
   value: FileDraftViewModel;
+  制品规格书详情?: 制品规格书Frontend;
   onChange?: React.Dispatch<React.SetStateAction<FileDraftViewModel>>;
   customerList?: DbCustomer[];
   hatMakingList?: HatMakingOption[];
@@ -71,14 +103,14 @@ function EditableRow({
 }) {
   return (
     <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-2 border-b border-slate-100 px-4 py-2 text-xs first:border-0">
-      <div
-        className={`pt-2 ${error ? "text-rose-600" : "text-slate-400"}`}
-      >
+      <div className={`pt-2 ${error ? "text-rose-600" : "text-slate-400"}`}>
         {label}
       </div>
       <div>
         {children}
-        {error ? <div className="mt-1 text-xs text-rose-500">{error}</div> : null}
+        {error ? (
+          <div className="mt-1 text-xs text-rose-500">{error}</div>
+        ) : null}
       </div>
     </div>
   );
@@ -88,7 +120,7 @@ function resolveImageUrl(src: string): string {
   if (!src) return "";
   if (/^https?:\/\//i.test(src)) return src;
   try {
-    return new URL(src, getApiBase()).toString();
+    return new URL(src, frontConfig.prodServer).toString();
   } catch {
     return src;
   }
@@ -149,15 +181,33 @@ function DyeLevelReadonlyCard({
 
 function FileDraftReadonlySections({
   value,
+  制品规格书详情,
   hatMakingList = [],
 }: {
   value: FileDraftViewModel;
+  制品规格书详情?: 制品规格书Frontend;
   hatMakingList?: HatMakingOption[];
 }) {
   const 工艺说明列表 = Object.entries(value.制品规格书.工艺说明 ?? {});
-  const hatSpec = value.制品规格书.制帽 as unknown as { 编号: string; 唛头: string };
   const currentHatMaking =
-    hatMakingList.find((item) => item._id === hatSpec.编号) ?? null;
+    hatMakingList.find(
+      (item) => item._id === getHatMakingIdFromCAP(value.CAP),
+    ) ?? null;
+  const 胶丝比例 = 制品规格书详情?.胶丝比例;
+  const 工程重量 = 制品规格书详情?.工程重量;
+  const 工程重量行 = 工程重量
+    ? ([
+        ["整毛", 工程重量.整毛],
+        ["双针", 工程重量.双针],
+        ["美容", 工程重量.美容],
+        ["制帽", 工程重量.制帽],
+        ["高针", 工程重量.高针],
+        ["手织", 工程重量.手织],
+        ["剪驳", 工程重量.剪驳],
+        ["发网", 工程重量.发网],
+        ["完成", 工程重量.完成],
+      ] as const)
+    : [];
 
   return (
     <div className="space-y-5">
@@ -174,7 +224,6 @@ function FileDraftReadonlySections({
 
       <Section title="制帽规格">
         <div>
-          <ReadonlyRow label="编号" value={hatSpec.编号} />
           <ReadonlyRow
             label="帽围"
             value={currentHatMaking ? `${currentHatMaking.帽围} cm` : "—"}
@@ -187,35 +236,118 @@ function FileDraftReadonlySections({
             label="前后"
             value={currentHatMaking ? `${currentHatMaking.前后} cm` : "—"}
           />
-          <ReadonlyRow label="唛头" value={hatSpec.唛头} />
+          <ReadonlyRow label="唛头" value={value.制品规格书.制帽.唛头} />
         </div>
       </Section>
 
       <Section title="胶丝比例">
-        <div>
-          <ReadonlyRow
-            label="发丝种类"
-            value={value.制品规格书.胶丝比例id.发丝种类}
-          />
-          <ReadonlyRow
-            label="颜色编号"
-            value={value.制品规格书.胶丝比例id.颜色编号}
-          />
-        </div>
+        {胶丝比例 ? (
+          <div className="space-y-4 p-4">
+            <div className="rounded-xl bg-slate-50">
+              <ReadonlyRow label="发丝种类" value={胶丝比例._id.发丝种类} />
+              <ReadonlyRow label="颜色编号" value={胶丝比例._id.颜色编号} />
+              <ReadonlyRow label="线色" value={胶丝比例.线色 || "—"} />
+              <ReadonlyRow label="备注" value={胶丝比例.备注 || "—"} />
+            </div>
+            {胶丝比例.D.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-slate-600">
+                  D = {胶丝比例.D.map((item) => `${item.发丝}/${item.色号} ${item.比例}%`).join("，")}
+                </div>
+                <DataTable
+                  columns={胶丝比例列}
+                  rows={胶丝比例.D}
+                  rowKey={(r) => `D-${r.发丝}-${r.色号}`}
+                />
+              </div>
+            ) : null}
+            {胶丝比例.M && 胶丝比例.M.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-slate-600">
+                  M = {胶丝比例.M.map((item) => `${item.发丝}/${item.色号} ${item.比例}%`).join("，")}
+                </div>
+                <DataTable
+                  columns={胶丝比例列}
+                  rows={胶丝比例.M}
+                  rowKey={(r) => `M-${r.发丝}-${r.色号}`}
+                />
+              </div>
+            ) : null}
+            {胶丝比例.L && 胶丝比例.L.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-slate-600">
+                  L = {胶丝比例.L.map((item) => `${item.发丝}/${item.色号} ${item.比例}%`).join("，")}
+                </div>
+                <DataTable
+                  columns={胶丝比例列}
+                  rows={胶丝比例.L}
+                  rowKey={(r) => `L-${r.发丝}-${r.色号}`}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div>
+            <ReadonlyRow
+              label="发丝种类"
+              value={value.制品规格书.胶丝比例id.发丝种类}
+            />
+            <ReadonlyRow
+              label="颜色编号"
+              value={value.制品规格书.胶丝比例id.颜色编号}
+            />
+          </div>
+        )}
       </Section>
 
-      <Section title="工程重量（加减值 g）">
-        <div>
-          {(
-            ["整毛", "双针", "美容", "制帽", "高针", "手织", "剪驳", "发网"] as const
-          ).map((key) => (
-            <ReadonlyRow
-              key={key}
-              label={key}
-              value={value.制品规格书.工程重量[key]?.加减 ?? 0}
-            />
-          ))}
-        </div>
+      <Section title="工程重量（操作值 g）">
+        {工程重量 ? (
+          <div>
+            <div className="grid grid-cols-[7rem_7rem_1fr] gap-2 border-b border-slate-100 px-4 py-2 text-xs text-slate-400">
+              <span>项目</span>
+              <span>操作值</span>
+              <span>数值</span>
+            </div>
+            {工程重量行.map(([key, item]) => (
+              <div
+                key={key}
+                className="grid grid-cols-[7rem_7rem_1fr] gap-2 border-b border-slate-100 px-4 py-2 text-xs last:border-b-0"
+              >
+                <span className="text-slate-400">{key}</span>
+                <span className="text-slate-900">
+                  {item.加减 >= 0 ? "+" : ""}
+                  {item.加减}
+                </span>
+                <span className="text-slate-900">{item.数值}g</span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between bg-slate-900 px-4 py-2 text-xs text-white">
+              <span className="text-slate-300">完成重量</span>
+              <span className="font-semibold">{工程重量.重量}</span>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {(
+              [
+                "整毛",
+                "双针",
+                "美容",
+                "制帽",
+                "高针",
+                "手织",
+                "剪驳",
+                "发网",
+              ] as const
+            ).map((key) => (
+              <ReadonlyRow
+                key={key}
+                label={key}
+                value={value.制品规格书.工程重量[key]?.加减 ?? 0}
+              />
+            ))}
+          </div>
+        )}
       </Section>
 
       <Section title="机器规格清单">
@@ -289,7 +421,10 @@ function FileDraftEditSections({
 }: Omit<Props, "mode"> & {
   onChange: React.Dispatch<React.SetStateAction<FileDraftViewModel>>;
 }) {
-  const set规格书 = <K extends keyof 制品规格书>(key: K, val: 制品规格书[K]) => {
+  const set规格书 = <K extends keyof 制品规格书>(
+    key: K,
+    val: 制品规格书[K],
+  ) => {
     onChange((prev) => ({
       ...prev,
       制品规格书: { ...prev.制品规格书, [key]: val },
@@ -299,20 +434,24 @@ function FileDraftEditSections({
   const custom工艺说明 = Object.entries(value.制品规格书.工艺说明 ?? {}).filter(
     ([k]) => !工艺说明Keys.includes(k as (typeof 工艺说明Keys)[number]),
   );
-  const hatSpec = value.制品规格书.制帽 as unknown as { 编号: string; 唛头: string };
   const currentHatMaking =
-    hatMakingList.find((item) => item._id === hatSpec.编号) ?? null;
+    hatMakingList.find(
+      (item) => item._id === getHatMakingIdFromCAP(value.CAP),
+    ) ?? null;
   const [uploadingImage, setUploadingImage] = React.useState(false);
 
   async function handleUploadHeadImage(file: File) {
     setUploadingImage(true);
     try {
       const fileData = new Uint8Array(await file.arrayBuffer());
-      const res = (await callApi("Upload" as never, {
-        fileData,
-        fileName: file.name,
-        dirName: "hair-draft",
-      } as never)) as
+      const res = (await callApi(
+        "Upload" as never,
+        {
+          fileData,
+          fileName: file.name,
+          dirName: "hair-draft",
+        } as never,
+      )) as
         | { isSucc: true; res: { path: string } }
         | { isSucc: false; err: { message: string } };
 
@@ -336,7 +475,9 @@ function FileDraftEditSections({
   function removeHeadImage(index: number) {
     onChange((prev) => ({
       ...prev,
-      头型图片: prev.头型图片.filter((_, currentIndex) => currentIndex !== index),
+      头型图片: prev.头型图片.filter(
+        (_, currentIndex) => currentIndex !== index,
+      ),
     }));
   }
 
@@ -406,7 +547,6 @@ function FileDraftEditSections({
             [
               { key: "品名" as const, placeholder: "Michelle BB TBOB080" },
               { key: "原材料" as const, placeholder: "FU:50%+HL:50%" },
-              { key: "CAP" as const, placeholder: "P-025(侧分雪花网L)" },
             ] as const
           ).map(({ key, placeholder }) => (
             <EditableRow key={key} label={key} error={err(key)}>
@@ -422,31 +562,30 @@ function FileDraftEditSections({
               />
             </EditableRow>
           ))}
+          <EditableRow label="CAP" error={err("CAP")}>
+            <Select
+              className="w-full"
+              status={err("CAP") ? "error" : undefined}
+              value={value.CAP || undefined}
+              options={hatMakingList.map((item) => ({
+                label: `${buildCapValue(item)} · 帽围 ${item.帽围} / 帽深 ${item.帽深} / 前后 ${item.前后}`,
+                value: buildCapValue(item),
+              }))}
+              placeholder="搜索并选择 CAP"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              onChange={(v) => {
+                clearError?.("CAP");
+                onChange((prev) => ({ ...prev, CAP: v ?? "" }));
+              }}
+            />
+          </EditableRow>
         </div>
       </Section>
 
       <Section title="制帽规格">
         <div>
-          <EditableRow label="编号">
-            <Select
-              className="w-full"
-              value={hatSpec.编号 || undefined}
-              options={hatMakingList.map((item) => ({
-                label: `${item._id} · 帽围 ${item.帽围} / 帽深 ${item.帽深} / 前后 ${item.前后}`,
-                value: item._id,
-              }))}
-              placeholder="搜索并选择制帽编号"
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              onChange={(v) =>
-                set规格书("制帽", {
-                  ...(value.制品规格书.制帽 as object),
-                  编号: v ?? "",
-                } as unknown as 制品规格书["制帽"])
-              }
-            />
-          </EditableRow>
           <EditableRow label="帽围">
             <div className="rounded border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
               {currentHatMaking ? `${currentHatMaking.帽围} cm` : "—"}
@@ -463,27 +602,24 @@ function FileDraftEditSections({
             </div>
           </EditableRow>
           <EditableRow label="唛头">
-              <input
-                type="text"
-                className={inputCls}
-                value={hatSpec.唛头}
-                onChange={(e) =>
-                  set规格书("制帽", {
-                    ...(value.制品规格书.制帽 as object),
-                    唛头: e.target.value,
-                  } as unknown as 制品规格书["制帽"])
-                }
-              />
+            <input
+              type="text"
+              className={inputCls}
+              value={value.制品规格书.制帽.唛头}
+              onChange={(e) =>
+                set规格书("制帽", {
+                  ...(value.制品规格书.制帽 as object),
+                  唛头: e.target.value,
+                } as unknown as 制品规格书["制帽"])
+              }
+            />
           </EditableRow>
         </div>
       </Section>
 
       <Section title="胶丝比例">
         <div>
-          <EditableRow
-            label="发丝种类"
-            error={err("胶丝比例.发丝种类")}
-          >
+          <EditableRow label="发丝种类" error={err("胶丝比例.发丝种类")}>
             <Select
               className="w-full"
               status={err("胶丝比例.发丝种类") ? "error" : undefined}
@@ -500,10 +636,7 @@ function FileDraftEditSections({
               }}
             />
           </EditableRow>
-          <EditableRow
-            label="颜色编号"
-            error={err("胶丝比例.颜色编号")}
-          >
+          <EditableRow label="颜色编号" error={err("胶丝比例.颜色编号")}>
             <Select
               className="w-full"
               status={err("胶丝比例.颜色编号") ? "error" : undefined}
@@ -530,10 +663,19 @@ function FileDraftEditSections({
         </div>
       </Section>
 
-      <Section title="工程重量（加减值 g）">
+      <Section title="工程重量（操作值 g）">
         <div>
           {(
-            ["整毛", "双针", "美容", "制帽", "高针", "手织", "剪驳", "发网"] as const
+            [
+              "整毛",
+              "双针",
+              "美容",
+              "制帽",
+              "高针",
+              "手织",
+              "剪驳",
+              "发网",
+            ] as const
           ).map((k) => (
             <EditableRow key={k} label={k}>
               <input
@@ -575,7 +717,8 @@ function FileDraftEditSections({
               />
             </label>
             <div className="text-xs text-slate-500">
-              支持 `jpg/png/webp/svg/pdf/json` 中的图片格式，上传后会加入制品规格书图片区。
+              支持 `jpg/png/webp/svg/pdf/json`
+              中的图片格式，上传后会加入制品规格书图片区。
             </div>
           </div>
 
@@ -682,6 +825,7 @@ function FileDraftEditSections({
 export default function FileDraftDataSections({
   mode,
   value,
+  制品规格书详情,
   onChange,
   customerList = [],
   hatMakingList = [],
@@ -692,7 +836,13 @@ export default function FileDraftDataSections({
   clearError,
 }: Props) {
   if (mode === "readonly") {
-    return <FileDraftReadonlySections value={value} hatMakingList={hatMakingList} />;
+    return (
+      <FileDraftReadonlySections
+        value={value}
+        制品规格书详情={制品规格书详情}
+        hatMakingList={hatMakingList}
+      />
+    );
   }
 
   if (!onChange) {

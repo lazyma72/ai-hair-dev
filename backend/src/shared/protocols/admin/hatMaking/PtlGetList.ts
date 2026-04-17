@@ -15,6 +15,4 @@ export interface ResGetList extends BaseResponse {
   pageSize: number
 }
 
-export const conf: BaseConf = {
-  allowNoLogin: true,
-}
+export const conf: BaseConf = {}

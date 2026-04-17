@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Select } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -7,22 +6,25 @@ import PageShell from "../../../components/PageShell";
 import StatusView from "../../../components/StatusView";
 import { useApi } from "../../../hooks/useApi";
 import type {
-  沐茵丝假发成品稿Frontend,
   沐茵丝假发成品稿ListItem,
 } from "../../../shared/frontend/model/model";
-import 规格书View from "../../file/sections/规格书View";
+import type { 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿";
+import FileEditorPage from "../../../modules/fileDraft/FileEditorPage";
+import { toDbPayload } from "../../../shared/fileDraft/adapters/toDbPayload";
+import DocumentTabs from "../../../modules/fileDraft/DocumentTabs";
+import FileDraftDataSections from "../../../modules/fileDraft/FileDraftDataSections";
+import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend";
+import { to高针指示单Frontend } from "../../../shared/frontend/converters/to高针指示单Frontend";
 import 高针指示单View from "../../file/sections/高针指示单View";
 import 手织指示单View from "../../file/sections/手织指示单View";
 
 const STEPS = ["选择A稿", "选择B稿", "预览C稿"] as const;
-
-type TabKey = "规格书" | "高针指示单" | "手织指示单";
-
-const TABS: Array<{ key: TabKey; label: string }> = [
-  { key: "规格书", label: "制品规格书" },
+const PREVIEW_TABS = [
+  { key: "制品规格书", label: "制品规格书" },
   { key: "高针指示单", label: "高针指示单" },
   { key: "手织指示单", label: "手织指示单" },
-];
+] as const;
+type PreviewTabKey = (typeof PREVIEW_TABS)[number]["key"];
 
 function Stepper({ step }: { step: number }) {
   return (
@@ -45,31 +47,36 @@ function Stepper({ step }: { step: number }) {
   );
 }
 
-function buildPreviewC(
-  a: 沐茵丝假发成品稿Frontend,
-  b: 沐茵丝假发成品稿Frontend,
-): 沐茵丝假发成品稿Frontend {
+function buildSaveC(
+  cId: string,
+  a: 沐茵丝假发成品稿,
+  b: 沐茵丝假发成品稿,
+): 沐茵丝假发成品稿 {
+  // 用 A 稿作为基础（客户/品名/规格书等），高针/手织取自 B
   return {
-    _id: `PREVIEW-${a._id}+${b._id}`,
-    制品规格书: a.制品规格书,
+    ...JSON.parse(JSON.stringify(a)),
+    _id: cId,
     高针指示单: b.高针指示单,
     手织指示单: b.手织指示单,
-  };
+  } as 沐茵丝假发成品稿;
 }
 
 export default function ABCreateWizardPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const [tab, setTab] = useState<TabKey>("规格书");
   const [aId, setAId] = useState<string>("");
   const [bId, setBId] = useState<string>("");
+  const [previewTab, setPreviewTab] = useState<PreviewTabKey>("制品规格书");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const [aFile, setAFile] = useState<沐茵丝假发成品稿Frontend | null>(null);
-  const [bFile, setBFile] = useState<沐茵丝假发成品稿Frontend | null>(null);
+  const [aRawFile, setARawFile] = useState<沐茵丝假发成品稿 | null>(null);
+  const [bRawFile, setBRawFile] = useState<沐茵丝假发成品稿 | null>(null);
   const [loadingA, setLoadingA] = useState(false);
   const [loadingB, setLoadingB] = useState(false);
   const [errorA, setErrorA] = useState("");
   const [errorB, setErrorB] = useState("");
+  const [cDraft, setCDraft] = useState<沐茵丝假发成品稿 | null>(null);
 
   const listState = useApi(() =>
     callApi("admin/file/GetList", {
@@ -94,7 +101,7 @@ export default function ABCreateWizardPage() {
 
   useEffect(() => {
     if (!aId) {
-      setAFile(null);
+      setARawFile(null);
       setErrorA("");
       return;
     }
@@ -107,7 +114,7 @@ export default function ABCreateWizardPage() {
           setErrorA(r.err.message);
           return;
         }
-        setAFile(r.res.file);
+        setARawFile(r.res.rawFile);
       })
       .catch((e) => setErrorA(e instanceof Error ? e.message : "请求失败"))
       .finally(() => setLoadingA(false));
@@ -115,7 +122,7 @@ export default function ABCreateWizardPage() {
 
   useEffect(() => {
     if (!bId) {
-      setBFile(null);
+      setBRawFile(null);
       setErrorB("");
       return;
     }
@@ -128,18 +135,32 @@ export default function ABCreateWizardPage() {
           setErrorB(r.err.message);
           return;
         }
-        setBFile(r.res.file);
+        setBRawFile(r.res.rawFile);
       })
       .catch((e) => setErrorB(e instanceof Error ? e.message : "请求失败"))
       .finally(() => setLoadingB(false));
   }, [bId]);
+
+  useEffect(() => {
+    // A/B 变化时，清空 C 草稿，避免引用旧数据
+    setCDraft(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aId, bId]);
 
   const canNext =
     (step === 0 && Boolean(aId)) ||
     (step === 1 && Boolean(bId)) ||
     (step === 2 && Boolean(aId) && Boolean(bId));
 
-  const cFile = aFile && bFile ? buildPreviewC(aFile, bFile) : null;
+  useEffect(() => {
+    if (step !== 2) return;
+    if (!aRawFile || !bRawFile) return;
+    if (cDraft) return;
+
+    setCDraft(
+      buildSaveC(`C-${aRawFile._id}-${bRawFile._id}`, aRawFile, bRawFile),
+    );
+  }, [aRawFile, bRawFile, cDraft, step]);
 
   const actions = (
     <div className="flex items-center gap-2">
@@ -151,6 +172,42 @@ export default function ABCreateWizardPage() {
         >
           上一步
         </button>
+      ) : null}
+
+      {step === 2 ? (
+        <>
+          <button
+            type="button"
+            disabled={!cDraft}
+            className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            onClick={() => setEditing(true)}
+          >
+            编辑
+          </button>
+          <button
+            type="button"
+            disabled={!cDraft || saving}
+            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            onClick={async () => {
+              if (!cDraft) return;
+              if (saving) return;
+              setSaving(true);
+              try {
+                const r = await callApi("admin/file/Add", {
+                  file: toDbPayload(cDraft),
+                });
+                if (!r.isSucc) {
+                  throw new Error(r.err.message);
+                }
+                navigate(`/file/${r.res.id}`, { replace: true });
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            {saving ? "保存中…" : "保存"}
+          </button>
+        </>
       ) : null}
 
       {step < STEPS.length - 1 ? (
@@ -165,6 +222,81 @@ export default function ABCreateWizardPage() {
       ) : null}
     </div>
   );
+
+  if (step === 2) {
+    return (
+      <StatusView loading={loadingA || loadingB} error={errorA || errorB}>
+        {cDraft ? (
+          editing ? (
+            <FileEditorPage
+              mode="add"
+              title={`编辑 C 稿（未保存）· A:${aId} + B:${bId}`}
+              initialValue={cDraft}
+              submitLabel="保存 C 稿"
+              submittingLabel="保存中…"
+              onBack={() => setEditing(false)}
+              extraActions={
+                <>
+                  <button
+                    type="button"
+                    className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    onClick={() => setEditing(false)}
+                  >
+                    返回预览
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      setEditing(false);
+                      setStep(1);
+                    }}
+                  >
+                    上一步
+                  </button>
+                </>
+              }
+              onDraftChange={setCDraft}
+              onSubmit={async (form) => {
+                const r = await callApi("admin/file/Add", {
+                  file: toDbPayload(form),
+                });
+                if (!r.isSucc) {
+                  throw new Error(r.err.message);
+                }
+                return { id: r.res.id };
+              }}
+              onSubmitted={(id) => navigate(`/file/${id}`, { replace: true })}
+            />
+          ) : (
+            <PageShell
+              title={`C 稿预览（未保存）· ${cDraft._id}`}
+              onBack={() => setStep(1)}
+              actions={actions}
+            >
+              <DocumentTabs
+                items={PREVIEW_TABS}
+                activeKey={previewTab}
+                onChange={setPreviewTab}
+              />
+
+              {previewTab === "制品规格书" ? (
+                <FileDraftDataSections mode="readonly" value={cDraft} />
+              ) : null}
+
+              {previewTab === "高针指示单" ? (
+                <高针指示单View data={to高针指示单Frontend(cDraft)} />
+              ) : null}
+
+              {previewTab === "手织指示单" ? (
+                <手织指示单View data={to手织指示单Frontend(cDraft)} />
+              ) : null}
+            </PageShell>
+          )
+        ) : null}
+      </StatusView>
+    );
+  }
 
   return (
     <PageShell
@@ -214,43 +346,6 @@ export default function ABCreateWizardPage() {
             />
           </div>
         </div>
-      ) : null}
-
-      {step === 2 ? (
-        <StatusView loading={loadingA || loadingB} error={errorA || errorB}>
-          {cFile ? (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
-                C 稿预览（Demo）：规格书来自 A（{aId}），高针/手织来自 B（{bId}）。
-              </div>
-
-              <div className="flex gap-2">
-                {TABS.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={
-                      key === tab
-                        ? "rounded bg-slate-900 px-3 py-1.5 text-sm text-white"
-                        : "rounded bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                    }
-                    onClick={() => setTab(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {tab === "规格书" && <规格书View data={cFile.制品规格书} />}
-              {tab === "高针指示单" && (
-                <高针指示单View data={cFile.高针指示单} />
-              )}
-              {tab === "手织指示单" && (
-                <手织指示单View data={cFile.手织指示单} />
-              )}
-            </div>
-          ) : null}
-        </StatusView>
       ) : null}
     </PageShell>
   );

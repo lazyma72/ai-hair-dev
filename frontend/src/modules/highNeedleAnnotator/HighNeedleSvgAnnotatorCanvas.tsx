@@ -132,6 +132,10 @@ type Props = {
     id: string,
     options?: { markerPos?: { x: number; y: number } },
   ) => void;
+  handleLineDmlCycleOverride: (
+    id: string,
+    markerPos?: { x: number; y: number },
+  ) => void;
   ensureRegionMarkerTextNode: (
     lineNodeId: string,
     pos: { x: number; y: number },
@@ -164,7 +168,10 @@ type Props = {
   ) => void;
   onTextRemove: (key: string) => void;
   onTextStyleChange: (key: string, patch: Record<string, unknown>) => void;
-  textNodeMap: Record<string, { textNodeId: string; text?: string; fontStyle?: Record<string, unknown> }>;
+  textNodeMap: Record<
+    string,
+    { textNodeId: string; text?: string; fontStyle?: Record<string, unknown> }
+  >;
 };
 
 type DragState = {
@@ -265,7 +272,6 @@ function screenDeltaToParent(
   // Subtract origin to get pure vector delta (cancel out translation)
   return { dx: moved.x - origin.x, dy: moved.y - origin.y };
 }
-
 
 function clientToSvgPoint(
   svgRoot: SVGSVGElement,
@@ -387,6 +393,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
   regionLabels,
   toggleSelect,
   handleLineAction,
+  handleLineDmlCycleOverride,
   ensureRegionMarkerTextNode,
   ensureLevelMarkerTextNode,
   ensureDmlMarkerTextNode,
@@ -448,7 +455,12 @@ export default function HighNeedleSvgAnnotatorCanvas({
         !marks.levelTextNodeId
       )
         filtered.levelNo = marks.levelNo;
-      if (layerToggles.dml && marks.dml && !marks.dmlTextNodeId && step !== "DML") {
+      if (
+        layerToggles.dml &&
+        marks.dml &&
+        !marks.dmlTextNodeId &&
+        step !== "DML"
+      ) {
         filtered.dml = marks.dml;
       }
       if (layerToggles.double && marks.isDouble && !marks.doubleTextNodeId) {
@@ -639,11 +651,16 @@ export default function HighNeedleSvgAnnotatorCanvas({
       if (moveDistance < 3) return;
       dragHasMovedRef.current = true;
       // #region debug-point D:drag-move
-      reportDoubleMarkDragDebug("D", "HighNeedleSvgAnnotatorCanvas:onMove", "marker drag move", {
-        step,
-        textNodeId: drag.textNodeId,
-        moveDistance,
-      });
+      reportDoubleMarkDragDebug(
+        "D",
+        "HighNeedleSvgAnnotatorCanvas:onMove",
+        "marker drag move",
+        {
+          step,
+          textNodeId: drag.textNodeId,
+          moveDistance,
+        },
+      );
       // #endregion
 
       const { dx, dy } = screenDeltaToParent(
@@ -700,11 +717,16 @@ export default function HighNeedleSvgAnnotatorCanvas({
         // 用户应直接点击线条本身来切换 DML/单双
         const lineId = markerLineIdByTextId.get(drag.textNodeId);
         // #region debug-point C:text-click
-        reportDoubleMarkDragDebug("C", "HighNeedleSvgAnnotatorCanvas:onUp", "marker text click without drag", {
-          step,
-          textNodeId: drag.textNodeId,
-          lineId,
-        });
+        reportDoubleMarkDragDebug(
+          "C",
+          "HighNeedleSvgAnnotatorCanvas:onUp",
+          "marker text click without drag",
+          {
+            step,
+            textNodeId: drag.textNodeId,
+            lineId,
+          },
+        );
         // #endregion
       }
       dragHasMovedRef.current = false;
@@ -745,7 +767,8 @@ export default function HighNeedleSvgAnnotatorCanvas({
           preferredDmlPosByLineId.get(id);
         const preferredPos = filteredMarkerById.get(id)?.dml
           ? dmlPreferredPos
-          : draftMarkerPosByLineId.get(id) ?? preferredMarkerPosByLineId.get(id);
+          : (draftMarkerPosByLineId.get(id) ??
+            preferredMarkerPosByLineId.get(id));
         if (svgRoot && preferredPos) {
           const wrapPos = svgToWrapPoint(svgRoot, wrapRect, preferredPos);
           if (wrapPos) {
@@ -825,8 +848,14 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
       const approxEqual = (a: number, b: number) => Math.abs(a - b) <= 0.25;
       const isSameAnchorMap = (
-        prev: Map<string, { x: number; y: number; perpX: number; perpY: number }>,
-        nextMap: Map<string, { x: number; y: number; perpX: number; perpY: number }>,
+        prev: Map<
+          string,
+          { x: number; y: number; perpX: number; perpY: number }
+        >,
+        nextMap: Map<
+          string,
+          { x: number; y: number; perpX: number; perpY: number }
+        >,
       ) => {
         if (prev.size !== nextMap.size) return false;
         for (const [key, v] of prev) {
@@ -1196,13 +1225,18 @@ export default function HighNeedleSvgAnnotatorCanvas({
           ? (clientToSvgPoint(svgRoot, sampleX, sampleY) ?? undefined)
           : undefined;
         // #region debug-point A:brush-hit
-        reportDoubleMarkDragDebug("A", "HighNeedleSvgAnnotatorCanvas:processBrushMove", "brush hit line", {
-          step,
-          lineId: id,
-          sampleX,
-          sampleY,
-          hasMarkerPos: Boolean(markerPos),
-        });
+        reportDoubleMarkDragDebug(
+          "A",
+          "HighNeedleSvgAnnotatorCanvas:processBrushMove",
+          "brush hit line",
+          {
+            step,
+            lineId: id,
+            sampleX,
+            sampleY,
+            hasMarkerPos: Boolean(markerPos),
+          },
+        );
         // #endregion
         if (step === "DML" || step === "单双") {
           handleLineAction(id, { markerPos });
@@ -1409,12 +1443,17 @@ export default function HighNeedleSvgAnnotatorCanvas({
             (isDraggableMarkerText || (step === "自定义文本" && !isMarkerText))
           ) {
             // #region debug-point D:drag-start
-            reportDoubleMarkDragDebug("D", "HighNeedleSvgAnnotatorCanvas:onMouseDown", "start marker text drag candidate", {
-              step,
-              textId,
-              isMarkerText,
-              isDraggableMarkerText,
-            });
+            reportDoubleMarkDragDebug(
+              "D",
+              "HighNeedleSvgAnnotatorCanvas:onMouseDown",
+              "start marker text drag candidate",
+              {
+                step,
+                textId,
+                isMarkerText,
+                isDraggableMarkerText,
+              },
+            );
             // #endregion
             const id = textId;
             if (!id) return;
@@ -1469,11 +1508,16 @@ export default function HighNeedleSvgAnnotatorCanvas({
               ? (clientToSvgPoint(svgRoot, e.clientX, e.clientY) ?? undefined)
               : undefined;
             // #region debug-point A:brush-start
-            reportDoubleMarkDragDebug("A", "HighNeedleSvgAnnotatorCanvas:onMouseDown", "brush start hit line", {
-              step,
-              lineId: id,
-              hasMarkerPos: Boolean(markerPos),
-            });
+            reportDoubleMarkDragDebug(
+              "A",
+              "HighNeedleSvgAnnotatorCanvas:onMouseDown",
+              "brush start hit line",
+              {
+                step,
+                lineId: id,
+                hasMarkerPos: Boolean(markerPos),
+              },
+            );
             // #endregion
             if (step === "DML" || step === "单双") {
               handleLineAction(id, { markerPos });
@@ -1496,6 +1540,14 @@ export default function HighNeedleSvgAnnotatorCanvas({
         onContextMenu={(e) => {
           if (step !== "DML") return;
           e.preventDefault();
+          const wrap = canvasWrapRef.current;
+          const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+          const id = getLineIdFromPoint(e.clientX, e.clientY);
+          if (!id) return;
+          const markerPos = svgRoot
+            ? (clientToSvgPoint(svgRoot, e.clientX, e.clientY) ?? undefined)
+            : undefined;
+          handleLineDmlCycleOverride(id, markerPos);
         }}
       >
         <div ref={canvasWrapRef} className="relative inline-block">
@@ -1563,9 +1615,26 @@ export default function HighNeedleSvgAnnotatorCanvas({
                   };
                 }}
               >
-                <svg width="8" height="8" viewBox="0 0 8 8" className="text-blue-500">
-                  <path d="M2 1L4 0L6 1M2 7L4 8L6 7" stroke="currentColor" fill="none" strokeWidth="1.2" />
-                  <line x1="4" y1="1" x2="4" y2="7" stroke="currentColor" strokeWidth="1" />
+                <svg
+                  width="8"
+                  height="8"
+                  viewBox="0 0 8 8"
+                  className="text-blue-500"
+                >
+                  <path
+                    d="M2 1L4 0L6 1M2 7L4 8L6 7"
+                    stroke="currentColor"
+                    fill="none"
+                    strokeWidth="1.2"
+                  />
+                  <line
+                    x1="4"
+                    y1="1"
+                    x2="4"
+                    y2="7"
+                    stroke="currentColor"
+                    strokeWidth="1"
+                  />
                 </svg>
               </div>
             </>

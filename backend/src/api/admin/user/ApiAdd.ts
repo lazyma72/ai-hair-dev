@@ -1,5 +1,6 @@
 import { ApiCall } from "tsrpc"
 import { Global } from "../../../models/Global"
+import { hashPassword } from "../../../models/password"
 import { ReqAdd, ResAdd } from "../../../shared/protocols/admin/user/PtlAdd"
 import type { DbUser } from "../../../shared/db/DbUser"
 
@@ -26,11 +27,10 @@ export default async function (call: ApiCall<ReqAdd, ResAdd>) {
 
   const now = new Date()
 
-  // TODO: password should be hashed before storage.
   const insertDoc: Omit<DbUser, "_id"> = {
     name,
     username,
-    password,
+    password: await hashPassword(password),
     role: "admin",
     createTime: now,
     updateTime: now,

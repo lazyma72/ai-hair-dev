@@ -30,6 +30,8 @@ async function main() {
   let totalUpserted = 0
   let totalModified = 0
 
+  await col.deleteMany({})
+
   for (const file of files) {
     const filePath = path.join(jsonDir, file)
     const 发丝种类 = file.replace(/\.json$/i, "")

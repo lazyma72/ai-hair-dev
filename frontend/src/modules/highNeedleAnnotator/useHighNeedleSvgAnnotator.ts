@@ -336,6 +336,7 @@ export default function useHighNeedleSvgAnnotator({
   const startFromDone = Boolean(initialValue) && startAt === "done";
 
   const [step, setStep] = useState<标注步骤>(startFromDone ? "完成" : "区域");
+  const prevStepRef = useRef<标注步骤>(startFromDone ? "完成" : "区域");
   const [progress, setProgress] = useState<number>(startFromDone ? 5 : 0);
   const [value, setValue] = useState<高针图>(() =>
     initialValue
@@ -372,6 +373,7 @@ export default function useHighNeedleSvgAnnotator({
 
   const [dmlAutoConfigs, setDmlAutoConfigs] = useState<DmlAutoConfig[]>([]);
   const [dmlPattern, setDmlPattern] = useState("DML");
+  const dmlPatternRef = useRef("DML");
   const [dmlSelectionVersion, setDmlSelectionVersion] = useState(0);
   const manualDmlOverridesRef = useRef<Record<string, DmlValue>>({});
   const autoDmlAssignmentsRef = useRef<Map<string, DmlValue>>(new Map());
@@ -1080,22 +1082,24 @@ export default function useHighNeedleSvgAnnotator({
       });
     });
 
-    dmlById.forEach((v, id) => {
-      if (!v) return;
-      map.set(id, {
-        ...map.get(id),
-        dml: v,
-        dmlTextNodeId: actualDmlTextNodeIdByLineId.get(id),
+    if (step !== "完成") {
+      dmlById.forEach((v, id) => {
+        if (!v) return;
+        map.set(id, {
+          ...map.get(id),
+          dml: v,
+          dmlTextNodeId: actualDmlTextNodeIdByLineId.get(id),
+        });
       });
-    });
 
-    doubleById.forEach((id) => {
-      map.set(id, {
-        ...map.get(id),
-        isDouble: true,
-        doubleTextNodeId: actualDoubleTextNodeIdByLineId.get(id),
+      doubleById.forEach((id) => {
+        map.set(id, {
+          ...map.get(id),
+          isDouble: true,
+          doubleTextNodeId: actualDoubleTextNodeIdByLineId.get(id),
+        });
       });
-    });
+    }
 
     return map;
   }, [
@@ -1188,10 +1192,10 @@ export default function useHighNeedleSvgAnnotator({
         visibleTextIdSet.add(id),
       );
     }
-    if (layerToggles.dml) {
+    if (layerToggles.dml && step !== "完成") {
       actualDmlTextNodeIdByLineId.forEach((id) => visibleTextIdSet.add(id));
     }
-    if (layerToggles.double) {
+    if (layerToggles.double && step !== "完成") {
       actualDoubleTextNodeIdByLineId.forEach((id) => visibleTextIdSet.add(id));
     }
 
@@ -1216,8 +1220,9 @@ export default function useHighNeedleSvgAnnotator({
       regionNoById,
       regionStrokeById: layerToggles.region ? regionStrokeById : undefined,
       levelNoById: layerToggles.level ? levelNoById : undefined,
-      dmlById: layerToggles.dml ? dmlById : undefined,
-      doubleById: layerToggles.double ? doubleById : undefined,
+      dmlById: layerToggles.dml && step !== "完成" ? dmlById : undefined,
+      doubleById:
+        layerToggles.double && step !== "完成" ? doubleById : undefined,
       selectedStroke,
     });
 
@@ -1372,11 +1377,56 @@ export default function useHighNeedleSvgAnnotator({
     return map;
   }, [regionLineItems, value.底图.区域名]);
 
+  // When (re-)entering the DML step, restore draftSelected & manual overrides
+  // from existing DML annotations so previously-saved DML data is preserved.
+  // Also reset dmlSelectionVersion so the auto-assign effect won't run until
+  // the user explicitly clicks a line.
+  useEffect(() => {
+    const prev = prevStepRef.current;
+    prevStepRef.current = step;
+
+    if (step !== "DML" || prev === "DML") return;
+
+    setDmlSelectionVersion(0);
+
+    const existing = value.自定义数据.DML标注;
+    if (existing.length === 0) return;
+
+    manualDmlOverridesRef.current = {};
+    existing.forEach((d) => {
+      const id = String(d.lineNodeId ?? "").trim();
+      const v = String(d.标注DML ?? "")
+        .trim()
+        .toUpperCase();
+      if (id && (v === "D" || v === "M" || v === "L")) {
+        manualDmlOverridesRef.current[id] = v as DmlValue;
+      }
+    });
+
+    const lineIds = existing
+      .map((d) => String(d.lineNodeId ?? "").trim())
+      .filter(Boolean);
+    if (lineIds.length > 0) {
+      setDraftSelected(lineIds);
+    }
+  }, [step, value.自定义数据.DML标注]);
+
+  // When the user changes the pattern, lock existing auto-assignments as manual
+  // overrides so already-marked lines are not re-assigned.
+  useEffect(() => {
+    dmlPatternRef.current = dmlPattern;
+    autoDmlAssignmentsRef.current.forEach((v, id) => {
+      if (!(id in manualDmlOverridesRef.current)) {
+        manualDmlOverridesRef.current[id] = v;
+      }
+    });
+  }, [dmlPattern]);
+
   useEffect(() => {
     if (step !== "DML") return;
     if (dmlSelectionVersion === 0) return;
 
-    const normalizedPattern = normalizePattern(dmlPattern);
+    const normalizedPattern = normalizePattern(dmlPatternRef.current);
     if (!normalizedPattern) return;
 
     const selected = uniquePreserveOrder(draftSelected).filter((lineId) =>
@@ -1390,23 +1440,35 @@ export default function useHighNeedleSvgAnnotator({
       return a.localeCompare(b);
     });
 
+    // Only auto-assign lines that don't have a manual override.
+    // Lines with manual overrides (including "" = explicitly cleared) keep their values.
     const assignments = new Map<string, DmlValue>();
-    orderedSelected.forEach((lineId, index) => {
+    let autoIdx = 0;
+    orderedSelected.forEach((lineId) => {
+      if (lineId in manualDmlOverridesRef.current) return;
       assignments.set(
         lineId,
-        normalizedPattern[index % normalizedPattern.length] as DmlValue,
+        normalizedPattern[autoIdx % normalizedPattern.length] as DmlValue,
       );
+      autoIdx++;
     });
 
-    manualDmlOverridesRef.current = {};
+    // Clean up overrides for lines that are no longer selected
+    const selectedSet = new Set(orderedSelected);
+    Object.keys(manualDmlOverridesRef.current).forEach((id) => {
+      if (!selectedSet.has(id)) delete manualDmlOverridesRef.current[id];
+    });
+
     autoDmlAssignmentsRef.current = new Map(assignments);
     autoDmlManagedIdsRef.current = new Set(orderedSelected);
     autoDmlSlotByLineIdRef.current = new Map();
     commitMergedDml(assignments, new Set(orderedSelected));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     availableForStep,
     dmlOrderRankByLineId,
-    dmlPattern,
+    // dmlPattern intentionally omitted — changes are handled via dmlPatternRef
+    // to avoid re-assigning already-marked lines when the pattern is updated.
     dmlSelectionVersion,
     draftSelected,
     step,
@@ -1582,6 +1644,36 @@ export default function useHighNeedleSvgAnnotator({
     }
 
     toggleSelect(id);
+  }
+
+  /**
+   * Right-click handler for DML step: cycles D → M → L → "" (clear) for the
+   * given line at the click position, stored as a manual override so it
+   * survives pattern changes and new selections.
+   */
+  function handleLineDmlCycleOverride(lineId: string, markerPos?: SvgPoint) {
+    if (step !== "DML") return;
+    if (!lineId) return;
+    if (!availableForStep.has(lineId)) return;
+
+    setDirty(true);
+
+    const current = dmlById.get(lineId) ?? "";
+    // Cycle: "" → D → M → L → ""
+    const next: DmlValue =
+      current === "" ? "D" : current === "D" ? "M" : current === "M" ? "L" : "";
+
+    // Store "" explicitly so the selection effect skips auto-assigning this line
+    manualDmlOverridesRef.current[lineId] = next;
+
+    if (next !== "" && markerPos) {
+      dmlMarkerPosByLineIdRef.current.set(lineId, markerPos);
+    }
+
+    commitMergedDml(
+      autoDmlAssignmentsRef.current,
+      autoDmlManagedIdsRef.current,
+    );
   }
 
   function ensureDmlMarkerTextNode(lineNodeId: string, pos: SvgPoint) {
@@ -2418,9 +2510,19 @@ export default function useHighNeedleSvgAnnotator({
         return;
       }
 
+      // Exclude DML and 单双 marker text nodes — they are working annotations
+      // that should not appear in the final SVG output.
+      const dmlAndDoubleTextIds = new Set<string>();
+      actualDmlTextNodeIdByLineId.forEach((id) => dmlAndDoubleTextIds.add(id));
+      actualDoubleTextNodeIdByLineId.forEach((id) =>
+        dmlAndDoubleTextIds.add(id),
+      );
+
       const keepTextNodeIds = uniquePreserveOrder([
         ...Object.values(value.底图.文本节点).map((d) => d.textNodeId),
-        ...Array.from(markerTextIdSet),
+        ...Array.from(markerTextIdSet).filter(
+          (id) => !dmlAndDoubleTextIds.has(id),
+        ),
         ...(slotTextNodeId ? [slotTextNodeId] : []),
       ]);
 
@@ -2748,6 +2850,7 @@ export default function useHighNeedleSvgAnnotator({
     requestCanvasReset,
     toggleSelect,
     handleLineAction,
+    handleLineDmlCycleOverride,
     ensureRegionMarkerTextNode,
     ensureLevelMarkerTextNode,
     ensureDmlMarkerTextNode,

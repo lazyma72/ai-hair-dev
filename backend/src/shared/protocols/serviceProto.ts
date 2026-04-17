@@ -16,6 +16,7 @@ import { ReqUpdate as ReqUpdate_1, ResUpdate as ResUpdate_1 } from './admin/rati
 import { ReqAdd as ReqAdd_3, ResAdd as ResAdd_3 } from './admin/user/PtlAdd';
 import { ReqDelete as ReqDelete_1, ResDelete as ResDelete_1 } from './admin/user/PtlDelete';
 import { ReqGetList as ReqGetList_4, ResGetList as ResGetList_4 } from './admin/user/PtlGetList';
+import { ReqLogin, ResLogin } from './PtlLogin';
 import { ReqUpload, ResUpload } from './PtlUpload';
 
 export interface ServiceType {
@@ -88,6 +89,10 @@ export interface ServiceType {
             req: ReqGetList_4,
             res: ResGetList_4
         },
+        "Login": {
+            req: ReqLogin,
+            res: ResLogin
+        },
         "Upload": {
             req: ReqUpload,
             res: ResUpload
@@ -111,9 +116,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "id": 10,
             "name": "admin/customer/GetList",
             "type": "api",
-            "conf": {
-                "allowNoLogin": true
-            }
+            "conf": {}
         },
         {
             "id": 2,
@@ -131,17 +134,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "id": 11,
             "name": "admin/file/GetDetail",
             "type": "api",
-            "conf": {
-                "allowNoLogin": true
-            }
+            "conf": {}
         },
         {
             "id": 12,
             "name": "admin/file/GetList",
             "type": "api",
-            "conf": {
-                "allowNoLogin": true
-            }
+            "conf": {}
         },
         {
             "id": 3,
@@ -159,17 +158,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "id": 18,
             "name": "admin/hatMaking/GetDetail",
             "type": "api",
-            "conf": {
-                "allowNoLogin": true
-            }
+            "conf": {}
         },
         {
             "id": 19,
             "name": "admin/hatMaking/GetList",
             "type": "api",
-            "conf": {
-                "allowNoLogin": true
-            }
+            "conf": {}
         },
         {
             "id": 13,
@@ -181,17 +176,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "id": 4,
             "name": "admin/ratio/GetDetail",
             "type": "api",
-            "conf": {
-                "allowNoLogin": true
-            }
+            "conf": {}
         },
         {
             "id": 5,
             "name": "admin/ratio/GetList",
             "type": "api",
-            "conf": {
-                "allowNoLogin": true
-            }
+            "conf": {}
         },
         {
             "id": 6,
@@ -219,6 +210,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
         },
         {
             "id": 21,
+            "name": "Login",
+            "type": "api",
+            "conf": {
+                "allowNoLogin": true
+            }
+        },
+        {
+            "id": 22,
             "name": "Upload",
             "type": "api",
             "conf": {
@@ -1225,13 +1224,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "type": {
                                     "type": "String"
                                 }
-                            },
-                            {
-                                "id": 5,
-                                "name": "编号",
-                                "type": {
-                                    "type": "String"
-                                }
                             }
                         ]
                     }
@@ -1602,8 +1594,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "type": "Interface",
             "properties": [
                 {
-                    "id": 0,
-                    "name": "发丝种类",
+                    "id": 3,
+                    "name": "发丝",
                     "type": {
                         "type": "String"
                     }
@@ -2368,13 +2360,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                             {
                                 "id": 3,
                                 "name": "唛头",
-                                "type": {
-                                    "type": "String"
-                                }
-                            },
-                            {
-                                "id": 4,
-                                "name": "编号",
                                 "type": {
                                     "type": "String"
                                 }
@@ -3237,6 +3222,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
+                    "id": 4,
+                    "name": "名称",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
                     "id": 1,
                     "name": "帽围",
                     "type": {
@@ -3329,6 +3321,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 0,
                     "name": "_id",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "名称",
                     "type": {
                         "type": "String"
                     }
@@ -3524,8 +3523,15 @@ export const serviceProto: ServiceProto<ServiceType> = {
             ],
             "properties": [
                 {
-                    "id": 0,
-                    "name": "id",
+                    "id": 1,
+                    "name": "颜色编号",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "发丝种类",
                     "type": {
                         "type": "String"
                     }
@@ -3980,6 +3986,55 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 5,
                     "name": "updateTime",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "PtlLogin/ReqLogin": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "username",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "password",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "PtlLogin/ResLogin": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "token",
                     "type": {
                         "type": "String"
                     }

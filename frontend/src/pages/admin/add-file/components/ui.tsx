@@ -77,6 +77,7 @@ export function NumInput({
     <input
       type="number"
       step={step}
+      min="0"
       placeholder={placeholder ?? "0"}
       disabled={disabled}
       className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}`}
@@ -84,7 +85,7 @@ export function NumInput({
       onChange={(e) => {
         setRaw(e.target.value);
         const n = parseFloat(e.target.value);
-        onChange(isNaN(n) ? 0 : n);
+        onChange(isNaN(n) ? 0 : Math.max(0, n));
       }}
     />
   );
@@ -115,6 +116,7 @@ export function OneDecimalInput({
     <input
       type="number"
       step="0.1"
+      min="0"
       placeholder={placeholder ?? "0"}
       disabled={disabled}
       className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}`}
@@ -122,7 +124,7 @@ export function OneDecimalInput({
       onChange={(e) => {
         setRaw(e.target.value);
         const n = parseFloat(e.target.value);
-        onChange(isNaN(n) ? 0 : Math.round(n * 10) / 10);
+        onChange(isNaN(n) ? 0 : Math.max(0, Math.round(n * 10) / 10));
       }}
     />
   );
@@ -191,23 +193,23 @@ export function QuarterFractionInput({
 }) {
   const fmt = (n: number) => {
     const normalized = Math.round(n * 4) / 4;
-    return Number.isInteger(normalized) ? String(normalized) : normalized.toFixed(2);
+    return Number.isInteger(normalized)
+      ? String(normalized)
+      : normalized.toFixed(2);
   };
   const isAllowedQuarter = (n: number) => {
     const normalized = Math.round(n * 100) / 100;
     const frac = ((normalized % 1) + 1) % 1;
-    return (
-      frac === 0 ||
-      frac === 0.25 ||
-      frac === 0.5 ||
-      frac === 0.75
-    );
+    return frac === 0 || frac === 0.25 || frac === 0.5 || frac === 0.75;
   };
   const [raw, setRaw] = useState(fmt(value));
 
   useEffect(() => {
     const current = parseFloat(raw);
-    if (isNaN(current) || Math.round(current * 4) / 4 !== Math.round(value * 4) / 4) {
+    if (
+      isNaN(current) ||
+      Math.round(current * 4) / 4 !== Math.round(value * 4) / 4
+    ) {
       setRaw(fmt(value));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -323,7 +325,9 @@ export function Section({
         {action}
       </div>
       <div className="p-5">
-        {error ? <div className="-mt-1 mb-3 text-xs text-rose-500">{error}</div> : null}
+        {error ? (
+          <div className="-mt-1 mb-3 text-xs text-rose-500">{error}</div>
+        ) : null}
         {children}
       </div>
     </section>

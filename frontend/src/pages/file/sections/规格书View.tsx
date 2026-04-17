@@ -28,7 +28,7 @@ type Props = { data: 制品规格书Frontend };
 
 // 胶丝配比表格列定义
 const 配比列: Column<KLS胶丝比例>[] = [
-  { key: "发丝种类", title: "发丝种类", render: (r) => r.发丝种类 },
+  { key: "发丝", title: "发丝", render: (r) => r.发丝 },
   { key: "色号", title: "色号", render: (r) => r.色号 },
   {
     key: "比例",
@@ -95,7 +95,7 @@ function 染色档位卡片({ item, index }: { item: 染色档位; index: number
 export default function 规格书View({ data }: Props) {
   const normalized = data as unknown as 制品规格书Frontend & {
     胶丝比例: 制品规格书Frontend extends { 胶丝比例: infer T } ? T : any;
-    制帽: { 帽围: number; 帽深: number; 前后: number; 唛头: string; 编号: string };
+    制帽: { 帽围: number; 帽深: number; 前后: number; 唛头: string };
   };
   const {
     title,
@@ -133,7 +133,6 @@ export default function 规格书View({ data }: Props) {
               ["帽深", `${制帽.帽深} cm`],
               ["前后", `${制帽.前后} cm`],
               ["唛头", 制帽.唛头],
-              ["编号", 制帽.编号],
             ] as const
           ).map(([k, v]) => (
             <Row key={k} label={k} value={v} />
@@ -169,19 +168,19 @@ export default function 规格书View({ data }: Props) {
               {胶丝比例.D.length > 0 && (
                 <div>
                   <div className="mb-1 text-xs font-medium text-slate-500">D</div>
-                  <DataTable columns={配比列} rows={胶丝比例.D} rowKey={(r) => r.色号} />
+                  <DataTable columns={配比列} rows={胶丝比例.D} rowKey={(r) => `${r.发丝}-${r.色号}`} />
                 </div>
               )}
               {胶丝比例.M && 胶丝比例.M.length > 0 && (
                 <div>
                   <div className="mb-1 text-xs font-medium text-slate-500">M</div>
-                  <DataTable columns={配比列} rows={胶丝比例.M} rowKey={(r) => r.色号} />
+                  <DataTable columns={配比列} rows={胶丝比例.M} rowKey={(r) => `${r.发丝}-${r.色号}`} />
                 </div>
               )}
               {胶丝比例.L && 胶丝比例.L.length > 0 && (
                 <div>
                   <div className="mb-1 text-xs font-medium text-slate-500">L</div>
-                  <DataTable columns={配比列} rows={胶丝比例.L} rowKey={(r) => r.色号} />
+                  <DataTable columns={配比列} rows={胶丝比例.L} rowKey={(r) => `${r.发丝}-${r.色号}`} />
                 </div>
               )}
             </div>

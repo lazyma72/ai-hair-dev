@@ -24,6 +24,7 @@ const EDITOR_TABS = [
 type EditorTabKey = (typeof EDITOR_TABS)[number]["key"];
 type HatMakingOption = {
   _id: string;
+  名称?: string;
   帽围: number;
   帽深: number;
   前后: number;
@@ -41,6 +42,8 @@ type Props = {
   onSubmit: (form: FileDraftViewModel) => Promise<{ id: string }>;
   onBack: () => void;
   onSubmitted: (id: string, form: FileDraftViewModel) => void;
+  onDraftChange?: (form: FileDraftViewModel) => void;
+  extraActions?: React.ReactNode;
 };
 
 function normalizeName(s: string): string {
@@ -59,6 +62,8 @@ export default function FileEditorPage({
   onSubmit,
   onBack,
   onSubmitted,
+  onDraftChange,
+  extraActions,
 }: Props) {
   const [form, setForm] = useState<FileDraftViewModel | null>(initialValue);
   const [activeTab, setActiveTab] = useState<EditorTabKey>("制品规格书");
@@ -71,6 +76,11 @@ export default function FileEditorPage({
   useEffect(() => {
     setForm(initialValue);
   }, [initialValue]);
+
+  useEffect(() => {
+    if (!form) return;
+    onDraftChange?.(form);
+  }, [form, onDraftChange]);
 
   useEffect(() => {
     callApi("admin/ratio/GetList", {
@@ -225,6 +235,7 @@ export default function FileEditorPage({
 
   const actions = (
     <div className="flex items-center gap-2">
+      {extraActions}
       <button
         type="button"
         disabled={submitting || !form}

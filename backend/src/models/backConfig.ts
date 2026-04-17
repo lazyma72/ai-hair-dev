@@ -6,6 +6,7 @@ import { z } from "zod"
 const EnvSchema = z.object({
   MONGO_URI: z.string().min(1),
   ENV: z.string().min(1),
+  JWT_SECRET: z.string().min(16),
 })
 
 /**
@@ -30,9 +31,10 @@ function parseEnvConfig() {
 // 验证环境变量
 const env = parseEnvConfig()
 
-
 export const backConfig = {
   /** mongo connection url */
   mongoUrl: env.MONGO_URI,
   env: env.ENV,
+  /** JWT 签名密钥 */
+  jwtSecret: env.JWT_SECRET,
 }

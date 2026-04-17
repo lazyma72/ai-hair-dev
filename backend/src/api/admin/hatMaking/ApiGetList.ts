@@ -1,34 +1,44 @@
 import { ApiCall } from "tsrpc"
+import { z } from "zod"
+import type { Filter, Sort } from "mongodb"
 import { Global } from "../../../models/Global"
+import type { Db制帽 } from "../../../shared/db/Db制帽"
 import { ReqGetList, ResGetList } from "../../../shared/protocols/admin/hatMaking/PtlGetList"
 
+const ReqSchema = z.object({
+  pageNum: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).default(20),
+  keyword: z.string().optional(),
+  orderSort: z.enum(["asc", "desc"]).default("asc"),
+})
+
 export default async function (call: ApiCall<ReqGetList, ResGetList>) {
+  const parsed = ReqSchema.safeParse(call.req)
+  if (!parsed.success) {
+    call.error("参数错误: " + parsed.error.message)
+    return
+  }
+
+  const { pageNum, pageSize, keyword, orderSort } = parsed.data
   const col = Global.getCollection("制帽")
-  const pageNum = Math.max(1, call.req.pageNum ?? 1)
-  const orderSort = call.req.orderSort ?? "asc"
-  const keyword = call.req.keyword?.trim().toLowerCase() ?? ""
 
-  const docs = await col.find({}).toArray()
-  const filteredDocs = docs
-    .filter(doc => {
-      if (!keyword) return true
-      return `${doc._id}`.toLowerCase().includes(keyword)
-    })
-    .sort((a, b) =>
-      orderSort === "asc"
-        ? a._id.localeCompare(b._id)
-        : b._id.localeCompare(a._id)
-    )
+  const mongoFilter: Filter<Db制帽> = {}
+  const kw = keyword?.trim()
+  if (kw) {
+    mongoFilter._id = { $regex: kw, $options: "i" } as Filter<Db制帽>["_id"]
+  }
 
-  const total = filteredDocs.length
-  const pageSize = Math.max(1, call.req.pageSize ?? Math.max(total, 1))
-  const start = (pageNum - 1) * pageSize
-  const list = filteredDocs.slice(start, start + pageSize)
+  const sort: Sort = { _id: orderSort === "asc" ? 1 : -1 }
 
-  call.succ({
-    list,
-    total,
-    pageNum,
-    pageSize,
-  })
+  const [total, list] = await Promise.all([
+    col.countDocuments(mongoFilter),
+    col
+      .find(mongoFilter)
+      .sort(sort)
+      .skip((pageNum - 1) * pageSize)
+      .limit(pageSize)
+      .toArray(),
+  ])
+
+  call.succ({ list, total, pageNum, pageSize })
 }

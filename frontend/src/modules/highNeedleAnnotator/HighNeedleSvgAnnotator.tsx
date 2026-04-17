@@ -57,6 +57,7 @@ export default function HighNeedleSvgAnnotator(props: Props) {
           regionLabels={state.regionLabelItems}
           toggleSelect={state.toggleSelect}
           handleLineAction={state.handleLineAction}
+          handleLineDmlCycleOverride={state.handleLineDmlCycleOverride}
           ensureRegionMarkerTextNode={state.ensureRegionMarkerTextNode}
           ensureLevelMarkerTextNode={state.ensureLevelMarkerTextNode}
           ensureDmlMarkerTextNode={state.ensureDmlMarkerTextNode}
@@ -70,7 +71,16 @@ export default function HighNeedleSvgAnnotator(props: Props) {
           onTextPositionCommit={state.commitTextNodePosition}
           onTextRemove={state.removeTextNode}
           onTextStyleChange={state.updateTextNodeStyle}
-          textNodeMap={state.value.底图.文本节点 as Record<string, { textNodeId: string; text?: string; fontStyle?: Record<string, unknown> }>}
+          textNodeMap={
+            state.value.底图.文本节点 as Record<
+              string,
+              {
+                textNodeId: string;
+                text?: string;
+                fontStyle?: Record<string, unknown>;
+              }
+            >
+          }
           showPreview={showPreview}
         />
       </div>

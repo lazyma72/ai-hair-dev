@@ -8,7 +8,7 @@
  *   - 增加图片展示：在最下方加 <img src={data.颜色图片参考} />
  *   - 修改比例展示格式：修改 columns 中 render 函数
  */
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import { type Column } from "../../components/DataTable";
 import DataTable from "../../components/DataTable";
@@ -22,9 +22,9 @@ import type { KLS胶丝比例 } from "../../shared/db/Db胶丝比例";
 
 const 配比列: Column<KLS胶丝比例>[] = [
   {
-    key: "发丝种类",
-    title: "发丝种类",
-    render: (r) => <span className="font-medium">{r.发丝种类}</span>,
+    key: "发丝",
+    title: "发丝",
+    render: (r) => <span className="font-medium">{r.发丝}</span>,
   },
   {
     key: "色号",
@@ -47,11 +47,16 @@ const 配比列: Column<KLS胶丝比例>[] = [
 ];
 
 export default function RatioDetailPage() {
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const 颜色编号 = searchParams.get("colorNo") ?? "";
+  const 发丝种类 = searchParams.get("hairType") ?? "";
 
-  const { data, loading, error } = useApi(() =>
-    callApi("admin/ratio/GetDetail", { id: id! }),
+  const { data, loading, error } = useApi<{ 胶丝比例: 胶丝比例Frontend }>(() =>
+    callApi("admin/ratio/GetDetail", {
+      颜色编号,
+      发丝种类,
+    } as any),
   );
 
   const ratio: 胶丝比例Frontend | null = data?.胶丝比例 ?? null;
@@ -68,6 +73,7 @@ export default function RatioDetailPage() {
             <Section title="基本信息">
               <div className="divide-y divide-slate-100">
                 <Row label="颜色编号" value={ratio._id.颜色编号} />
+                <Row label="发丝种类" value={ratio._id.发丝种类} />
                 <Row label="线色" value={ratio.线色 ?? "—"} />
                 <Row label="备注" value={ratio.备注 ?? "—"} />
               </div>
@@ -91,7 +97,7 @@ export default function RatioDetailPage() {
               <DataTable
                 columns={配比列}
                 rows={ratio.D}
-                rowKey={(r) => r.色号 + r.发丝种类}
+                  rowKey={(r) => `${r.发丝}-${r.色号}`}
               />
             </Section>
 
@@ -101,7 +107,7 @@ export default function RatioDetailPage() {
                 <DataTable
                   columns={配比列}
                   rows={ratio.M}
-                  rowKey={(r) => r.色号 + r.发丝种类}
+                  rowKey={(r) => `${r.发丝}-${r.色号}`}
                 />
               </Section>
             )}
@@ -112,7 +118,7 @@ export default function RatioDetailPage() {
                 <DataTable
                   columns={配比列}
                   rows={ratio.L}
-                  rowKey={(r) => r.色号 + r.发丝种类}
+                  rowKey={(r) => `${r.发丝}-${r.色号}`}
                 />
               </Section>
             )}

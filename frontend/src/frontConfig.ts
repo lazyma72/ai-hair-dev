@@ -1,6 +1,11 @@
 const urlSearchParams = new URLSearchParams(window.location.search);
 
 const envParam = urlSearchParams.get("env") ?? "";
+const hostname = window.location.hostname;
+const isLocalHost =
+  hostname === "localhost" ||
+  hostname === "127.0.0.1" ||
+  hostname === "0.0.0.0";
 
 const env: "local" | "dev" | "test" | "prod" =
   envParam === "local"
@@ -9,7 +14,9 @@ const env: "local" | "dev" | "test" | "prod" =
       ? "dev"
       : envParam === "test"
         ? "test"
-        : "prod";
+        : isLocalHost
+          ? "local"
+          : "prod";
 
 export const isDebug = localStorage.debug === "kingworks" || env !== "prod";
 
@@ -26,4 +33,6 @@ export const frontConfig = {
   apiServer: serverUrl[env],
   /** 静态资源 base URL，用于拼接上传文件路径 */
   staticBase: serverUrl[env],
+  /** 上传接口和图片预览始终指向 prod 服务器 */
+  prodServer: "http://120.78.3.29:8888/api/pss",
 };

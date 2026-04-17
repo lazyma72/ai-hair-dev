@@ -46,8 +46,7 @@ function applyManualWeights(list: 人工档位[]): 人工档位[] {
   return list.map((档位) => {
     const 双针 = 档位.双针 as 人工双针;
     const totalRows = 档位.裁断与重量.length;
-    const has对裁 =
-      档位.整毛.对裁 !== undefined && 档位.整毛.对裁 !== null;
+    const has对裁 = 档位.整毛.对裁 !== undefined && 档位.整毛.对裁 !== null;
     return {
       ...档位,
       裁断与重量: 档位.裁断与重量.map((item, rowIndex) => {
@@ -119,11 +118,11 @@ export default function ManualSpecSection({
             <div className="mb-3 text-xs font-medium text-slate-500">
               编辑明细
             </div>
-            <div className="grid grid-cols-[60px_130px_130px_130px_70px_70px_1fr_55px_1fr_auto] gap-2 px-3">
+            <div className="grid grid-cols-[45px_80px_110px_80px_60px_60px_80px_50px_1fr_auto] gap-2 px-3">
               {[
                 "档位",
                 "整毛·拉尖",
-                "整毛·对裁",
+                "",
                 "双针·毛长",
                 "双针·磅发g",
                 "双针·密度",
@@ -156,13 +155,11 @@ export default function ManualSpecSection({
               return (
                 <div
                   key={档位.档位}
-                  className="grid grid-cols-[60px_130px_130px_130px_70px_70px_1fr_55px_1fr_auto] items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2"
+                  className="grid grid-cols-[45px_80px_110px_80px_60px_60px_80px_50px_1fr_auto] items-start gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2"
                 >
-                  <TextInput
-                    value={档位.档位}
-                    onChange={(v) => p("档位", v)}
-                    placeholder="H1"
-                  />
+                  <div className="flex h-[34px] items-center rounded border border-slate-100 bg-slate-50 px-2 text-sm font-medium text-slate-700">
+                    {档位.档位}
+                  </div>
                   <QuarterFractionInput
                     value={档位.整毛.拉尖}
                     onChange={(n) => p("整毛", { ...档位.整毛, 拉尖: n })}
@@ -170,7 +167,7 @@ export default function ManualSpecSection({
                   <Field
                     label="整毛·对裁"
                     labelExtra={
-                      <label className="flex items-center gap-1.5 text-xs font-normal text-slate-600">
+                      <label className="flex cursor-pointer items-center gap-1.5 text-xs font-normal text-slate-600">
                         <span>对裁</span>
                         <input
                           type="checkbox"
@@ -181,7 +178,6 @@ export default function ManualSpecSection({
                               p("整毛", { ...档位.整毛, 对裁: 0 });
                               return;
                             }
-
                             const { 对裁: _omit, ...rest } = 档位.整毛;
                             p("整毛", rest);
                           }}
@@ -192,9 +188,7 @@ export default function ManualSpecSection({
                     <OptionalQuarterFractionInput
                       enabled={has对裁}
                       value={档位.整毛.对裁 ?? 0}
-                      onChange={(n) =>
-                        p("整毛", { ...档位.整毛, 对裁: n })
-                      }
+                      onChange={(n) => p("整毛", { ...档位.整毛, 对裁: n })}
                     />
                   </Field>
                   <QuarterFractionInput
@@ -230,7 +224,18 @@ export default function ManualSpecSection({
                     onChange={(v) => p("备注", v || undefined)}
                     placeholder="可选"
                   />
-                  <DelBtn onClick={() => emit(list.filter((_, j) => j !== i))} />
+                  <DelBtn
+                    onClick={() =>
+                      emit(
+                        list
+                          .filter((_, j) => j !== i)
+                          .map((item, idx) => ({
+                            ...item,
+                            档位: `H${idx + 1}`,
+                          })),
+                      )
+                    }
+                  />
 
                   <div className="col-span-full rounded-lg border border-slate-100 bg-slate-50 p-3">
                     <div className="mb-2 flex items-center justify-between gap-3">
@@ -239,8 +244,8 @@ export default function ManualSpecSection({
                           裁断与重量
                         </div>
                         <div className="mt-1 text-[10px] text-slate-400">
-                          公式：裁断 * 密度 / 2 * 行系数；如存在整毛·对裁，再 / 2。D/M/L
-                          三列当前显示相同值。
+                          公式：裁断 * 密度 / 2 * 行系数；如存在整毛·对裁，再 /
+                          2。D/M/L 三列当前显示相同值。
                         </div>
                       </div>
                       {档位.裁断与重量.length < MAX_CUT_WEIGHT_ITEMS ? (
@@ -293,8 +298,11 @@ export default function ManualSpecSection({
                                   const next = [...list];
                                   next[i] = {
                                     ...档位,
-                                    裁断与重量: 档位.裁断与重量.map((row, idx) =>
-                                      idx === rowIndex ? { ...row, 裁断: n } : row,
+                                    裁断与重量: 档位.裁断与重量.map(
+                                      (row, idx) =>
+                                        idx === rowIndex
+                                          ? { ...row, 裁断: n }
+                                          : row,
                                     ),
                                   };
                                   emit(next);

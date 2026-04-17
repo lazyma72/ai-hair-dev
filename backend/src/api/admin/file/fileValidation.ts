@@ -32,10 +32,26 @@ const DyeItemSchema = z
     type: z.enum(["普通", "对折", "错位"]),
     染色图: z
       .object({
-        档位标注: z.object({ 档位列表: z.array(z.string()) }),
-        染色尺寸标注: z.object({ 尺寸: z.number() }),
-        长尺寸标注: z.object({ 尺寸: z.number() }).optional(),
-        短尺寸标注: z.object({ 尺寸: z.number() }).optional(),
+        档位标注: z.object({
+          档位列表: z.array(z.string()),
+          textNodeId: z.string().trim().min(1, "染色档位标注缺少 textNodeId"),
+        }),
+        染色尺寸标注: z.object({
+          尺寸: z.number(),
+          textNodeId: z.string().trim().min(1, "染色尺寸标注缺少 textNodeId"),
+        }),
+        长尺寸标注: z
+          .object({
+            尺寸: z.number(),
+            textNodeId: z.string().trim().min(1, "长尺寸标注缺少 textNodeId"),
+          })
+          .optional(),
+        短尺寸标注: z
+          .object({
+            尺寸: z.number(),
+            textNodeId: z.string().trim().min(1, "短尺寸标注缺少 textNodeId"),
+          })
+          .optional(),
       })
       .passthrough(),
   })
@@ -161,6 +177,10 @@ export const ErrorCodeByMessage: Record<string, string> = {
   "染色尺寸必须是 0.25 的倍数": "INVALID_DYE_SIZE",
   "长尺寸必须是 0.25 的倍数": "INVALID_DYE_SIZE",
   "短尺寸必须是 0.25 的倍数": "INVALID_DYE_SIZE",
+  "染色档位标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
+  "染色尺寸标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
+  "长尺寸标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
+  "短尺寸标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
   "非间色/T色假发的机器规格清单中不允许设置 DML比值": "INVALID_DML",
   裁断重量项最多3个: "INVALID_CUT_WEIGHT_COUNT",
   DML比值最多1位小数: "INVALID_DML",

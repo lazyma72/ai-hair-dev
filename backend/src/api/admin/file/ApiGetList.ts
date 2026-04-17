@@ -1,49 +1,70 @@
 import { ApiCall } from "tsrpc"
+import { z } from "zod"
+import type { Filter, Sort } from "mongodb"
 import { ReqGetList, ResGetList } from "../../../shared/protocols/admin/file/PtlGetList"
 import { Global } from "../../../models/Global"
+import { 假发类型, type 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿"
+
+const ReqSchema = z.object({
+  pageNum: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).default(20),
+  keyword: z.string().optional(),
+  orderSort: z.enum(["asc", "desc"]).default("desc"),
+  filter: z
+    .object({
+      客户编号: z.string().optional(),
+      品名: z.string().optional(),
+      原材料: z.string().optional(),
+      假发类型: z.nativeEnum(假发类型).optional(),
+      CAP: z.string().optional(),
+    })
+    .default({}),
+})
 
 export default async function (call: ApiCall<ReqGetList, ResGetList>) {
-  const col = Global.getCollection("沐茵丝假发成品稿")
-  const pageNum = Math.max(1, call.req.pageNum ?? 1)
-  const keyword = call.req.keyword?.trim().toLowerCase() ?? ""
-  const orderSort = call.req.orderSort ?? "desc"
-  const filter = call.req.filter ?? {}
-  const docs = await col
-    .find(
-      {},
-      {
-        projection: {
-          _id: 1,
-          客户编号: 1,
-          品名: 1,
-          原材料: 1,
-          假发类型: 1,
-          CAP: 1,
-        },
-      }
-    )
-    .toArray()
-  const filteredDocs = docs
-    .filter(doc => (filter.客户编号 ? doc.客户编号 === filter.客户编号 : true))
-    .filter(doc => (filter.品名 ? doc.品名 === filter.品名 : true))
-    .filter(doc => (filter.原材料 ? doc.原材料 === filter.原材料 : true))
-    .filter(doc => (filter.假发类型 ? doc.假发类型 === filter.假发类型 : true))
-    .filter(doc => (filter.CAP ? doc.CAP === filter.CAP : true))
-    .filter(doc => {
-      if (!keyword) return true
-      return `${doc._id} ${doc.客户编号} ${doc.品名} ${doc.原材料} ${doc.CAP}`
-        .toLowerCase()
-        .includes(keyword)
-    })
-    .sort((a, b) => (orderSort === "asc" ? a._id.localeCompare(b._id) : b._id.localeCompare(a._id)))
+  const parsed = ReqSchema.safeParse(call.req)
+  if (!parsed.success) {
+    call.error("参数错误: " + parsed.error.message)
+    return
+  }
 
-  const total = filteredDocs.length
-  const pageSize = Math.max(1, call.req.pageSize ?? Math.max(total, 1))
-  const start = (pageNum - 1) * pageSize
-  const pageDocs = filteredDocs.slice(start, start + pageSize)
+  const { pageNum, pageSize, keyword, orderSort, filter } = parsed.data
+  const col = Global.getCollection("沐茵丝假发成品稿")
+
+  const mongoFilter: Filter<沐茵丝假发成品稿> = {}
+  if (filter.客户编号) mongoFilter.客户编号 = filter.客户编号
+  if (filter.品名) mongoFilter.品名 = filter.品名
+  if (filter.原材料) mongoFilter.原材料 = filter.原材料
+  if (filter.假发类型) mongoFilter.假发类型 = filter.假发类型
+  if (filter.CAP) mongoFilter.CAP = filter.CAP
+
+  const kw = keyword?.trim()
+  if (kw) {
+    mongoFilter.$or = [
+      { _id: { $regex: kw, $options: "i" } },
+      { 客户编号: { $regex: kw, $options: "i" } },
+      { 品名: { $regex: kw, $options: "i" } },
+      { 原材料: { $regex: kw, $options: "i" } },
+      { CAP: { $regex: kw, $options: "i" } },
+    ]
+  }
+
+  const sort: Sort = { _id: orderSort === "asc" ? 1 : -1 }
+
+  const [total, list] = await Promise.all([
+    col.countDocuments(mongoFilter),
+    col
+      .find(mongoFilter, {
+        projection: { _id: 1, 客户编号: 1, 品名: 1, 原材料: 1, 假发类型: 1, CAP: 1 },
+      })
+      .sort(sort)
+      .skip((pageNum - 1) * pageSize)
+      .limit(pageSize)
+      .toArray(),
+  ])
 
   call.succ({
-    list: pageDocs.map(doc => ({
+    list: list.map(doc => ({
       _id: doc._id,
       客户编号: doc.客户编号,
       品名: doc.品名,

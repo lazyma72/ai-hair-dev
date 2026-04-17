@@ -11,6 +11,4 @@ export interface ResGetDetail extends BaseResponse {
   rawFile: 沐茵丝假发成品稿
 }
 
-export const conf: BaseConf = {
-  allowNoLogin: true,
-}
+export const conf: BaseConf = {}

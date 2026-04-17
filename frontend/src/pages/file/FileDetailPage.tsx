@@ -35,6 +35,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 type HatMakingOption = {
   _id: string;
+  名称?: string;
   帽围: number;
   帽深: number;
   前后: number;
@@ -57,11 +58,14 @@ export default function FileDetailPage() {
       | undefined) ?? null;
 
   useEffect(() => {
-    callApi("admin/hatMaking/GetList" as never, {
-      pageNum: 1,
-      pageSize: 1000,
-      orderSort: "asc",
-    } as never).then((r) => {
+    callApi(
+      "admin/hatMaking/GetList" as never,
+      {
+        pageNum: 1,
+        pageSize: 1000,
+        orderSort: "asc",
+      } as never,
+    ).then((r) => {
       const res = r as
         | { isSucc: true; res: { list: HatMakingOption[] } }
         | { isSucc: false };
@@ -75,13 +79,22 @@ export default function FileDetailPage() {
       onBack={() => navigate(-1)}
       actions={
         id ? (
-          <button
-            type="button"
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-            onClick={() => navigate(`/admin/files/${id}/edit`)}
-          >
-            编辑稿件
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() => navigate(`/file/${id}/print`)}
+            >
+              🖨 打印规格书
+            </button>
+            <button
+              type="button"
+              className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+              onClick={() => navigate(`/admin/files/${id}/edit`)}
+            >
+              编辑稿件
+            </button>
+          </div>
         ) : undefined
       }
     >
@@ -94,6 +107,7 @@ export default function FileDetailPage() {
               <FileDraftDataSections
                 mode="readonly"
                 value={rawFile}
+                制品规格书详情={file.制品规格书}
                 hatMakingList={hatMakingList}
               />
             ) : null}

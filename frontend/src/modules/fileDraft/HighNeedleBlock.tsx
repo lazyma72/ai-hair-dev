@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import DataTable, { type Column } from "../../components/DataTable";
 import Row from "../../components/Row";
 import Section from "../../components/Section";
+import { ExcelStyleHighNeedleImageTable } from "./ExcelStyleSpecTables";
 import HighNeedleImportStep from "../../pages/design/create/components/HighNeedleImportStep";
 import type { 高针指示单 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { 高针指示单Frontend } from "../../shared/frontend/model/model";
@@ -16,23 +16,6 @@ type Props = {
   showJsonImporter?: boolean;
   hideUploader?: boolean;
 };
-
-const 规格列: Column<高针指示单Frontend["机器规格清单_高针图"][number]>[] = [
-  { key: "档位", title: "档位", render: (r) => r.档位 },
-  { key: "毛长", title: "毛长", render: (r) => `${r.毛长}寸` },
-  {
-    key: "长度",
-    title: "长度 D/M/L",
-    render: (r) =>
-      `D:${r.长度.D}${r.长度.M != null ? " M:" + r.长度.M : ""}${
-        r.长度.L != null ? " L:" + r.长度.L : ""
-      }`,
-  },
-  { key: "形态", title: "形态", render: (r) => r.形态 || "—" },
-  { key: "管径", title: "管径", render: (r) => r.管径 || "—" },
-  { key: "方向", title: "方向", render: (r) => r.方向 },
-  { key: "备注", title: "备注", render: (r) => r.备注 || "—" },
-];
 
 export default function HighNeedleBlock({
   mode,
@@ -70,20 +53,18 @@ export default function HighNeedleBlock({
 
         {previewData ? (
           <Section title="机器规格清单（高针图版）">
-            <div className="overflow-x-auto">
-              <DataTable
-                columns={规格列}
-                rows={previewData.机器规格清单_高针图}
-                rowKey={(r) => r.档位}
-              />
-            </div>
+            <ExcelStyleHighNeedleImageTable
+              rows={previewData.机器规格清单_高针图}
+            />
           </Section>
         ) : null}
 
         <Section title="高针指示单">
           <div className="space-y-4 p-4">
             <div>
-              <div className="mb-1 text-xs font-medium text-slate-700">注意事项</div>
+              <div className="mb-1 text-xs font-medium text-slate-700">
+                注意事项
+              </div>
               <div className="whitespace-pre-line rounded border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                 {value.注意事项 || "—"}
               </div>
@@ -91,9 +72,14 @@ export default function HighNeedleBlock({
 
             {preview?.底图?.svg?.trim() ? (
               <div>
-                <div className="mb-1 text-xs font-medium text-slate-700">高针图</div>
+                <div className="mb-1 text-xs font-medium text-slate-700">
+                  高针图
+                </div>
                 <div className="overflow-hidden rounded border border-slate-100 bg-white">
-                  <HighNeedlePreviewViewer data={preview} emptyText="暂无高针图" />
+                  <HighNeedlePreviewViewer
+                    data={preview}
+                    emptyText="暂无高针图"
+                  />
                 </div>
               </div>
             ) : null}
@@ -108,13 +94,17 @@ export default function HighNeedleBlock({
       <Section title="高针指示单">
         <div className="space-y-4 p-4">
           <div>
-            <div className="mb-1 text-xs font-medium text-slate-700">注意事项</div>
+            <div className="mb-1 text-xs font-medium text-slate-700">
+              注意事项
+            </div>
             <textarea
               rows={3}
               className={inputCls}
               placeholder="高针 :1.高针后帽子不能变形。"
               value={value.注意事项}
-              onChange={(e) => onChange?.({ ...value, 注意事项: e.target.value })}
+              onChange={(e) =>
+                onChange?.({ ...value, 注意事项: e.target.value })
+              }
             />
           </div>
 
@@ -178,7 +168,7 @@ export default function HighNeedleBlock({
                 value={value.高针图}
                 onChange={(v) => onChange?.({ ...value, 高针图: v })}
                 showJsonActions
-                showUploader={showUploader}
+                showUploader={false}
                 fileName={fileName}
               />
             </div>

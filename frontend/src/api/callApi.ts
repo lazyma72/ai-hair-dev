@@ -10,11 +10,40 @@ import { HttpClient } from "tsrpc-browser";
 import { getApiBase } from "./apiBase";
 import { serviceProto } from "../shared/protocols/serviceProto";
 import type { ServiceType } from "../shared/protocols/serviceProto";
+import { getToken, clearToken } from "../auth";
+import { frontConfig } from "../frontConfig";
 
 const client = new HttpClient(serviceProto, {
   server: getApiBase(),
   json: true,
 });
+
+// 上传接口单独使用 prod 服务器
+const uploadClient = new HttpClient(serviceProto, {
+  server: frontConfig.prodServer,
+  json: true,
+});
+
+function addFlows(c: HttpClient<ServiceType>) {
+  c.flows.preCallApiFlow.push((v) => {
+    const token = getToken();
+    if (token) v.req.userToken = token;
+    return v;
+  });
+  c.flows.preApiReturnFlow.push((v) => {
+    if (
+      !v.return.isSucc &&
+      (v.return.err as { code?: string })?.code === "NEED_LOGIN"
+    ) {
+      clearToken();
+      window.location.href = "#/login";
+    }
+    return v;
+  });
+}
+
+addFlows(client);
+addFlows(uploadClient);
 
 export type ApiName = keyof ServiceType["api"];
 
@@ -25,7 +54,8 @@ export async function callApi<K extends ApiName>(
   | { isSucc: true; res: ServiceType["api"][K]["res"] }
   | { isSucc: false; err: { message: string } }
 > {
-  const result = await client.callApi(apiName, req as never);
+  const c = (apiName as string) === "Upload" ? uploadClient : client;
+  const result = await c.callApi(apiName, req as never);
   if (result.isSucc) {
     return { isSucc: true, res: result.res };
   }

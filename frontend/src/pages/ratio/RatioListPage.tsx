@@ -16,6 +16,10 @@ import StatusView from "../../components/StatusView";
 import { useApi } from "../../hooks/useApi";
 import type { 胶丝比例ListItem } from "../../shared/frontend/model/model";
 
+function buildRatioDetailUrl(item: 胶丝比例ListItem): string {
+  return `/ratio/detail?colorNo=${encodeURIComponent(item._id)}&hairType=${encodeURIComponent(item.发丝种类)}`;
+}
+
 export default function RatioListPage() {
   const navigate = useNavigate();
   const [activeType, setActiveType] = useState<string>("全部");
@@ -85,7 +89,7 @@ export default function RatioListPage() {
         <button
           type="button"
           className="rounded bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-slate-200"
-          onClick={() => navigate(`/ratio/${r._id}`)}
+          onClick={() => navigate(buildRatioDetailUrl(r))}
         >
           查看
         </button>

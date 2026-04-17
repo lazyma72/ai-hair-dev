@@ -11,6 +11,7 @@ import { useApi } from "../../hooks/useApi";
 
 type HatMakingItem = {
   _id: string;
+  名称: string;
   帽围: number;
   帽深: number;
   前后: number;
@@ -27,6 +28,7 @@ export default function HatMakingListPage() {
   const [pageSize, setPageSize] = useState(10);
   const [createOpen, setCreateOpen] = useState(false);
   const [制帽编号, set制帽编号] = useState("");
+  const [名称, set名称] = useState("");
   const [帽围, set帽围] = useState("");
   const [帽深, set帽深] = useState("");
   const [前后, set前后] = useState("");
@@ -70,6 +72,11 @@ export default function HatMakingListPage() {
       render: (r) => <span className="font-mono font-medium">{r._id}</span>,
     },
     {
+      key: "名称",
+      title: "名称",
+      render: (r) => r.名称,
+    },
+    {
       key: "帽围",
       title: "帽围 (cm)",
       render: (r) => r.帽围,
@@ -102,12 +109,17 @@ export default function HatMakingListPage() {
 
   async function handleAdd() {
     const id = 制帽编号.trim();
+    const name = 名称.trim();
     const hatAround = Number(帽围);
     const hatDepth = Number(帽深);
     const frontBack = Number(前后);
 
     if (!id) {
       message.error("制帽编号不能为空");
+      return;
+    }
+    if (!name) {
+      message.error("制帽名称不能为空");
       return;
     }
     if (!(hatAround > 0)) {
@@ -125,6 +137,7 @@ export default function HatMakingListPage() {
 
     const r = (await callApi("admin/hatMaking/Add" as never, {
       制帽编号: id,
+      名称: name,
       帽围: hatAround,
       帽深: hatDepth,
       前后: frontBack,
@@ -139,6 +152,7 @@ export default function HatMakingListPage() {
     message.success("新增成功");
     setCreateOpen(false);
     set制帽编号("");
+    set名称("");
     set帽围("");
     set帽深("");
     set前后("");
@@ -178,6 +192,18 @@ export default function HatMakingListPage() {
                 placeholder="例如：HM-001"
                 value={制帽编号}
                 onChange={(e) => set制帽编号(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                名称 *
+              </label>
+              <input
+                type="text"
+                className={inputCls()}
+                placeholder="例如：侧分雪花网L"
+                value={名称}
+                onChange={(e) => set名称(e.target.value)}
               />
             </div>
             <div className="grid grid-cols-3 gap-3">
