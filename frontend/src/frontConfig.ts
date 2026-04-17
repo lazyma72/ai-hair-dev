@@ -17,7 +17,7 @@ const serverUrl: { [K in typeof env]: string } = {
   local: "http://localhost:3000",
   dev: "http://127.0.0.1:3000/dev",
   test: "http://localhost:3000",
-  prod: "http://localhost:3000",
+  prod: "http://120.78.3.29:8888/api/pss",
 };
 
 export const frontConfig = {

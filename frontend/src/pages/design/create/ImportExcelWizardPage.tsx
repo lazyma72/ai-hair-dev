@@ -11,6 +11,7 @@ import 高针指示单View from "../../file/sections/高针指示单View";
 import { to制品规格书Frontend } from "../../../shared/frontend/converters/to制品规格书Frontend";
 import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend";
 import { to高针指示单Frontend } from "../../../shared/frontend/converters/to高针指示单Frontend";
+import { createEmpty手织图 } from "../../../modules/highNeedleAnnotator/types";
 import HighNeedleImportStep from "./components/HighNeedleImportStep";
 
 const STEPS = ["选择文件", "导入高针图", "导入手织图", "预览"] as const;
@@ -205,9 +206,7 @@ function buildDemoFile(params: {
     },
     手织指示单: {
       注意事项: "手织：1. 手织后帽子不能变形。",
-      手织图: {
-        svg: params.handWovenSvg,
-      },
+      手织图: createEmpty手织图(params.handWovenSvg),
     },
   };
 }
