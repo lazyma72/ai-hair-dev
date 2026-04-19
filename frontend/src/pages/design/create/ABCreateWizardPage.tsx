@@ -199,7 +199,7 @@ export default function ABCreateWizardPage() {
                 if (!r.isSucc) {
                   throw new Error(r.err.message);
                 }
-                navigate(`/file/${r.res.id}`, { replace: true });
+                navigate("/designs", { replace: true });
               } finally {
                 setSaving(false);
               }
@@ -266,7 +266,7 @@ export default function ABCreateWizardPage() {
                 }
                 return { id: r.res.id };
               }}
-              onSubmitted={(id) => navigate(`/file/${id}`, { replace: true })}
+              onSubmitted={() => navigate("/designs", { replace: true })}
             />
           ) : (
             <PageShell

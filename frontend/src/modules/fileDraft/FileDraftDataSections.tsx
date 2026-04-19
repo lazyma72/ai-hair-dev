@@ -225,12 +225,12 @@ function FileDraftReadonlySections({
             <ReadonlyRow label="客户编号" value={value.客户编号} />
             <ReadonlyRow label="品名" value={value.品名} />
             <ReadonlyRow label="原材料" value={value.原材料} />
-            <ReadonlyRow label="CAP" value={value.CAP} />
           </div>
         </Section>
 
         <Section title="制帽规格" compact>
           <div>
+            <ReadonlyRow label="CAP" value={value.CAP} />
             <ReadonlyRow
               label="帽围"
               value={currentHatMaking ? `${currentHatMaking.帽围} cm` : "—"}
@@ -585,6 +585,11 @@ function FileDraftEditSections({
                 />
               </EditableRow>
             ))}
+          </div>
+        </Section>
+
+        <Section title="制帽规格" compact>
+          <div>
             <EditableRow label="CAP" error={err("CAP")}>
               <Select
                 className="w-full"
@@ -604,11 +609,6 @@ function FileDraftEditSections({
                 }}
               />
             </EditableRow>
-          </div>
-        </Section>
-
-        <Section title="制帽规格" compact>
-          <div>
             <EditableRow label="帽围">
               <div className="rounded border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-700">
                 {currentHatMaking ? `${currentHatMaking.帽围} cm` : "—"}
