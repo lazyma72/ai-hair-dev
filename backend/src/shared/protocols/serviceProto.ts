@@ -17,6 +17,7 @@ import { ReqAdd as ReqAdd_3, ResAdd as ResAdd_3 } from './admin/user/PtlAdd';
 import { ReqDelete as ReqDelete_1, ResDelete as ResDelete_1 } from './admin/user/PtlDelete';
 import { ReqGetList as ReqGetList_4, ResGetList as ResGetList_4 } from './admin/user/PtlGetList';
 import { ReqLogin, ResLogin } from './PtlLogin';
+import { ReqMe, ResMe } from './PtlMe';
 import { ReqUpload, ResUpload } from './PtlUpload';
 
 export interface ServiceType {
@@ -93,6 +94,10 @@ export interface ServiceType {
             req: ReqLogin,
             res: ResLogin
         },
+        "Me": {
+            req: ReqMe,
+            res: ResMe
+        },
         "Upload": {
             req: ReqUpload,
             res: ResUpload
@@ -104,7 +109,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 17,
+    "version": 20,
     "services": [
         {
             "id": 9,
@@ -215,6 +220,12 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "conf": {
                 "allowNoLogin": true
             }
+        },
+        {
+            "id": 23,
+            "name": "Me",
+            "type": "api",
+            "conf": {}
         },
         {
             "id": 22,
@@ -1806,36 +1817,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Interface",
                         "properties": [
                             {
-                                "id": 0,
-                                "name": "DML标注",
+                                "id": 2,
+                                "name": "DML规则",
                                 "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 2,
-                                                "name": "lineNodeId",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 3,
-                                                "name": "标注DML",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 4,
-                                                "name": "textNodeId",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            }
-                                        ]
-                                    }
+                                    "type": "Reference",
+                                    "target": "../models/DML规则/DML规则"
                                 }
                             },
                             {
@@ -1872,6 +1858,287 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 }
                             }
                         ]
+                    }
+                }
+            ]
+        },
+        "../models/DML规则/DML规则": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "命令列表",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../models/DML规则/DML规则命令"
+                        }
+                    }
+                }
+            ]
+        },
+        "../models/DML规则/DML规则命令": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/DML规则/DML区域百分比命令"
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/DML规则/DML按档位标记命令"
+                    }
+                },
+                {
+                    "id": 2,
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/DML规则/DML特殊标记命令"
+                    }
+                }
+            ]
+        },
+        "../models/DML规则/DML区域百分比命令": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/DML规则/DML规则命令基础"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "type",
+                    "type": {
+                        "type": "Literal",
+                        "literal": "区域百分比"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "规律",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../models/DML规则/DML值"
+                        }
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "区域百分比",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../models/DML规则/DML区域百分比片段"
+                        }
+                    }
+                }
+            ]
+        },
+        "../models/DML规则/DML规则命令基础": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "id",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "备注",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "../models/DML规则/DML值": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "D"
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "M"
+                    }
+                },
+                {
+                    "id": 2,
+                    "type": {
+                        "type": "Literal",
+                        "literal": "L"
+                    }
+                }
+            ]
+        },
+        "../models/DML规则/DML区域百分比片段": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "区域",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "开始位置",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "结束位置",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../models/DML规则/DML按档位标记命令": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/DML规则/DML规则命令基础"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "type",
+                    "type": {
+                        "type": "Literal",
+                        "literal": "按档位标记"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "规律",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../models/DML规则/DML值"
+                        }
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "档位",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../models/DML规则/DML档位片段"
+                        }
+                    }
+                }
+            ]
+        },
+        "../models/DML规则/DML档位片段": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "档位名称",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "开始位置",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "结束位置",
+                    "type": {
+                        "type": "Number"
+                    }
+                }
+            ]
+        },
+        "../models/DML规则/DML特殊标记命令": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/DML规则/DML规则命令基础"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "type",
+                    "type": {
+                        "type": "Literal",
+                        "literal": "特殊标记"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "标记",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../models/DML规则/DML节点标记"
+                        }
+                    }
+                }
+            ]
+        },
+        "../models/DML规则/DML节点标记": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "nodeId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "值",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/DML规则/DML值"
                     }
                 }
             ]
@@ -2066,36 +2333,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Interface",
                         "properties": [
                             {
-                                "id": 0,
-                                "name": "DML标注",
+                                "id": 1,
+                                "name": "DML规则",
                                 "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 0,
-                                                "name": "lineNodeId",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 1,
-                                                "name": "标注DML",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 2,
-                                                "name": "textNodeId",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            }
-                                        ]
-                                    }
+                                    "type": "Reference",
+                                    "target": "../models/DML规则/DML规则"
                                 }
                             }
                         ]
@@ -4035,6 +4277,60 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 0,
                     "name": "token",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "name",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "username",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "PtlMe/ReqMe": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ]
+        },
+        "PtlMe/ResMe": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "name",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "username",
                     "type": {
                         "type": "String"
                     }

@@ -3,7 +3,7 @@ import { message } from "antd";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { callApi } from "../../api/callApi";
-import { setToken } from "../../auth";
+import { setAuthUserProfile, setToken } from "../../auth";
 import { hashPassword } from "../../utils/password";
 
 type LoginState = {
@@ -42,6 +42,10 @@ export default function LoginPage() {
     }
 
     setToken(result.res.token);
+    setAuthUserProfile({
+      name: result.res.name,
+      username: result.res.username,
+    });
     message.success("登录成功");
     navigate(state?.from || "/welcome", { replace: true });
   }

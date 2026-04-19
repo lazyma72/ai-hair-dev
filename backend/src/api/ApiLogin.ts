@@ -16,5 +16,5 @@ export default async function (call: ApiCall<ReqLogin, ResLogin>) {
   }
 
   const token = makeUserToken(user._id.toHexString())
-  call.succ({ token })
+  call.succ({ token, name: user.name, username: user.username })
 }

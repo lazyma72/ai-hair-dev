@@ -2,6 +2,7 @@ import * as React from "react";
 import { useMemo, useState } from "react";
 import InlineSvg from "./InlineSvg";
 import type { 高针图 } from "../shared/models/高针图";
+import { 空DML规则, type DML规则 } from "../shared/models/DML规则";
 
 type Props = {
   value: 高针图;
@@ -15,6 +16,19 @@ function readFileText(file: File): Promise<string> {
     reader.onerror = () => reject(new Error("读取文件失败"));
     reader.readAsText(file);
   });
+}
+
+function normalizeDML规则(raw自定义数据: Record<string, unknown>): DML规则 {
+  const raw规则 = raw自定义数据["DML规则"];
+  if (raw规则 && typeof raw规则 === "object") {
+    const obj = raw规则 as Record<string, unknown>;
+    const 命令列表 = Array.isArray(obj["命令列表"]) ? obj["命令列表"] : [];
+    return {
+      命令列表: 命令列表.filter(Boolean) as DML规则["命令列表"],
+    };
+  }
+
+  return 空DML规则();
 }
 
 function normalize高针图(raw: unknown): 高针图 {
@@ -45,10 +59,6 @@ function normalize高针图(raw: unknown): 高针图 {
       ? (raw底图["文本节点"] as Record<string, unknown>)
       : {};
 
-  const DML标注 = Array.isArray(raw自定义数据["DML标注"])
-    ? (raw自定义数据["DML标注"] as unknown[]).filter(Boolean)
-    : [];
-
   const 单双标注 = Array.isArray(raw自定义数据["单双标注"])
     ? (raw自定义数据["单双标注"] as unknown[]).filter(Boolean)
     : [];
@@ -62,7 +72,7 @@ function normalize高针图(raw: unknown): 高针图 {
       文本节点: 文本节点 as 高针图["底图"]["文本节点"],
     },
     自定义数据: {
-      DML标注: DML标注 as 高针图["自定义数据"]["DML标注"],
+      DML规则: normalizeDML规则(raw自定义数据),
       单双标注: 单双标注 as 高针图["自定义数据"]["单双标注"],
     },
   };

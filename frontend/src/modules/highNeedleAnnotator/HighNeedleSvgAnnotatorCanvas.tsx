@@ -130,8 +130,13 @@ type Props = {
   ) => void;
   handleLineAction: (
     id: string,
-    options?: { markerPos?: { x: number; y: number } },
+    options?: {
+      markerPos?: { x: number; y: number };
+      dmlSelectionMode?: "add" | "remove" | "toggle";
+    },
   ) => void;
+  hasActiveDmlRuleSelection: boolean;
+  activeDmlRuleLineIdSet: Set<string>;
   handleLineDmlCycleOverride: (
     id: string,
     markerPos?: { x: number; y: number },
@@ -393,6 +398,8 @@ export default function HighNeedleSvgAnnotatorCanvas({
   regionLabels,
   toggleSelect,
   handleLineAction,
+  hasActiveDmlRuleSelection,
+  activeDmlRuleLineIdSet,
   handleLineDmlCycleOverride,
   ensureRegionMarkerTextNode,
   ensureLevelMarkerTextNode,
@@ -476,6 +483,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
   const brushRef = useRef(false);
   const brushVisitedRef = useRef<Set<string>>(new Set());
   const brushLastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const brushDmlSelectionModeRef = useRef<"add" | "remove" | "toggle">(
+    "toggle",
+  );
 
   /** 刷选描边叠加层 canvas。 */
   const brushCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -556,6 +566,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
     brushRef.current = false;
     brushVisitedRef.current = new Set();
     brushLastPointRef.current = null;
+    brushDmlSelectionModeRef.current = "toggle";
 
     // 清空刷选描边叠加层
     const canvas = brushCanvasRef.current;
@@ -964,9 +975,8 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
       const anchor = anchorById.get(id);
       const pos =
-        pendingDmlMarkerPosByLineId.get(id) ??
-        dmlMarkerPosByLineId.get(id) ??
-        preferredDmlPosByLineId.get(id) ??
+        draftMarkerPosByLineId.get(id) ??
+        preferredMarkerPosByLineId.get(id) ??
         (anchor
           ? clientToSvgPoint(
               svgRoot,
@@ -981,6 +991,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
     });
   }, [
     anchorById,
+    draftMarkerPosByLineId,
     ensureLevelMarkerTextNode,
     preferredMarkerPosByLineId,
     visibleMarkerById,
@@ -998,7 +1009,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
       const anchor = anchorById.get(id);
       const pos =
-        preferredMarkerPosByLineId.get(id) ??
+        pendingDmlMarkerPosByLineId.get(id) ??
+        dmlMarkerPosByLineId.get(id) ??
+        preferredDmlPosByLineId.get(id) ??
         (anchor
           ? clientToSvgPoint(
               svgRoot,
@@ -1239,7 +1252,11 @@ export default function HighNeedleSvgAnnotatorCanvas({
         );
         // #endregion
         if (step === "DML" || step === "单双") {
-          handleLineAction(id, { markerPos });
+          handleLineAction(id, {
+            markerPos,
+            dmlSelectionMode:
+              step === "DML" ? brushDmlSelectionModeRef.current : undefined,
+          });
         } else {
           toggleSelect(id, {
             silent: true,
@@ -1437,10 +1454,13 @@ export default function HighNeedleSvgAnnotatorCanvas({
           const isDraggableMarkerText = textId
             ? draggableMarkerTextIdSet.has(textId)
             : false;
+          const canDragMarkerText =
+            isDraggableMarkerText &&
+            !(step === "DML" && hasActiveDmlRuleSelection);
 
           if (
             textId &&
-            (isDraggableMarkerText || (step === "自定义文本" && !isMarkerText))
+            (canDragMarkerText || (step === "自定义文本" && !isMarkerText))
           ) {
             // #region debug-point D:drag-start
             reportDoubleMarkDragDebug(
@@ -1451,7 +1471,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
                 step,
                 textId,
                 isMarkerText,
-                isDraggableMarkerText,
+                isDraggableMarkerText: canDragMarkerText,
               },
             );
             // #endregion
@@ -1496,6 +1516,10 @@ export default function HighNeedleSvgAnnotatorCanvas({
             return;
           }
 
+          if (step === "DML" && !hasActiveDmlRuleSelection) {
+            return;
+          }
+
           brushRef.current = true;
           brushVisitedRef.current = new Set();
           brushLastPointRef.current = { x: e.clientX, y: e.clientY };
@@ -1503,6 +1527,11 @@ export default function HighNeedleSvgAnnotatorCanvas({
           // 初始点击：使用浏览器原生命中测试（尊重 stroke-width，不会误选相邻线条）
           const id = getLineIdFromPoint(e.clientX, e.clientY);
           if (id) {
+            if (step === "DML") {
+              brushDmlSelectionModeRef.current = activeDmlRuleLineIdSet.has(id)
+                ? "remove"
+                : "add";
+            }
             brushVisitedRef.current.add(id);
             const markerPos = svgRoot
               ? (clientToSvgPoint(svgRoot, e.clientX, e.clientY) ?? undefined)
@@ -1520,7 +1549,11 @@ export default function HighNeedleSvgAnnotatorCanvas({
             );
             // #endregion
             if (step === "DML" || step === "单双") {
-              handleLineAction(id, { markerPos });
+              handleLineAction(id, {
+                markerPos,
+                dmlSelectionMode:
+                  step === "DML" ? brushDmlSelectionModeRef.current : undefined,
+              });
             } else {
               toggleSelect(id, {
                 silent: true,

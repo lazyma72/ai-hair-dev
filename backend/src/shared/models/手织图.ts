@@ -1,3 +1,5 @@
+import { DML规则 } from "./DML规则"
+
 export interface 手织图 {
   底图: {
     /** SVG 字符串（底图数据，不包含运行时 UI 叠加标记） */
@@ -28,11 +30,7 @@ export interface 手织图 {
   };
 
   自定义数据: {
-    DML标注: {
-      lineNodeId: string;
-      标注DML: string;
-      textNodeId: string;
-    }[];
+    DML规则: DML规则;
   };
 }
 

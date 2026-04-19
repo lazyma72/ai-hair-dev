@@ -8,6 +8,7 @@ import {
   makeDoubleSet,
 } from "../../modules/highNeedleAnnotator/helpers";
 import type { 高针图 } from "../../modules/highNeedleAnnotator/types";
+import { 空DML规则, type DML规则 } from "../../shared/models/DML规则";
 import {
   collectSvgTextNodes,
   pruneSvgTextNodes,
@@ -28,6 +29,14 @@ function downloadJson(filename: string, data: unknown) {
 }
 
 function normalize高针图(raw: any): 高针图 {
+  const DML规则: DML规则 = raw?.自定义数据?.DML规则
+    ? {
+        命令列表: Array.isArray(raw?.自定义数据?.DML规则?.命令列表)
+          ? raw.自定义数据.DML规则.命令列表
+          : [],
+      }
+    : 空DML规则();
+
   return {
     ...raw,
     底图: {
@@ -44,10 +53,7 @@ function normalize高针图(raw: any): 高针图 {
     },
     自定义数据: {
       ...raw?.自定义数据,
-      DML标注: (raw?.自定义数据?.DML标注 ?? []).map((item: any) => ({
-        ...item,
-        textNodeId: item?.textNodeId ?? "",
-      })),
+      DML规则,
       单双标注: (raw?.自定义数据?.单双标注 ?? []).map((item: any) => ({
         ...item,
         textNodeId: item?.textNodeId ?? "",
@@ -206,7 +212,7 @@ function buildPreviewLabels(
   toggles: PreviewToggles,
   existingSvgTextIdSet: ReadonlySet<string>,
 ): PreviewLabelItem[] {
-  const dmlById = makeDmlMap(data.自定义数据.DML标注);
+  const dmlById = makeDmlMap(data);
   const doubleSet = makeDoubleSet(data.自定义数据.单双标注);
 
   const out: PreviewLabelItem[] = [];
@@ -228,14 +234,10 @@ function buildPreviewLabels(
     });
   });
 
-  data.自定义数据.DML标注.forEach((item) => {
+  dmlById.forEach((v, lineId) => {
     if (!toggles.dml) return;
-    const textNodeId = String(item.textNodeId ?? "").trim();
-    if (textNodeId && existingSvgTextIdSet.has(textNodeId)) return;
-    const v = (dmlById.get(item.lineNodeId) ?? "").trim();
-    if (!v) return;
     out.push({
-      lineId: item.lineNodeId,
+      lineId,
       text: v,
       ratio: 0.5,
       fill: "#f59e0b",
@@ -299,14 +301,11 @@ export default function HighNeedlePreviewPage() {
         existingSvgTextIdSet.has(String(textNodeId ?? "").trim()),
       ),
     );
-    const dmlTextIds = loaded.自定义数据.DML标注.map((item) =>
-      String(item.textNodeId ?? "").trim(),
-    ).filter((textNodeId) => existingSvgTextIdSet.has(textNodeId));
     const doubleTextIds = loaded.自定义数据.单双标注.map((item) =>
       String(item.textNodeId ?? "").trim(),
     );
     const markerTextIds = new Set(
-      [...levelTextIds, ...dmlTextIds, ...doubleTextIds]
+      [...levelTextIds, ...doubleTextIds]
         .map((id) => String(id ?? "").trim())
         .filter(Boolean),
     );
@@ -321,12 +320,6 @@ export default function HighNeedlePreviewPage() {
     }
     if (toggles.level) {
       levelTextIds.forEach((id) => {
-        const nextId = String(id ?? "").trim();
-        if (nextId) visibleTextIds.add(nextId);
-      });
-    }
-    if (toggles.dml) {
-      dmlTextIds.forEach((id) => {
         const nextId = String(id ?? "").trim();
         if (nextId) visibleTextIds.add(nextId);
       });

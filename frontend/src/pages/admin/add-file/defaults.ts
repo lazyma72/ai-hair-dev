@@ -3,6 +3,7 @@ import type {
   沐茵丝假发成品稿,
 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import { 假发类型 } from "../../../shared/db/Db沐茵丝假发成品稿";
+import { 空DML规则 } from "../../../shared/models/DML规则";
 
 export const 工艺说明Keys = [
   "作业方法",
@@ -76,7 +77,7 @@ export const emptyFile = (): 沐茵丝假发成品稿 => ({
         档位标注: [],
         文本节点: {},
       },
-      自定义数据: { DML标注: [], 单双标注: [] },
+      自定义数据: { DML规则: 空DML规则(), 单双标注: [] },
     },
   },
   手织指示单: {
@@ -89,7 +90,7 @@ export const emptyFile = (): 沐茵丝假发成品稿 => ({
         档位标注: [],
         文本节点: {},
       },
-      自定义数据: { DML标注: [] },
+      自定义数据: { DML规则: 空DML规则() },
     },
   },
 });

@@ -1,4 +1,5 @@
 import type { DmlValue, 高针图, 高针图系统预置区域 } from "./types";
+import { compileDmlRules } from "./dmlAuto";
 
 export function normalizeLabel(s: string): string {
   return s.trim();
@@ -58,12 +59,12 @@ export function buildSlotLines(tokens: string[]): string[] {
   return lines;
 }
 
-export function makeDmlMap(list: 高针图["自定义数据"]["DML标注"]): Map<string, DmlValue> {
+export function makeDmlMap(data: 高针图): Map<string, DmlValue> {
+  const compiled = compileDmlRules(data);
   const map = new Map<string, DmlValue>();
-  for (const r of list) {
-    const v = (r.标注DML ?? "").trim() as DmlValue;
-    map.set(r.lineNodeId, v);
-  }
+  compiled.assignments.forEach((value, key) => {
+    map.set(key, value);
+  });
   return map;
 }
 

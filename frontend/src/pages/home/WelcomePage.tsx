@@ -1,6 +1,6 @@
-import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { callApi } from "../../api/callApi";
+import { getAuthUserProfile, isLoggedIn } from "../../auth";
 import PageShell from "../../components/PageShell";
 import { useApi } from "../../hooks/useApi";
 
@@ -41,10 +41,9 @@ function ActionCard({
 }
 
 export default function WelcomePage() {
-  const account = useMemo(
-    () => localStorage.getItem("demo_login_account") || "访客",
-    [],
-  );
+  const account = isLoggedIn()
+    ? getAuthUserProfile()?.name || getAuthUserProfile()?.username || "已登录用户"
+    : "访客";
 
   const { data, loading, error } = useApi(() => callApi("admin/GetPreview", {}));
   const statValue = (n: number | undefined) =>

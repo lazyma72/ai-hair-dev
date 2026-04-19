@@ -57,6 +57,8 @@ export default function HighNeedleSvgAnnotator(props: Props) {
           regionLabels={state.regionLabelItems}
           toggleSelect={state.toggleSelect}
           handleLineAction={state.handleLineAction}
+          hasActiveDmlRuleSelection={Boolean(state.activeDmlRuleId)}
+          activeDmlRuleLineIdSet={state.activeDmlRuleLineIdSet}
           handleLineDmlCycleOverride={state.handleLineDmlCycleOverride}
           ensureRegionMarkerTextNode={state.ensureRegionMarkerTextNode}
           ensureLevelMarkerTextNode={state.ensureLevelMarkerTextNode}

@@ -7,6 +7,13 @@
  */
 import * as React from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { callApi } from "../api/callApi";
+import {
+  clearToken,
+  getAuthUserProfile,
+  isLoggedIn,
+  setAuthUserProfile,
+} from "../auth";
 
 type NavItem = {
   label: string;
@@ -72,15 +79,57 @@ function NavItemLink({ item }: { item: NavItem }) {
   );
 }
 
+function getAvatarText(name: string, username: string): string {
+  const normalizedName = name.trim();
+  if (normalizedName) {
+    return normalizedName.slice(0, 1).toUpperCase();
+  }
+  return username.trim().slice(0, 1).toUpperCase() || "U";
+}
+
 export default function PageShell({ title, onBack, actions, children, fullWidth }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const iconSrc = `${import.meta.env.BASE_URL}icon.png`;
+  const profileLoadAttemptedRef = React.useRef(false);
 
   const containerMaxWidthCls = fullWidth ? "max-w-none" : "max-w-7xl";
 
-  const account = localStorage.getItem("demo_login_account") || "";
-  const loggedIn = Boolean(account);
+  const loggedIn = isLoggedIn();
+  const profile = loggedIn ? getAuthUserProfile() : null;
+  const displayName = profile?.name?.trim() || profile?.username?.trim() || "已登录用户";
+  const avatarText = getAvatarText(profile?.name || "", profile?.username || "");
+
+  React.useEffect(() => {
+    if (!loggedIn) {
+      profileLoadAttemptedRef.current = false;
+      return;
+    }
+
+    if (profile) {
+      profileLoadAttemptedRef.current = false;
+      return;
+    }
+
+    if (profileLoadAttemptedRef.current) {
+      return;
+    }
+
+    profileLoadAttemptedRef.current = true;
+    let cancelled = false;
+
+    void callApi("Me", {}).then((result) => {
+      if (!result.isSucc || cancelled) {
+        return;
+      }
+
+      setAuthUserProfile({ name: result.res.name, username: result.res.username });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loggedIn, profile]);
 
   const isLoginPage = location.pathname === "/login";
   const showNav = loggedIn;
@@ -117,14 +166,20 @@ export default function PageShell({ title, onBack, actions, children, fullWidth 
             <div className="flex items-center gap-2">
               {loggedIn ? (
                 <>
-                  <div className="text-sm text-slate-600">
-                    用户：<span className="font-mono">{account}</span>
+                  <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 py-1 pl-1 pr-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+                      {avatarText}
+                    </div>
+                    <div className="min-w-0 text-sm text-slate-700">
+                      <div className="truncate font-medium text-slate-900">{displayName}</div>
+                      <div className="truncate text-xs text-slate-500">{profile?.username || "当前账号"}</div>
+                    </div>
                   </div>
                   <button
                     type="button"
                     className="rounded bg-slate-100 px-3 py-2 text-sm text-slate-700 hover:bg-slate-200"
                     onClick={() => {
-                      localStorage.removeItem("demo_login_account");
+                      clearToken();
                       navigate("/login", { replace: true });
                     }}
                   >

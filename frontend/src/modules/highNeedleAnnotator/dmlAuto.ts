@@ -1,28 +1,42 @@
-import type { DmlValue } from "./types";
+import type {
+  DML值,
+  DML规则,
+  DML规则命令,
+  DML按档位标记命令,
+  DML区域百分比命令,
+} from "../../shared/models/DML规则";
 
-export type DmlAutoConfig = {
-  id: string;
-  /** 区域名（来自 value.底图.区域名） */
-  regionName: string;
-  /** 排列规律：仅支持 D/M/L 字符（会被自动归一化） */
-  pattern: string;
-  /** 整数百分比（0~100） */
-  rangeStart: number;
-  /** 整数百分比（0~100） */
-  rangeEnd: number;
+export type DmlRuleSourceType = DML规则命令["type"];
+
+export type DmlCompiledItem = {
+  lineNodeId: string;
+  值: DML值;
+  来源命令id: string;
+  来源类型: DmlRuleSourceType;
+  slotIndex?: number;
 };
 
-export type RegionLineItem = {
-  lineId: string;
-  regionName: string;
-  /** 0~1：区域内相对位置 */
-  posRatio: number;
-};
-
-export type AutoDmlComputeResult = {
-  assignments: Map<string, DmlValue>;
+export type DmlCompileResult = {
+  assignments: Map<string, DML值>;
   managedLineIds: Set<string>;
-  slotByLineId: Map<string, { configId: string; slotIndex: number }>;
+  items: DmlCompiledItem[];
+};
+
+export type DmlCompilableData = {
+  底图: {
+    区域线条: {
+      区域名: string;
+      lineNodeIds: string[];
+      区域内位置占比: number;
+    }[];
+    档位标注: {
+      区域名: string;
+      lineNodeIds: string[];
+    }[];
+  };
+  自定义数据: {
+    DML规则: DML规则;
+  };
 };
 
 export function normalizePattern(raw: string): string {
@@ -33,14 +47,14 @@ export function normalizePattern(raw: string): string {
     .join("");
 }
 
-export function nextDmlInPattern(v: DmlValue): Exclude<DmlValue, ""> {
+export function nextDmlInPattern(v: DML值): DML值 {
   return v === "D" ? "M" : v === "M" ? "L" : "D";
 }
 
-function clampInt(value: unknown, min: number, max: number): number {
+function clampRatio(value: unknown): number {
   const num = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(num)) return min;
-  return Math.min(max, Math.max(min, Math.round(num)));
+  if (!Number.isFinite(num)) return 0;
+  return Math.min(1, Math.max(0, num));
 }
 
 export function getDmlPatternPresets(): string[] {
@@ -73,7 +87,7 @@ export function getDmlPatternPresets(): string[] {
 export function replacePatternChar(
   patternRaw: string,
   slotIndex: number,
-  next: Exclude<DmlValue, "">,
+  next: DML值,
 ): string {
   const pattern = normalizePattern(patternRaw);
   if (!pattern) return pattern;
@@ -81,85 +95,159 @@ export function replacePatternChar(
   return `${pattern.slice(0, idx)}${next}${pattern.slice(idx + 1)}`;
 }
 
-export function computeAutoDml(
-  configs: DmlAutoConfig[],
-  regionLines: RegionLineItem[],
-  options?: { allowedLineIdSet?: Set<string>; regionOrder?: string[] },
-): AutoDmlComputeResult {
-  const allowed = options?.allowedLineIdSet;
-  const regionOrder = options?.regionOrder ?? [];
+type OrderedRegionLine = {
+  lineNodeId: string;
+  区域名: string;
+  区域内位置占比: number;
+  sourceIndex: number;
+  subIndex: number;
+};
 
-  const linesByRegion = new Map<string, RegionLineItem[]>();
-  regionLines.forEach((line) => {
-    if (allowed && !allowed.has(line.lineId)) return;
-    const list = linesByRegion.get(line.regionName) ?? [];
-    list.push(line);
-    linesByRegion.set(line.regionName, list);
+function isDmlBoundaryIncluded(value: number, start: number, end: number): boolean {
+  const rangeStart = Math.min(start, end);
+  const rangeEnd = Math.max(start, end);
+  if (rangeEnd >= 1) {
+    return value >= rangeStart && value <= rangeEnd;
+  }
+  return value >= rangeStart && value < rangeEnd;
+}
+
+function normalizePatternList(pattern: DML值[]): DML值[] {
+  return pattern.filter((item): item is DML值 => item === "D" || item === "M" || item === "L");
+}
+
+function collectOrderedRegionLines(data: DmlCompilableData): Map<string, OrderedRegionLine[]> {
+  const byRegion = new Map<string, OrderedRegionLine[]>();
+  data.底图.区域线条.forEach((item, itemIndex) => {
+    item.lineNodeIds.forEach((lineNodeId, subIndex) => {
+      const list = byRegion.get(item.区域名) ?? [];
+      list.push({
+        lineNodeId,
+        区域名: item.区域名,
+        区域内位置占比: clampRatio(item.区域内位置占比),
+        sourceIndex: itemIndex,
+        subIndex,
+      });
+      byRegion.set(item.区域名, list);
+    });
   });
 
-  Array.from(linesByRegion.values()).forEach((list) => {
+  byRegion.forEach((list) => {
     list.sort((a, b) => {
-      const diff = a.posRatio - b.posRatio;
-      if (diff !== 0) return diff;
-      return a.lineId.localeCompare(b.lineId);
+      const ratioDiff = a.区域内位置占比 - b.区域内位置占比;
+      if (ratioDiff !== 0) return ratioDiff;
+      const sourceDiff = a.sourceIndex - b.sourceIndex;
+      if (sourceDiff !== 0) return sourceDiff;
+      return a.subIndex - b.subIndex;
     });
   });
 
-  const assignments = new Map<string, DmlValue>();
-  const managedLineIds = new Set<string>();
-  const slotByLineId = new Map<
-    string,
-    { configId: string; slotIndex: number }
-  >();
-  const configByRegionName = new Map(
-    configs.map((config) => [config.regionName, config] as const),
+  return byRegion;
+}
+
+function collectLevelLineIds(data: DmlCompilableData): Map<string, string[]> {
+  return new Map(
+    data.底图.档位标注.map((item) => [item.区域名, item.lineNodeIds.filter(Boolean)] as const),
   );
-  const seenRegionNames = new Set<string>();
-  const orderedRegionNames = [
-    ...regionOrder.filter((name) => linesByRegion.has(name)),
-    ...Array.from(linesByRegion.keys()).filter(
-      (name) => !seenRegionNames.has(name),
-    ),
-  ].filter((name) => {
-    if (seenRegionNames.has(name)) return false;
-    seenRegionNames.add(name);
-    return true;
+}
+
+function collectRegionCommandTargets(
+  command: DML区域百分比命令,
+  byRegion: Map<string, OrderedRegionLine[]>,
+): string[] {
+  return command.区域百分比.flatMap((segment) => {
+    const start = clampRatio(segment.开始位置);
+    const end = clampRatio(segment.结束位置);
+    const list = byRegion.get(segment.区域) ?? [];
+    return list
+      .filter((item) => isDmlBoundaryIncluded(item.区域内位置占比, start, end))
+      .map((item) => item.lineNodeId);
+  });
+}
+
+function collectLevelCommandTargets(
+  command: DML按档位标记命令,
+  byLevel: Map<string, string[]>,
+): string[] {
+  return command.档位.flatMap((segment) => {
+    const list = byLevel.get(segment.档位名称) ?? [];
+    if (list.length === 0) return [];
+    const start = clampRatio(segment.开始位置);
+    const end = clampRatio(segment.结束位置);
+    return list.filter((_, index) => {
+      const ratio = list.length <= 1 ? 0 : index / (list.length - 1);
+      return isDmlBoundaryIncluded(ratio, start, end);
+    });
+  });
+}
+
+function applyPatternAssignments(
+  assignments: Map<string, DML值>,
+  items: DmlCompiledItem[],
+  managedLineIds: Set<string>,
+  command: DML区域百分比命令 | DML按档位标记命令,
+  targetLineIds: string[],
+) {
+  const pattern = normalizePatternList(command.规律);
+  if (pattern.length === 0) return;
+
+  targetLineIds.forEach((lineNodeId, slotIndex) => {
+    const 值 = pattern[slotIndex % pattern.length];
+    assignments.set(lineNodeId, 值);
+    managedLineIds.add(lineNodeId);
+    items.push({
+      lineNodeId,
+      值,
+      来源命令id: command.id,
+      来源类型: command.type,
+      slotIndex,
+    });
+  });
+}
+
+export function compileDmlRules(data: DmlCompilableData): DmlCompileResult {
+  const assignments = new Map<string, DML值>();
+  const managedLineIds = new Set<string>();
+  const items: DmlCompiledItem[] = [];
+  const rules = data.自定义数据.DML规则?.命令列表 ?? [];
+  const regionLinesByName = collectOrderedRegionLines(data);
+  const levelLineIdsByName = collectLevelLineIds(data);
+
+  rules.forEach((command) => {
+    if (command.type === "区域百分比") {
+      applyPatternAssignments(
+        assignments,
+        items,
+        managedLineIds,
+        command,
+        collectRegionCommandTargets(command, regionLinesByName),
+      );
+      return;
+    }
+
+    if (command.type === "按档位标记") {
+      applyPatternAssignments(
+        assignments,
+        items,
+        managedLineIds,
+        command,
+        collectLevelCommandTargets(command, levelLineIdsByName),
+      );
+      return;
+    }
+
+    command.标记.forEach((item) => {
+      if (!item.nodeId) return;
+      assignments.set(item.nodeId, item.值);
+      managedLineIds.add(item.nodeId);
+      items.push({
+        lineNodeId: item.nodeId,
+        值: item.值,
+        来源命令id: command.id,
+        来源类型: command.type,
+      });
+    });
   });
 
-  let prevRuleKey = "";
-  let phaseOffset = 0;
-
-  orderedRegionNames.forEach((regionName) => {
-    const config = configByRegionName.get(regionName);
-    if (!config) return;
-    const pattern = normalizePattern(config.pattern);
-    if (!pattern) return;
-
-    const start = clampInt(config.rangeStart, 0, 100);
-    const end = clampInt(config.rangeEnd, 0, 100);
-    const rangeMin = Math.min(start, end);
-    const rangeMax = Math.max(start, end);
-
-    const allLines = linesByRegion.get(config.regionName) ?? [];
-    const targetLines = allLines.filter((l) => {
-      const percent = l.posRatio * 100;
-      return percent >= rangeMin && percent <= rangeMax;
-    });
-
-    const ruleKey = `${pattern}@${rangeMin}-${rangeMax}`;
-    const slotStartIndex = prevRuleKey === ruleKey ? phaseOffset : 0;
-
-    targetLines.forEach((line, idx) => {
-      const slotIndex = slotStartIndex + idx;
-      const ch = pattern[slotIndex % pattern.length] as DmlValue;
-      assignments.set(line.lineId, ch);
-      managedLineIds.add(line.lineId);
-      slotByLineId.set(line.lineId, { configId: config.id, slotIndex });
-    });
-
-    prevRuleKey = ruleKey;
-    phaseOffset = (slotStartIndex + targetLines.length) % pattern.length;
-  });
-
-  return { assignments, managedLineIds, slotByLineId };
+  return { assignments, managedLineIds, items };
 }

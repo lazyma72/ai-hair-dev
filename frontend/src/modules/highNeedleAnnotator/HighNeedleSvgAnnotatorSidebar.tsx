@@ -1,3 +1,5 @@
+import type { DmlValue } from "./types";
+import type { DML规则命令 } from "../../shared/models/DML规则";
 import CustomTextStagePanel from "./CustomTextStagePanel";
 import DoneStagePanel from "./DoneStagePanel";
 import LevelStagePanel from "./LevelStagePanel";
@@ -52,8 +54,38 @@ type Props = {
   clearDmlStage: () => void;
   clearDoubleStage: () => void;
 
-  dmlPattern: string;
-  setDmlPattern: (value: string) => void;
+  dmlRuleCommands: DML规则命令[];
+  dmlRegionRules: Array<{
+    id: string;
+    规律: Array<"D" | "M" | "L">;
+    区域百分比: Array<{ 区域: string; 开始位置: number; 结束位置: number }>;
+  }>;
+  dmlLevelRules: Array<{
+    id: string;
+    规律: Array<"D" | "M" | "L">;
+    档位: Array<{ 档位名称: string; 开始位置: number; 结束位置: number }>;
+  }>;
+  dmlLevelNames: string[];
+  dmlSpecialCount: number;
+  addDmlRegionRule: () => void;
+  updateDmlRegionRule: (
+    ruleId: string,
+    patch: { 区域?: string; 开始位置?: number; 结束位置?: number; 规律?: Array<"D" | "M" | "L"> },
+  ) => void;
+  addDmlLevelRule: () => void;
+  updateDmlLevelRule: (
+    ruleId: string,
+    patch: { 档位名称?: string; 开始位置?: number; 结束位置?: number; 规律?: Array<"D" | "M" | "L"> },
+  ) => void;
+  addDmlSpecialRule: () => void;
+  removeDmlRule: (ruleId: string) => void;
+  activeDmlRuleId: string;
+  activeDmlRuleType: "区域百分比" | "按档位标记" | "特殊标记" | "";
+  activeSpecialDmlValue: DmlValue;
+  selectDmlRule: (ruleId: string, ruleType: "区域百分比" | "按档位标记") => void;
+  selectSpecialDmlRule: (value: string) => void;
+  setActiveSpecialDmlValue: (value: DmlValue) => void;
+  clearActiveDmlRule: () => void;
 
   completeTextStage: () => void;
 
@@ -106,8 +138,24 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     clearDmlStage,
     clearDoubleStage,
 
-    dmlPattern,
-    setDmlPattern,
+  dmlRuleCommands,
+    dmlRegionRules,
+    dmlLevelRules,
+    dmlLevelNames,
+    dmlSpecialCount,
+    addDmlRegionRule,
+    updateDmlRegionRule,
+    addDmlLevelRule,
+    updateDmlLevelRule,
+    addDmlSpecialRule,
+    removeDmlRule,
+    activeDmlRuleId,
+    activeDmlRuleType,
+    activeSpecialDmlValue,
+    selectDmlRule,
+    selectSpecialDmlRule,
+    setActiveSpecialDmlValue,
+    clearActiveDmlRule,
     requestCanvasReset,
 
     activeTextKey,
@@ -235,8 +283,25 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
           step={step}
           clearDmlStage={clearDmlStage}
           clearDoubleStage={clearDoubleStage}
-          dmlPattern={dmlPattern}
-          setDmlPattern={setDmlPattern}
+          dmlRuleCommands={dmlRuleCommands}
+          regionNames={value.底图?.区域名 ?? []}
+          levelNames={dmlLevelNames}
+          dmlRegionRules={dmlRegionRules}
+          dmlLevelRules={dmlLevelRules}
+          dmlSpecialCount={dmlSpecialCount}
+          addDmlRegionRule={addDmlRegionRule}
+          updateDmlRegionRule={updateDmlRegionRule}
+          addDmlLevelRule={addDmlLevelRule}
+          updateDmlLevelRule={updateDmlLevelRule}
+          addDmlSpecialRule={addDmlSpecialRule}
+          removeDmlRule={removeDmlRule}
+          activeDmlRuleId={activeDmlRuleId}
+          activeDmlRuleType={activeDmlRuleType || undefined}
+          activeSpecialDmlValue={activeSpecialDmlValue}
+          selectDmlRule={selectDmlRule}
+          selectSpecialDmlRule={selectSpecialDmlRule}
+          setActiveSpecialDmlValue={setActiveSpecialDmlValue}
+          clearActiveDmlRule={clearActiveDmlRule}
         />
       ) : null}
 
