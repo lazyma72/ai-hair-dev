@@ -272,12 +272,13 @@ export default function ImportExcelWizardPage() {
       title="导入 Excel（Demo）"
       onBack={() => navigate("/designs/create")}
       fullWidth={step === 1}
+      compact
       actions={
         <div className="flex items-center gap-2">
           {step > 0 ? (
             <button
               type="button"
-              className="rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200"
+              className="rounded bg-slate-100 px-3 py-1 text-sm text-slate-700 hover:bg-slate-200"
               onClick={() => setStep((s) => Math.max(0, s - 1))}
             >
               上一步
@@ -287,7 +288,7 @@ export default function ImportExcelWizardPage() {
             <>
               <button
                 type="button"
-                className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={() => setEditing(true)}
               >
                 编辑
@@ -295,7 +296,7 @@ export default function ImportExcelWizardPage() {
               <button
                 type="button"
                 disabled={saving}
-                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded bg-slate-900 px-3 py-1 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
                 onClick={async () => {
                   if (!draft) return;
                   if (saving) return;
@@ -321,7 +322,7 @@ export default function ImportExcelWizardPage() {
             <button
               type="button"
               disabled={!canGoNext}
-              className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded bg-slate-900 px-3 py-1 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => setStep((s) => Math.min(3, s + 1))}
             >
               下一步
@@ -333,13 +334,13 @@ export default function ImportExcelWizardPage() {
       <Stepper step={step} />
 
       {step === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="text-sm font-semibold text-slate-900">选择文件</div>
           <div className="mt-1 text-xs text-slate-500">
             这是静态 Demo：不解析 Excel 内容。Excel 仅用文件名生成样品编号。
           </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-1">
+          <div className="mt-3 grid gap-3 lg:grid-cols-1">
             <UploadCard
               title="Excel"
               accept=".xlsx,.xls,.csv"
@@ -351,7 +352,7 @@ export default function ImportExcelWizardPage() {
             />
           </div>
 
-          <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+          <div className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-500">
             当前状态：
             <span className="ml-2">
               Excel {excelFileName ? "已选择" : "未选择"}
@@ -372,13 +373,13 @@ export default function ImportExcelWizardPage() {
       ) : null}
 
       {step === 2 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="text-sm font-semibold text-slate-900">导入手织图</div>
           <div className="mt-1 text-xs text-slate-500">
             请选择手织图 SVG 文件，下一步将进入预览。
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             <UploadCard
               title="手织图 SVG"
               accept=".svg"
@@ -397,11 +398,12 @@ export default function ImportExcelWizardPage() {
       ) : null}
 
       {isPreviewStep && draft ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <DocumentTabs
             items={PREVIEW_TABS}
             activeKey={previewTab}
             onChange={setPreviewTab}
+            compact
           />
 
           {previewTab === "制品规格书" ? (

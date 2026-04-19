@@ -254,11 +254,13 @@ export default function FileEditorPage({
       title={title}
       onBack={onBack}
       actions={actions}
+      compact
     >
       <DocumentTabs
         items={EDITOR_TABS}
         activeKey={activeTab}
         onChange={setActiveTab}
+        compact
       />
 
       {submitError ? (
@@ -274,23 +276,23 @@ export default function FileEditorPage({
         emptyText={mode === "add" ? "暂无初始稿件数据" : "暂无稿件数据"}
       >
         {form ? (
-          <div className="space-y-5">
+          <div className="space-y-3">
             {activeTab === "制品规格书" ? (
               <>
                 {allowTestData ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold text-amber-900">
                           测试快捷入口
                         </div>
-                        <div className="mt-1 text-xs text-amber-700">
+                        <div className="mt-0.5 text-xs text-amber-700">
                           一键填充制品规格书数据，方便联调与验收。不会自动生成高针图/手织图。
                         </div>
                       </div>
                       <button
                         type="button"
-                        className="rounded bg-amber-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-400"
+                        className="rounded bg-amber-500 px-3 py-1 text-sm font-medium text-white hover:bg-amber-400"
                         onClick={fillTestData}
                       >
                         一键填充测试数据

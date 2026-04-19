@@ -59,6 +59,7 @@ type Props = {
   children: React.ReactNode;
   /** 需要容纳大画布（如高针标注）时可开启 */
   fullWidth?: boolean;
+  compact?: boolean;
 };
 
 function NavItemLink({ item }: { item: NavItem }) {
@@ -87,7 +88,7 @@ function getAvatarText(name: string, username: string): string {
   return username.trim().slice(0, 1).toUpperCase() || "U";
 }
 
-export default function PageShell({ title, onBack, actions, children, fullWidth }: Props) {
+export default function PageShell({ title, onBack, actions, children, fullWidth, compact = false }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const iconSrc = `${import.meta.env.BASE_URL}icon.png`;
@@ -118,7 +119,7 @@ export default function PageShell({ title, onBack, actions, children, fullWidth 
     profileLoadAttemptedRef.current = true;
     let cancelled = false;
 
-    void callApi("Me", {}).then((result) => {
+    void callApi("Me" as never, {} as never).then((result: any) => {
       if (!result.isSucc || cancelled) {
         return;
       }
@@ -137,12 +138,16 @@ export default function PageShell({ title, onBack, actions, children, fullWidth 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
-        <div className={`mx-auto flex ${containerMaxWidthCls} items-center justify-between gap-4 px-4 py-3 sm:px-6`}>
+        <div
+          className={`mx-auto flex ${containerMaxWidthCls} items-center justify-between gap-4 px-4 ${
+            compact ? "py-2 sm:px-5" : "py-3 sm:px-6"
+          }`}
+        >
           <div className="flex items-center gap-3">
             <img
               src={iconSrc}
               alt="沐茵丝"
-              className="h-9 w-9 rounded-lg object-contain"
+              className={`${compact ? "h-8 w-8" : "h-9 w-9"} rounded-lg object-contain`}
             />
             <div className="leading-tight">
               <div className="text-sm font-semibold text-slate-900">
@@ -202,7 +207,11 @@ export default function PageShell({ title, onBack, actions, children, fullWidth 
         </div>
 
         {showNav ? (
-          <div className={`mx-auto ${containerMaxWidthCls} overflow-x-auto px-4 pb-3 lg:hidden sm:px-6`}>
+          <div
+            className={`mx-auto ${containerMaxWidthCls} overflow-x-auto px-4 ${
+              compact ? "pb-2 sm:px-5" : "pb-3 sm:px-6"
+            } lg:hidden`}
+          >
             <div className="flex w-max items-center gap-1">
               {flatNavItems.map((item) => (
                 <NavItemLink key={item.to} item={item} />
@@ -212,9 +221,13 @@ export default function PageShell({ title, onBack, actions, children, fullWidth 
         ) : null}
       </header>
 
-      <main className={`mx-auto ${containerMaxWidthCls} space-y-5 p-4 sm:p-6`}>
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+      <main
+        className={`mx-auto ${containerMaxWidthCls} ${
+          compact ? "space-y-3 p-3 sm:p-4" : "space-y-5 p-4 sm:p-6"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
             {onBack ? (
               <button
                 type="button"
@@ -224,7 +237,7 @@ export default function PageShell({ title, onBack, actions, children, fullWidth 
                 ←
               </button>
             ) : null}
-            <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+            <h1 className={`${compact ? "text-lg" : "text-xl"} font-semibold text-slate-900`}>{title}</h1>
           </div>
           {actions ? (
             <div className="flex items-center gap-2">{actions}</div>

@@ -92,6 +92,41 @@ const DyeItemSchema = z
     }
   })
 
+const DML规则Schema = z.object({
+  命令列表: z.array(z.object({}).passthrough()),
+})
+
+const 高针图Schema = z.object({
+  底图: z
+    .object({
+      svg: z.string(),
+      区域名: z.array(z.string()),
+      区域线条: z.array(z.object({}).passthrough()),
+      档位标注: z.array(z.object({}).passthrough()),
+      文本节点: z.record(z.string(), z.object({}).passthrough()),
+    })
+    .passthrough(),
+  自定义数据: z.object({
+    DML规则: DML规则Schema,
+    单双标注: z.array(z.object({}).passthrough()),
+  }),
+})
+
+const 手织图Schema = z.object({
+  底图: z
+    .object({
+      svg: z.string(),
+      区域名: z.array(z.string()),
+      区域线条: z.array(z.object({}).passthrough()),
+      档位标注: z.array(z.object({}).passthrough()),
+      文本节点: z.record(z.string(), z.object({}).passthrough()),
+    })
+    .passthrough(),
+  自定义数据: z.object({
+    DML规则: DML规则Schema,
+  }),
+})
+
 const FileSchema = z
   .object({
     _id: z.string().trim().min(1, "样品编号不能为空"),
@@ -101,8 +136,14 @@ const FileSchema = z
     原材料: z.string().trim().min(1, "原材料不能为空"),
     假发类型: z.nativeEnum(假发类型),
     染色档位列表: z.array(DyeItemSchema),
-    高针指示单: z.object({}).passthrough(),
-    手织指示单: z.object({}).passthrough(),
+    高针指示单: z.object({
+      注意事项: z.string(),
+      高针图: 高针图Schema,
+    }),
+    手织指示单: z.object({
+      注意事项: z.string(),
+      手织图: 手织图Schema,
+    }),
     头型图片: z.array(z.string()),
     制品规格书: z
       .object({
@@ -181,6 +222,7 @@ export const ErrorCodeByMessage: Record<string, string> = {
   "染色尺寸标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
   "长尺寸标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
   "短尺寸标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
+  Required: "INVALID_GRAPH_TEMPLATE",
   "非间色/T色假发的机器规格清单中不允许设置 DML比值": "INVALID_DML",
   裁断重量项最多3个: "INVALID_CUT_WEIGHT_COUNT",
   DML比值最多1位小数: "INVALID_DML",

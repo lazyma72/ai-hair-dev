@@ -70,4 +70,3 @@ export function normalize染色档位列表(list: unknown): 染色档位[] {
   if (!Array.isArray(list)) return []
   return list.map(normalize染色档位)
 }
-

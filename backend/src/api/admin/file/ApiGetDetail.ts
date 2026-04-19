@@ -5,6 +5,7 @@ import { to制品规格书Frontend } from "../../../shared/frontend/converters/t
 import { to高针指示单Frontend } from "../../../shared/frontend/converters/to高针指示单Frontend"
 import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend"
 import { normalize染色档位列表 } from "./normalizeDyeLevels"
+import { normalize手织图, normalize高针图 } from "./normalizeNeedleGraphs"
 
 function getHatMakingIdFromCAP(cap: string): string {
   return cap.trim().match(/^[^（(\s]+/)?.[0] ?? ""
@@ -17,6 +18,14 @@ export default async function (call: ApiCall<ReqGetDetail, ResGetDetail>) {
     ? {
         ...db稿,
         染色档位列表: normalize染色档位列表(db稿.染色档位列表),
+        高针指示单: {
+          ...db稿.高针指示单,
+          高针图: normalize高针图(db稿.高针指示单?.高针图),
+        },
+        手织指示单: {
+          ...db稿.手织指示单,
+          手织图: normalize手织图(db稿.手织指示单?.手织图),
+        },
       }
     : null
   if (!稿) {

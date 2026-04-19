@@ -2,10 +2,10 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 
 export const inputCls =
-  "w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300";
+  "w-full rounded border border-slate-200 px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-slate-300";
 
 export const numInputCls =
-  "w-full rounded border border-slate-200 px-1.5 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300";
+  "w-full rounded border border-slate-200 px-1.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-slate-300";
 
 function fmt最多一位小数(n: number): string {
   const rounded = Math.round(n * 10) / 10;
@@ -14,7 +14,7 @@ function fmt最多一位小数(n: number): string {
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
       {children}
     </p>
   );
@@ -320,13 +320,13 @@ export function Section({
       id={id}
       className="scroll-mt-24 overflow-hidden rounded-xl bg-white ring-1 ring-slate-200"
     >
-      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
+      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2">
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
         {action}
       </div>
-      <div className="p-5">
+      <div className="p-3">
         {error ? (
-          <div className="-mt-1 mb-3 text-xs text-rose-500">{error}</div>
+          <div className="-mt-0.5 mb-2 text-xs text-rose-500">{error}</div>
         ) : null}
         {children}
       </div>

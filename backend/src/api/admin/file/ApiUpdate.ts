@@ -3,6 +3,7 @@ import { ReqUpdate, ResUpdate } from "../../../shared/protocols/admin/file/PtlUp
 import { Global } from "../../../models/Global"
 import { validateFileInput } from "./fileValidation"
 import { normalize染色档位列表 } from "./normalizeDyeLevels"
+import { normalize手织图, normalize高针图 } from "./normalizeNeedleGraphs"
 
 function getHatMakingIdFromCAP(cap: string): string {
   return cap.trim().match(/^[^（(\s]+/)?.[0] ?? ""
@@ -13,6 +14,14 @@ export default async function (call: ApiCall<ReqUpdate, ResUpdate>) {
   const normalizedInput = {
     ...file,
     染色档位列表: normalize染色档位列表(file.染色档位列表),
+    高针指示单: {
+      ...file.高针指示单,
+      高针图: normalize高针图(file.高针指示单?.高针图),
+    },
+    手织指示单: {
+      ...file.手织指示单,
+      手织图: normalize手织图(file.手织指示单?.手织图),
+    },
   }
 
   const validation = validateFileInput(normalizedInput)
