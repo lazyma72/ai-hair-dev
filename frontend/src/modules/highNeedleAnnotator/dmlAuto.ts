@@ -116,10 +116,8 @@ function isDmlBoundaryIncluded(
   return value >= rangeStart && value < rangeEnd;
 }
 
-function normalizePatternList(pattern: DML值[]): DML值[] {
-  return pattern.filter(
-    (item): item is DML值 => item === "D" || item === "M" || item === "L",
-  );
+function isValidDmlValue(v: unknown): v is DML值 {
+  return v === "D" || v === "M" || v === "L";
 }
 
 function collectOrderedRegionLines(
@@ -206,11 +204,11 @@ function applyPatternAssignments(
   command: DML区域百分比命令 | DML按档位标记命令,
   targetLineIds: string[],
 ) {
-  const pattern = normalizePatternList(command.规律);
-  if (pattern.length === 0) return;
+  const pattern = normalizePattern(command.规律);
+  if (!pattern) return;
 
   targetLineIds.forEach((lineNodeId, slotIndex) => {
-    const 值 = pattern[slotIndex % pattern.length];
+    const 值 = pattern[slotIndex % pattern.length] as DML值;
     assignments.set(lineNodeId, 值);
     managedLineIds.add(lineNodeId);
     items.push({
@@ -254,13 +252,15 @@ export function compileDmlRules(data: DmlCompilableData): DmlCompileResult {
       return;
     }
 
-    command.标记.forEach((item) => {
-      if (!item.nodeId) return;
-      assignments.set(item.nodeId, item.值);
-      managedLineIds.add(item.nodeId);
+    if (!isValidDmlValue(command.规律)) return;
+    const specialValue = command.规律;
+    command.lineNodeIds.forEach((lineNodeId) => {
+      if (!lineNodeId) return;
+      assignments.set(lineNodeId, specialValue);
+      managedLineIds.add(lineNodeId);
       items.push({
-        lineNodeId: item.nodeId,
-        值: item.值,
+        lineNodeId,
+        值: specialValue,
         来源命令id: command.id,
         来源类型: command.type,
       });

@@ -25,6 +25,7 @@ type Props = {
   stepTips: string;
 
   value: any;
+  allLineIds?: string[];
   missingLevelLineIds?: string[];
   canEditRegion?: boolean;
   canEditDml?: boolean;
@@ -55,34 +56,39 @@ type Props = {
   clearDoubleStage: () => void;
 
   dmlRuleCommands: DML规则命令[];
-  dmlRegionRules: Array<{
-    id: string;
-    规律: Array<"D" | "M" | "L">;
-    区域百分比: Array<{ 区域: string; 开始位置: number; 结束位置: number }>;
-  }>;
-  dmlLevelRules: Array<{
-    id: string;
-    规律: Array<"D" | "M" | "L">;
-    档位: Array<{ 档位名称: string; 开始位置: number; 结束位置: number }>;
-  }>;
   dmlLevelNames: string[];
   dmlSpecialCount: number;
   addDmlRegionRule: () => void;
   updateDmlRegionRule: (
     ruleId: string,
-    patch: { 区域?: string; 开始位置?: number; 结束位置?: number; 规律?: Array<"D" | "M" | "L"> },
+    patch: {
+      区域?: string;
+      开始位置?: number;
+      结束位置?: number;
+      规律?: string;
+      segmentIndex?: number;
+    },
   ) => void;
   addDmlLevelRule: () => void;
   updateDmlLevelRule: (
     ruleId: string,
-    patch: { 档位名称?: string; 开始位置?: number; 结束位置?: number; 规律?: Array<"D" | "M" | "L"> },
+    patch: {
+      档位名称?: string;
+      开始位置?: number;
+      结束位置?: number;
+      规律?: string;
+      segmentIndex?: number;
+    },
   ) => void;
   addDmlSpecialRule: () => void;
   removeDmlRule: (ruleId: string) => void;
   activeDmlRuleId: string;
   activeDmlRuleType: "区域百分比" | "按档位标记" | "特殊标记" | "";
   activeSpecialDmlValue: DmlValue;
-  selectDmlRule: (ruleId: string, ruleType: "区域百分比" | "按档位标记") => void;
+  selectDmlRule: (
+    ruleId: string,
+    ruleType: "区域百分比" | "按档位标记",
+  ) => void;
   selectSpecialDmlRule: (value: string) => void;
   setActiveSpecialDmlValue: (value: DmlValue) => void;
   clearActiveDmlRule: () => void;
@@ -123,6 +129,8 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     setStep,
     setDraftSelected,
 
+    allLineIds,
+
     regionPresetValue,
     setRegionPresetValue,
     regionDraft,
@@ -138,9 +146,7 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     clearDmlStage,
     clearDoubleStage,
 
-  dmlRuleCommands,
-    dmlRegionRules,
-    dmlLevelRules,
+    dmlRuleCommands,
     dmlLevelNames,
     dmlSpecialCount,
     addDmlRegionRule,
@@ -186,6 +192,110 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     regionCountByName[item.区域名] =
       (regionCountByName[item.区域名] ?? 0) + item.lineNodeIds.length;
   });
+
+  // line → region/level info maps for DML segment derivation
+  // Use global insertion-order index within the region (not per-batch 区域内位置占比,
+  // which resets 0→1 for every annotation batch and can't be compared across batches).
+  const regionTotalCount = new Map<string, number>();
+  (value.底图?.区域线条 ?? []).forEach(
+    (item: { 区域名: string; lineNodeIds: string[] }) => {
+      item.lineNodeIds.forEach(() => {
+        regionTotalCount.set(
+          item.区域名,
+          (regionTotalCount.get(item.区域名) ?? 0) + 1,
+        );
+      });
+    },
+  );
+  const regionCurrentIdx = new Map<string, number>();
+  const lineToRegionInfo = new Map<
+    string,
+    { 区域名: string; globalIndex: number; total: number }
+  >();
+  (value.底图?.区域线条 ?? []).forEach(
+    (item: { 区域名: string; lineNodeIds: string[] }) => {
+      item.lineNodeIds.forEach((id) => {
+        const idx = regionCurrentIdx.get(item.区域名) ?? 0;
+        lineToRegionInfo.set(id, {
+          区域名: item.区域名,
+          globalIndex: idx,
+          total: regionTotalCount.get(item.区域名) ?? 1,
+        });
+        regionCurrentIdx.set(item.区域名, idx + 1);
+      });
+    },
+  );
+
+  const lineToLevelInfo = new Map<string, { 档位名称: string }>();
+  (value.底图?.档位标注 ?? []).forEach(
+    (item: { 区域名: string; lineNodeIds: string[] }) => {
+      item.lineNodeIds.forEach((id) => {
+        lineToLevelInfo.set(id, { 档位名称: item.区域名 });
+      });
+    },
+  );
+
+  // Build ordered line lists using SVG DOM order (allLineIds) — this is the
+  // visual spatial order the user sees when brushing, not the annotation-batch
+  // insertion order which resets per batch.
+  const lineIdSet = new Map<string, { region?: string; level?: string }>();
+  (value.底图?.区域线条 ?? []).forEach(
+    (item: { 区域名: string; lineNodeIds: string[] }) => {
+      item.lineNodeIds.forEach((id) => {
+        const e = lineIdSet.get(id) ?? {};
+        e.region = item.区域名;
+        lineIdSet.set(id, e);
+      });
+    },
+  );
+  (value.底图?.档位标注 ?? []).forEach(
+    (item: { 区域名: string; lineNodeIds: string[] }) => {
+      item.lineNodeIds.forEach((id) => {
+        const e = lineIdSet.get(id) ?? {};
+        e.level = item.区域名;
+        lineIdSet.set(id, e);
+      });
+    },
+  );
+
+  // Walk allLineIds (SVG DOM order) to build per-region / per-level sorted lists
+  const regionOrderedLines = new Map<string, string[]>();
+  const levelOrderedLines = new Map<string, string[]>();
+  const svgOrderIds: string[] = allLineIds ?? [];
+  // Also include any ids not in allLineIds (fallback: append at end)
+  const seenInSvg = new Set(svgOrderIds);
+  const extraIds: string[] = [];
+  lineIdSet.forEach((_, id) => {
+    if (!seenInSvg.has(id)) extraIds.push(id);
+  });
+  [...svgOrderIds, ...extraIds].forEach((id) => {
+    const entry = lineIdSet.get(id);
+    if (!entry) return;
+    if (entry.region) {
+      const list = regionOrderedLines.get(entry.region) ?? [];
+      list.push(id);
+      regionOrderedLines.set(entry.region, list);
+    }
+    if (entry.level) {
+      const list = levelOrderedLines.get(entry.level) ?? [];
+      list.push(id);
+      levelOrderedLines.set(entry.level, list);
+    }
+  });
+
+  // Update globalIndex / total in lineToRegionInfo to match SVG order
+  regionOrderedLines.forEach((ids, regionName) => {
+    ids.forEach((id, idx) => {
+      const info = lineToRegionInfo.get(id);
+      if (info) {
+        lineToRegionInfo.set(id, {
+          ...info,
+          globalIndex: idx,
+          total: ids.length,
+        });
+      }
+    });
+  });
   const savedRegions = Object.entries(regionCountByName).map(
     ([name, lineCount]) => ({ name, lineCount }),
   );
@@ -225,14 +335,15 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
 
       {step !== "档位" && (missingLevelLineIds?.length ?? 0) > 0 ? (
         <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          档位未补齐：还有 {missingLevelLineIds?.length ?? 0} 条区域线未标注档位。
-          DML/单双/完成会被阻止写入。
+          档位未补齐：还有 {missingLevelLineIds?.length ?? 0}{" "}
+          条区域线未标注档位。 DML/单双/完成会被阻止写入。
         </div>
       ) : null}
 
       {step === "区域" && canEditRegion === false ? (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          区域已锁定：当前存在档位或 DML/单双数据。若需重做区域，请使用“清空区域阶段”。
+          区域已锁定：当前存在档位或
+          DML/单双数据。若需重做区域，请使用“清空区域阶段”。
         </div>
       ) : null}
 
@@ -286,11 +397,13 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
           dmlRuleCommands={dmlRuleCommands}
           regionNames={value.底图?.区域名 ?? []}
           levelNames={dmlLevelNames}
-          dmlRegionRules={dmlRegionRules}
-          dmlLevelRules={dmlLevelRules}
           dmlSpecialCount={dmlSpecialCount}
           addDmlRegionRule={addDmlRegionRule}
           updateDmlRegionRule={updateDmlRegionRule}
+          lineToRegionInfo={lineToRegionInfo}
+          lineToLevelInfo={lineToLevelInfo}
+          regionOrderedLines={regionOrderedLines}
+          levelOrderedLines={levelOrderedLines}
           addDmlLevelRule={addDmlLevelRule}
           updateDmlLevelRule={updateDmlLevelRule}
           addDmlSpecialRule={addDmlSpecialRule}

@@ -162,7 +162,7 @@ function normalize高针图值(value: 高针图): 高针图 {
       DML规则: {
         命令列表: (
           (value.自定义数据.DML规则 ?? 空DML规则()).命令列表 ?? []
-        ).map((item) => ({ lineNodeIds: [], ...item })),
+        ).map((item) => ({ ...item, lineNodeIds: item.lineNodeIds ?? [] })),
       },
       单双标注: (value.自定义数据.单双标注 ?? []).map((item) => ({
         ...item,
@@ -174,13 +174,6 @@ function normalize高针图值(value: 高针图): 高针图 {
 
 function getDmlTextNodeKey(lineNodeId: string): string {
   return `dml:${lineNodeId}`;
-}
-
-function extractSpecialDmlCommand(value: 高针图): DML特殊标记命令 | undefined {
-  const commands = value.自定义数据.DML规则?.命令列表 ?? [];
-  return commands.find(
-    (item): item is DML特殊标记命令 => item.type === "特殊标记",
-  );
 }
 
 function mergeTextIdList(
@@ -542,16 +535,17 @@ export default function useHighNeedleSvgAnnotator({
 
     setTextStageHiddenTextIds([]);
     manualDmlOverridesRef.current = {};
-    extractSpecialDmlCommand(normalizedInitialValue)?.标记.forEach((d) => {
-      const id = String(d?.nodeId ?? "").trim();
-      const v = String(d?.值 ?? "")
-        .trim()
-        .toUpperCase();
-      if (!id) return;
-      if (v === "D" || v === "M" || v === "L") {
-        manualDmlOverridesRef.current[id] = v as DmlValue;
-      }
-    });
+    normalizedInitialValue.自定义数据.DML规则?.命令列表
+      .filter((item): item is DML特殊标记命令 => item.type === "特殊标记")
+      .forEach((cmd) => {
+        const 规律 = cmd.规律;
+        if (规律 !== "D" && 规律 !== "M" && 规律 !== "L") return;
+        cmd.lineNodeIds.forEach((nodeId) => {
+          const id = String(nodeId ?? "").trim();
+          if (!id) return;
+          manualDmlOverridesRef.current[id] = 规律;
+        });
+      });
     autoDmlAssignmentsRef.current = new Map();
     autoDmlManagedIdsRef.current = new Set();
     autoDmlSlotByLineIdRef.current = new Map();
@@ -760,8 +754,11 @@ export default function useHighNeedleSvgAnnotator({
   );
 
   const dmlSpecialRule = useMemo(
-    () => extractSpecialDmlCommand(value),
-    [value],
+    () =>
+      value.自定义数据.DML规则.命令列表.filter(
+        (item): item is DML特殊标记命令 => item.type === "特殊标记",
+      ),
+    [value.自定义数据.DML规则.命令列表],
   );
 
   const dmlLevelNames = useMemo(
@@ -1564,24 +1561,33 @@ export default function useHighNeedleSvgAnnotator({
         dmlMarkerPosByLineIdRef.current.delete(lineNodeId);
       });
 
-      const manualMarks = Object.entries(manual)
-        .map(([nodeId, 值]) => {
-          const normalized = String(值).trim() as DML值;
-          if (normalized !== "D" && normalized !== "M" && normalized !== "L") {
-            return null;
-          }
-          return { nodeId, 值: normalized };
-        })
-        .filter((item): item is { nodeId: string; 值: DML值 } => Boolean(item));
-      const specialCommand: DML特殊标记命令 | null =
-        manualMarks.length > 0
-          ? {
-              id: dmlSpecialRule?.id ?? "dml_special_rule",
-              type: "特殊标记",
-              备注: dmlSpecialRule?.备注,
-              标记: manualMarks,
-            }
-          : null;
+      // Group manual overrides by DML value and create one special command per value
+      const linesByValue = new Map<DML值, string[]>();
+      Object.entries(manual).forEach(([nodeId, 值]) => {
+        const normalized = String(值).trim() as DML值;
+        if (normalized !== "D" && normalized !== "M" && normalized !== "L") {
+          return;
+        }
+        const list = linesByValue.get(normalized) ?? [];
+        list.push(nodeId);
+        linesByValue.set(normalized, list);
+      });
+
+      const existingSpecialById = new Map<string, DML特殊标记命令>(
+        cur.自定义数据.DML规则.命令列表
+          .filter((item): item is DML特殊标记命令 => item.type === "特殊标记")
+          .map((cmd) => [cmd.规律, cmd]),
+      );
+
+      const specialCommands: DML特殊标记命令[] = (["D", "M", "L"] as DML值[])
+        .filter((v) => (linesByValue.get(v)?.length ?? 0) > 0)
+        .map((v) => ({
+          id: existingSpecialById.get(v)?.id ?? `dml_special_${v}`,
+          type: "特殊标记" as const,
+          备注: existingSpecialById.get(v)?.备注,
+          规律: v,
+          lineNodeIds: linesByValue.get(v) ?? [],
+        }));
 
       return {
         ...cur,
@@ -1593,9 +1599,7 @@ export default function useHighNeedleSvgAnnotator({
         自定义数据: {
           ...cur.自定义数据,
           DML规则: {
-            命令列表: specialCommand
-              ? [...nonSpecialCommands, specialCommand]
-              : nonSpecialCommands,
+            命令列表: [...nonSpecialCommands, ...specialCommands],
           },
         },
       };
@@ -1654,9 +1658,8 @@ export default function useHighNeedleSvgAnnotator({
           item.type === "特殊标记" && item.id === ruleId,
       );
       return uniquePreserveOrder(
-        (specialCommand?.标记 ?? [])
-          .filter((item) => item.值 === specialValue)
-          .map((item) => String(item.nodeId ?? "").trim())
+        (specialCommand?.lineNodeIds ?? [])
+          .map((id) => String(id ?? "").trim())
           .filter(Boolean),
       );
     }
@@ -1864,20 +1867,22 @@ export default function useHighNeedleSvgAnnotator({
 
     if (step !== "DML" || prev === "DML") return;
 
-    const existing = dmlSpecialRule?.标记 ?? [];
-    if (existing.length === 0) return;
+    const specialCommands = value.自定义数据.DML规则.命令列表.filter(
+      (item): item is DML特殊标记命令 => item.type === "特殊标记",
+    );
+    if (specialCommands.length === 0) return;
 
     manualDmlOverridesRef.current = {};
-    existing.forEach((d) => {
-      const id = String(d.nodeId ?? "").trim();
-      const v = String(d.值 ?? "")
-        .trim()
-        .toUpperCase();
-      if (id && (v === "D" || v === "M" || v === "L")) {
-        manualDmlOverridesRef.current[id] = v as DmlValue;
-      }
+    specialCommands.forEach((cmd) => {
+      const 规律 = cmd.规律;
+      if (规律 !== "D" && 规律 !== "M" && 规律 !== "L") return;
+      cmd.lineNodeIds.forEach((nodeId) => {
+        const id = String(nodeId ?? "").trim();
+        if (!id) return;
+        manualDmlOverridesRef.current[id] = 规律;
+      });
     });
-  }, [dmlSpecialRule, step]);
+  }, [value.自定义数据.DML规则.命令列表, step]);
 
   function toggleSelect(
     id: string,
@@ -2625,7 +2630,7 @@ export default function useHighNeedleSvgAnnotator({
       {
         id: nextRuleId,
         type: "区域百分比",
-        规律: ["D", "M", "L"],
+        规律: "DML",
         lineNodeIds: [],
         区域百分比: [],
       },
@@ -2642,35 +2647,51 @@ export default function useHighNeedleSvgAnnotator({
       区域?: string;
       开始位置?: number;
       结束位置?: number;
-      规律?: DML值[];
+      规律?: string;
+      segmentIndex?: number;
     },
   ) {
     updateDmlCommands(
       (prev) =>
         prev.map((item) => {
           if (item.type !== "区域百分比" || item.id !== ruleId) return item;
-          const first = item.区域百分比[0] ?? {
-            区域: "",
-            开始位置: 0,
-            结束位置: 1,
-          };
+          const segIdx = patch.segmentIndex ?? 0;
+          const first = item.区域百分比[segIdx] ??
+            item.区域百分比[0] ?? {
+              区域: "",
+              开始位置: 0,
+              结束位置: 1,
+            };
           const hasSegment = item.区域百分比.length > 0;
           const shouldCreateSegment =
             hasSegment ||
             patch.开始位置 !== undefined ||
-            patch.结束位置 !== undefined;
-          return {
-            ...item,
-            ...(patch.规律 ? { 规律: patch.规律 } : {}),
-            区域百分比: shouldCreateSegment
-              ? [
+            patch.结束位置 !== undefined ||
+            patch.区域 !== undefined;
+          const nextSegments = shouldCreateSegment
+            ? item.区域百分比.length > segIdx
+              ? item.区域百分比.map((seg, i) =>
+                  i === segIdx
+                    ? {
+                        区域: patch.区域 ?? seg.区域,
+                        开始位置: patch.开始位置 ?? seg.开始位置,
+                        结束位置: patch.结束位置 ?? seg.结束位置,
+                      }
+                    : seg,
+                )
+              : [
+                  ...item.区域百分比,
                   {
                     区域: patch.区域 ?? first.区域,
                     开始位置: patch.开始位置 ?? first.开始位置,
                     结束位置: patch.结束位置 ?? first.结束位置,
                   },
                 ]
-              : item.区域百分比,
+            : item.区域百分比;
+          return {
+            ...item,
+            ...(patch.规律 !== undefined ? { 规律: patch.规律 } : {}),
+            区域百分比: nextSegments,
           };
         }),
       {
@@ -2688,6 +2709,34 @@ export default function useHighNeedleSvgAnnotator({
     );
   }
 
+  function addDmlRegionSegment(ruleId: string) {
+    updateDmlCommands((prev) =>
+      prev.map((item) => {
+        if (item.type !== "区域百分比" || item.id !== ruleId) return item;
+        const last = item.区域百分比[item.区域百分比.length - 1];
+        return {
+          ...item,
+          区域百分比: [
+            ...item.区域百分比,
+            { 区域: last?.区域 ?? "", 开始位置: 0, 结束位置: 1 },
+          ],
+        };
+      }),
+    );
+  }
+
+  function removeDmlRegionSegment(ruleId: string, segmentIndex: number) {
+    updateDmlCommands((prev) =>
+      prev.map((item) => {
+        if (item.type !== "区域百分比" || item.id !== ruleId) return item;
+        return {
+          ...item,
+          区域百分比: item.区域百分比.filter((_, i) => i !== segmentIndex),
+        };
+      }),
+    );
+  }
+
   function addDmlLevelRule() {
     const nextRuleId = allocLocalId("dml_level");
     updateDmlCommands((prev) => [
@@ -2695,7 +2744,7 @@ export default function useHighNeedleSvgAnnotator({
       {
         id: nextRuleId,
         type: "按档位标记",
-        规律: ["D", "M", "L"],
+        规律: "DML",
         lineNodeIds: [],
         档位: [],
       },
@@ -2707,19 +2756,25 @@ export default function useHighNeedleSvgAnnotator({
   }
 
   function addDmlSpecialRule() {
-    const existingRuleId = dmlSpecialRule?.id ?? "dml_special_rule";
-    const hasExistingRule = value.自定义数据.DML规则.命令列表.some(
-      (item) => item.type === "特殊标记" && item.id === existingRuleId,
+    const normalized = normalizeSingleDmlValue(activeSpecialDmlValue);
+    if (normalized !== "D" && normalized !== "M" && normalized !== "L") return;
+    const validNormalized: DML值 = normalized;
+    const existingCommand = value.自定义数据.DML规则.命令列表.find(
+      (item): item is DML特殊标记命令 =>
+        item.type === "特殊标记" && item.规律 === validNormalized,
     );
+    const existingRuleId =
+      existingCommand?.id ?? `dml_special_${validNormalized}`;
+    const hasExistingRule = Boolean(existingCommand);
 
     if (!hasExistingRule) {
       updateDmlCommands((prev) => [
         ...prev,
         {
           id: existingRuleId,
-          type: "特殊标记",
-          lineNodeIds: [],
-          标记: [],
+          type: "特殊标记" as const,
+          规律: validNormalized,
+          lineNodeIds: [] as string[],
         },
       ]);
     }
@@ -2734,14 +2789,14 @@ export default function useHighNeedleSvgAnnotator({
               ...value.自定义数据.DML规则.命令列表,
               {
                 id: existingRuleId,
-                type: "特殊标记",
-                lineNodeIds: [],
-                标记: [],
+                type: "特殊标记" as const,
+                规律: validNormalized,
+                lineNodeIds: [] as string[],
               },
             ],
         existingRuleId,
         "特殊标记",
-        activeSpecialDmlValue,
+        validNormalized,
       ),
     );
   }
@@ -2752,35 +2807,51 @@ export default function useHighNeedleSvgAnnotator({
       档位名称?: string;
       开始位置?: number;
       结束位置?: number;
-      规律?: DML值[];
+      规律?: string;
+      segmentIndex?: number;
     },
   ) {
     updateDmlCommands(
       (prev) =>
         prev.map((item) => {
           if (item.type !== "按档位标记" || item.id !== ruleId) return item;
-          const first = item.档位[0] ?? {
-            档位名称: "",
-            开始位置: 0,
-            结束位置: 1,
-          };
+          const segIdx = patch.segmentIndex ?? 0;
+          const first = item.档位[segIdx] ??
+            item.档位[0] ?? {
+              档位名称: "",
+              开始位置: 0,
+              结束位置: 1,
+            };
           const hasSegment = item.档位.length > 0;
           const shouldCreateSegment =
             hasSegment ||
             patch.开始位置 !== undefined ||
-            patch.结束位置 !== undefined;
-          return {
-            ...item,
-            ...(patch.规律 ? { 规律: patch.规律 } : {}),
-            档位: shouldCreateSegment
-              ? [
+            patch.结束位置 !== undefined ||
+            patch.档位名称 !== undefined;
+          const nextSegments = shouldCreateSegment
+            ? item.档位.length > segIdx
+              ? item.档位.map((seg, i) =>
+                  i === segIdx
+                    ? {
+                        档位名称: patch.档位名称 ?? seg.档位名称,
+                        开始位置: patch.开始位置 ?? seg.开始位置,
+                        结束位置: patch.结束位置 ?? seg.结束位置,
+                      }
+                    : seg,
+                )
+              : [
+                  ...item.档位,
                   {
                     档位名称: patch.档位名称 ?? first.档位名称,
                     开始位置: patch.开始位置 ?? first.开始位置,
                     结束位置: patch.结束位置 ?? first.结束位置,
                   },
                 ]
-              : item.档位,
+            : item.档位;
+          return {
+            ...item,
+            ...(patch.规律 !== undefined ? { 规律: patch.规律 } : {}),
+            档位: nextSegments,
           };
         }),
       {
@@ -2795,6 +2866,34 @@ export default function useHighNeedleSvgAnnotator({
           }
         },
       },
+    );
+  }
+
+  function addDmlLevelSegment(ruleId: string) {
+    updateDmlCommands((prev) =>
+      prev.map((item) => {
+        if (item.type !== "按档位标记" || item.id !== ruleId) return item;
+        const last = item.档位[item.档位.length - 1];
+        return {
+          ...item,
+          档位: [
+            ...item.档位,
+            { 档位名称: last?.档位名称 ?? "", 开始位置: 0, 结束位置: 1 },
+          ],
+        };
+      }),
+    );
+  }
+
+  function removeDmlLevelSegment(ruleId: string, segmentIndex: number) {
+    updateDmlCommands((prev) =>
+      prev.map((item) => {
+        if (item.type !== "按档位标记" || item.id !== ruleId) return item;
+        return {
+          ...item,
+          档位: item.档位.filter((_, i) => i !== segmentIndex),
+        };
+      }),
     );
   }
 
@@ -2828,7 +2927,11 @@ export default function useHighNeedleSvgAnnotator({
 
   function selectSpecialDmlRule(inputValue: string) {
     const normalized = normalizeSingleDmlValue(inputValue);
-    const ruleId = dmlSpecialRule?.id ?? "dml_special_rule";
+    const existingCommand = value.自定义数据.DML规则.命令列表.find(
+      (item): item is DML特殊标记命令 =>
+        item.type === "特殊标记" && item.规律 === normalized,
+    );
+    const ruleId = existingCommand?.id ?? `dml_special_${normalized}`;
 
     if (
       activeDmlRuleId === ruleId &&
@@ -3509,7 +3612,10 @@ export default function useHighNeedleSvgAnnotator({
     dmlRegionRules,
     dmlLevelRules,
     dmlLevelNames,
-    dmlSpecialCount: dmlSpecialRule?.标记.length ?? 0,
+    dmlSpecialCount: dmlSpecialRule.reduce(
+      (sum, cmd) => sum + cmd.lineNodeIds.length,
+      0,
+    ),
     activeDmlRuleId,
     activeDmlRuleType,
     activeDmlRuleLineIdSet: new Set(activeDmlRuleLineIds),

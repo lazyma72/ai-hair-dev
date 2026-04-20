@@ -1,5 +1,4 @@
 import { DML规则 } from "./DML规则"
-
 export interface 高针图 {
   底图: {
     /** SVG 字符串（底图数据，不包含运行时 UI 叠加标记） */

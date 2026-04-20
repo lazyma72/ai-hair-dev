@@ -1941,11 +1941,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "id": 1,
                     "name": "规律",
                     "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../models/DML规则/DML值"
-                        }
+                        "type": "String"
                     }
                 },
                 {
@@ -1956,6 +1952,16 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "elementType": {
                             "type": "Reference",
                             "target": "../models/DML规则/DML区域百分比片段"
+                        }
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "lineNodeIds",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
                         }
                     }
                 }
@@ -1978,42 +1984,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "String"
                     },
                     "optional": true
-                },
-                {
-                    "id": 2,
-                    "name": "lineNodeIds",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "String"
-                        }
-                    }
-                }
-            ]
-        },
-        "../models/DML规则/DML值": {
-            "type": "Union",
-            "members": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Literal",
-                        "literal": "D"
-                    }
-                },
-                {
-                    "id": 1,
-                    "type": {
-                        "type": "Literal",
-                        "literal": "M"
-                    }
-                },
-                {
-                    "id": 2,
-                    "type": {
-                        "type": "Literal",
-                        "literal": "L"
-                    }
                 }
             ]
         },
@@ -2067,11 +2037,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "id": 1,
                     "name": "规律",
                     "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../models/DML规则/DML值"
-                        }
+                        "type": "String"
                     }
                 },
                 {
@@ -2082,6 +2048,16 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "elementType": {
                             "type": "Reference",
                             "target": "../models/DML规则/DML档位片段"
+                        }
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "lineNodeIds",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
                         }
                     }
                 }
@@ -2134,34 +2110,20 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 1,
-                    "name": "标记",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../models/DML规则/DML节点标记"
-                        }
-                    }
-                }
-            ]
-        },
-        "../models/DML规则/DML节点标记": {
-            "type": "Interface",
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "nodeId",
+                    "id": 2,
+                    "name": "规律",
                     "type": {
                         "type": "String"
                     }
                 },
                 {
-                    "id": 1,
-                    "name": "值",
+                    "id": 3,
+                    "name": "lineNodeIds",
                     "type": {
-                        "type": "Reference",
-                        "target": "../models/DML规则/DML值"
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
+                        }
                     }
                 }
             ]
