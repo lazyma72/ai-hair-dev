@@ -300,7 +300,7 @@ export default function ABCreateWizardPage() {
 
   return (
     <PageShell
-      title="选择 A + B 生成 C 稿"
+      title="产品规格系统 · 选择 A + B 生成 C 稿"
       onBack={() => navigate("/designs/create")}
       actions={actions}
     >

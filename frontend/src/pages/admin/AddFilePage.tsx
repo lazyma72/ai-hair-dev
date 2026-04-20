@@ -16,7 +16,7 @@ export default function AddFilePage() {
   return (
     <FileEditorPage
       mode="add"
-      title="添加成品稿"
+      title="产品规格系统 · 添加成品稿"
       initialValue={initialValue}
       allowTestData
       submitLabel="保存成品稿"

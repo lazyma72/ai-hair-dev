@@ -150,17 +150,19 @@ export default function RatioListPage() {
         empty={list.length === 0}
         emptyText="暂无胶丝比例数据"
       >
-        <DataTable columns={columns} rows={list} rowKey={(r) => r._id} />
-        <PaginationBar
-          total={total}
-          pageNum={pageNum}
-          pageSize={pageSize}
-          onPageNumChange={setPageNum}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setPageNum(1);
-          }}
-        />
+        <div className="space-y-4">
+          <DataTable columns={columns} rows={list} rowKey={(r) => r._id} />
+          <PaginationBar
+            total={total}
+            pageNum={pageNum}
+            pageSize={pageSize}
+            onPageNumChange={setPageNum}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPageNum(1);
+            }}
+          />
+        </div>
       </StatusView>
     </PageShell>
   );

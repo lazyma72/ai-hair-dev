@@ -4,6 +4,11 @@ import type {
   裁断重量项,
 } from "../../../../shared/db/Db沐茵丝假发成品稿";
 import { 假发类型 } from "../../../../shared/db/Db沐茵丝假发成品稿";
+import {
+  calc基础重量,
+  calc分档基础重量,
+  get档位行系数,
+} from "../../../../shared/models/重量计算";
 import { 美容方向预置选项 } from "../../../../shared/models/美容方向预置列表";
 import { 轻重TS预置选项 } from "../../../../shared/models/形态预置列表";
 import {
@@ -65,12 +70,6 @@ function fmtWeight(n: number): string {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
-function getRowFactor(rowIndex: number, totalRows: number): number {
-  if (totalRows <= 1) return 1;
-  if (totalRows === 2) return rowIndex === 0 ? 0.4 : 0.6;
-  return rowIndex < 2 ? 0.3 : 0.4;
-}
-
 function getMachineActiveWeightKeys(row: 机器档位, type: 假发类型): DMLKey[] {
   const dmlMode = getDMLMode(row.DML比值);
   const dmlKeys: DMLKey[] =
@@ -124,7 +123,6 @@ function calcMachineWeight(
   key: DMLKey,
   t色重量行: T色重量行Map = {},
 ): number {
-  const rowFactor = getRowFactor(rowIndex, totalRows);
   const 密度 = row.双针.密度;
   const 尺数D = row.双针.尺数.D;
 
@@ -133,11 +131,8 @@ function calcMachineWeight(
     const totalDML = (dml?.D ?? 1) + (dml?.M ?? 0) + (dml?.L ?? 0);
     const ratio =
       key === "D" ? (dml?.D ?? 1) : key === "M" ? (dml?.M ?? 0) : (dml?.L ?? 0);
-    return (
-      ((item.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) *
-      rowFactor *
-      (totalDML > 0 ? ratio / totalDML : 0)
-    );
+    const base = calc分档基础重量(item.裁断, 密度, 尺数D, rowIndex, totalRows);
+    return base * (totalDML > 0 ? ratio / totalDML : 0);
   }
 
   if (type === 假发类型.上下分) {
@@ -147,14 +142,14 @@ function calcMachineWeight(
         : key === "M"
           ? (row.双针.尺数.M ?? 0)
           : (row.双针.尺数.L ?? 0);
-    return ((item.裁断 * 密度 * 对应尺数 * 2.54) / 100 / 2) * rowFactor;
+    return calc分档基础重量(item.裁断, 密度, 对应尺数, rowIndex, totalRows);
   }
 
   if (type === 假发类型.T色) {
     const targetRow = t色重量行[key] ?? 0;
     if (rowIndex !== targetRow) return 0;
     const dml = row.DML比值;
-    const base = (item.裁断 * 密度 * 尺数D * 2.54) / 100 / 2;
+    const base = calc基础重量(item.裁断, 密度, 尺数D);
     if (!dml) return key === "D" ? base : 0;
     const totalDML = (dml.D ?? 0) + (dml.M ?? 0) + (dml.L ?? 0);
     const ratio =
@@ -162,7 +157,7 @@ function calcMachineWeight(
     return totalDML > 0 ? (base * ratio) / totalDML : key === "D" ? base : 0;
   }
 
-  return ((item.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
+  return calc分档基础重量(item.裁断, 密度, 尺数D, rowIndex, totalRows);
 }
 
 function syncMachineWeights(
@@ -378,10 +373,16 @@ export default function MachineLevelEditor({
     const keys = activeWeightKeys;
 
     const logs = rows.flatMap((row, rowIndex) => {
-      const rowFactor = getRowFactor(rowIndex, totalRows);
+      const rowFactor = get档位行系数(rowIndex, totalRows);
 
       return keys.map((key) => {
-        const base = ((row.裁断 * 密度 * 尺数D * 2.54) / 100 / 2) * rowFactor;
+        const base = calc分档基础重量(
+          row.裁断,
+          密度,
+          尺数D,
+          rowIndex,
+          totalRows,
+        );
         const ratio = key === "D" ? d : key === "M" ? m : l;
         const ratioPart = totalDML > 0 ? ratio / totalDML : 0;
 

@@ -119,21 +119,6 @@ function allocLocalId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 }
 
-function allocDmlLevelRuleId(commands: DML规则命令[]): string {
-  const used = new Set(
-    commands
-      .filter((item): item is DML按档位标记命令 => item.type === "按档位标记")
-      .map((item) => Number(item.id))
-      .filter((id) => Number.isInteger(id) && id > 0),
-  );
-
-  let next = 1;
-  while (used.has(next)) {
-    next += 1;
-  }
-  return String(next);
-}
-
 function stepToIndex(step: 标注步骤): number {
   return STEP_ORDER.indexOf(step);
 }
@@ -177,7 +162,7 @@ function normalize高针图值(value: 高针图): 高针图 {
       DML规则: {
         命令列表: (
           (value.自定义数据.DML规则 ?? 空DML规则()).命令列表 ?? []
-        ).map((item) => ({ ...item, lineNodeIds: item.lineNodeIds ?? [] })),
+        ).map((item) => ({ lineNodeIds: [], ...item })),
       },
       单双标注: (value.自定义数据.单双标注 ?? []).map((item) => ({
         ...item,
@@ -1594,7 +1579,6 @@ export default function useHighNeedleSvgAnnotator({
               id: dmlSpecialRule?.id ?? "dml_special_rule",
               type: "特殊标记",
               备注: dmlSpecialRule?.备注,
-              lineNodeIds: dmlSpecialRule?.lineNodeIds ?? [],
               标记: manualMarks,
             }
           : null;
@@ -2705,21 +2689,18 @@ export default function useHighNeedleSvgAnnotator({
   }
 
   function addDmlLevelRule() {
-    let nextRuleId = "1";
-    updateDmlCommands((prev) => {
-      nextRuleId = allocDmlLevelRuleId(prev);
-      return [
-        ...prev.filter((item) => item.type !== "特殊标记"),
-        {
-          id: nextRuleId,
-          type: "按档位标记",
-          规律: ["D", "M", "L"],
-          lineNodeIds: [],
-          档位: [],
-        },
-        ...prev.filter((item) => item.type === "特殊标记"),
-      ];
-    });
+    const nextRuleId = allocLocalId("dml_level");
+    updateDmlCommands((prev) => [
+      ...prev.filter((item) => item.type !== "特殊标记"),
+      {
+        id: nextRuleId,
+        type: "按档位标记",
+        规律: ["D", "M", "L"],
+        lineNodeIds: [],
+        档位: [],
+      },
+      ...prev.filter((item) => item.type === "特殊标记"),
+    ]);
     setActiveDmlRuleId(nextRuleId);
     setActiveDmlRuleType("按档位标记");
     setActiveDmlRuleLineIds([]);

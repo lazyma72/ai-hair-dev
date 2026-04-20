@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import PageShell from "../../components/PageShell";
+import PaginationBar from "../../components/PaginationBar";
 import StatusView from "../../components/StatusView";
 import { useApi } from "../../hooks/useApi";
 import type { 沐茵丝假发成品稿ListItem } from "../../shared/frontend/model/model";
@@ -30,7 +31,6 @@ export default function AdminFileListPage() {
     [data],
   );
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <PageShell
@@ -67,52 +67,37 @@ export default function AdminFileListPage() {
         empty={list.length === 0}
         emptyText="暂无成品稿"
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((item) => (
-            <div
-              key={item._id}
-              className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:shadow-md"
-            >
-              <div className="text-sm font-semibold text-slate-900">
-                {item._id}
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {list.map((item) => (
+              <div
+                key={item._id}
+                className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:shadow-md"
+              >
+                <div className="text-sm font-semibold text-slate-900">
+                  {item._id}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">{item.客户编号}</div>
+                <div className="mt-0.5 text-xs text-slate-400">{item.品名}</div>
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+                    onClick={() => navigate(`/file/${item._id}`)}
+                  >
+                    查看详情
+                  </button>
+                </div>
               </div>
-              <div className="mt-1 text-xs text-slate-500">{item.客户编号}</div>
-              <div className="mt-0.5 text-xs text-slate-400">{item.品名}</div>
-              <div className="mt-4 flex items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
-                  onClick={() => navigate(`/file/${item._id}`)}
-                >
-                  查看详情
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
-          <span>
-            共 {total} 条，第 {pageNum} / {totalPages} 页
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={pageNum <= 1}
-              className="rounded bg-slate-100 px-3 py-1.5 disabled:opacity-50"
-              onClick={() => setPageNum((p) => Math.max(1, p - 1))}
-            >
-              上一页
-            </button>
-            <button
-              type="button"
-              disabled={pageNum >= totalPages}
-              className="rounded bg-slate-100 px-3 py-1.5 disabled:opacity-50"
-              onClick={() => setPageNum((p) => Math.min(totalPages, p + 1))}
-            >
-              下一页
-            </button>
+            ))}
           </div>
+          <PaginationBar
+            total={total}
+            pageNum={pageNum}
+            pageSize={pageSize}
+            pageSizeOptions={[12]}
+            onPageNumChange={setPageNum}
+          />
         </div>
       </StatusView>
     </PageShell>

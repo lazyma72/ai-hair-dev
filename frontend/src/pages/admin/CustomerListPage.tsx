@@ -191,17 +191,19 @@ export default function CustomerListPage() {
           empty={list.length === 0}
           emptyText="暂无客户"
         >
-          <DataTable columns={columns} rows={pagedList} rowKey={(r) => r._id} />
-          <PaginationBar
-            total={total}
-            pageNum={pageNum}
-            pageSize={pageSize}
-            onPageNumChange={setPageNum}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPageNum(1);
-            }}
-          />
+          <div className="space-y-4">
+            <DataTable columns={columns} rows={pagedList} rowKey={(r) => r._id} />
+            <PaginationBar
+              total={total}
+              pageNum={pageNum}
+              pageSize={pageSize}
+              onPageNumChange={setPageNum}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPageNum(1);
+              }}
+            />
+          </div>
         </StatusView>
       </div>
     </PageShell>

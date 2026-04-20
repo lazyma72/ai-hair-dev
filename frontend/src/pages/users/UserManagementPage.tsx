@@ -226,7 +226,7 @@ export default function UserManagementPage() {
               </tbody>
             </table>
           </div>
-          <div className="p-4 pt-0">
+          <div className="p-4">
             <PaginationBar
               total={total}
               pageNum={pageNum}

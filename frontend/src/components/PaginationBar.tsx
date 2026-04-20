@@ -4,7 +4,7 @@ type Props = {
   pageSize: number;
   pageSizeOptions?: number[];
   onPageNumChange: (pageNum: number) => void;
-  onPageSizeChange: (pageSize: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 };
 
 export default function PaginationBar({
@@ -16,6 +16,7 @@ export default function PaginationBar({
   onPageSizeChange,
 }: Props) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const showPageSize = pageSizeOptions.length > 1 && Boolean(onPageSizeChange);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
@@ -24,21 +25,23 @@ export default function PaginationBar({
       </span>
 
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2">
-          <span>每页</span>
-          <select
-            className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          >
-            {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-          <span>条</span>
-        </label>
+        {showPageSize ? (
+          <label className="flex items-center gap-2">
+            <span>每页</span>
+            <select
+              className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+              value={pageSize}
+              onChange={(e) => onPageSizeChange?.(Number(e.target.value))}
+            >
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+            <span>条</span>
+          </label>
+        ) : null}
 
         <button
           type="button"

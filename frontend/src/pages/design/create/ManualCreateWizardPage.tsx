@@ -16,7 +16,7 @@ export default function ManualCreateWizardPage() {
   return (
     <FileEditorPage
       mode="add"
-      title="添加成品稿"
+      title="产品规格系统 · 手动添加成品稿"
       onBack={() => navigate("/designs")}
       initialValue={initialValue}
       allowTestData

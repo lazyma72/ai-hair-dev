@@ -103,7 +103,11 @@ type OrderedRegionLine = {
   subIndex: number;
 };
 
-function isDmlBoundaryIncluded(value: number, start: number, end: number): boolean {
+function isDmlBoundaryIncluded(
+  value: number,
+  start: number,
+  end: number,
+): boolean {
   const rangeStart = Math.min(start, end);
   const rangeEnd = Math.max(start, end);
   if (rangeEnd >= 1) {
@@ -113,10 +117,14 @@ function isDmlBoundaryIncluded(value: number, start: number, end: number): boole
 }
 
 function normalizePatternList(pattern: DML值[]): DML值[] {
-  return pattern.filter((item): item is DML值 => item === "D" || item === "M" || item === "L");
+  return pattern.filter(
+    (item): item is DML值 => item === "D" || item === "M" || item === "L",
+  );
 }
 
-function collectOrderedRegionLines(data: DmlCompilableData): Map<string, OrderedRegionLine[]> {
+function collectOrderedRegionLines(
+  data: DmlCompilableData,
+): Map<string, OrderedRegionLine[]> {
   const byRegion = new Map<string, OrderedRegionLine[]>();
   data.底图.区域线条.forEach((item, itemIndex) => {
     item.lineNodeIds.forEach((lineNodeId, subIndex) => {
@@ -147,7 +155,9 @@ function collectOrderedRegionLines(data: DmlCompilableData): Map<string, Ordered
 
 function collectLevelLineIds(data: DmlCompilableData): Map<string, string[]> {
   return new Map(
-    data.底图.档位标注.map((item) => [item.区域名, item.lineNodeIds.filter(Boolean)] as const),
+    data.底图.档位标注.map(
+      (item) => [item.区域名, item.lineNodeIds.filter(Boolean)] as const,
+    ),
   );
 }
 

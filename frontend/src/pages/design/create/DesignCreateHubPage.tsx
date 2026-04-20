@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Link } from "react-router-dom";
 import PageShell from "../../../components/PageShell";
 
@@ -33,9 +32,9 @@ function OptionCard({
 
 export default function DesignCreateHubPage() {
   return (
-    <PageShell title="添加设计稿">
+    <PageShell title="产品规格系统 · 新建产品规格稿">
       <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-        这里提供三种方式的分步 Demo：手动上传设计稿、选择 A+B 生成 C 稿、导入 Excel。
+        Product Specification System 提供三种新建方式：手动新建、选择 A+B 生成 C 稿、导入 Excel。
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

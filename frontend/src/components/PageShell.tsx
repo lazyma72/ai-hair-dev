@@ -151,10 +151,10 @@ export default function PageShell({ title, onBack, actions, children, fullWidth,
             />
             <div className="leading-tight">
               <div className="text-sm font-semibold text-slate-900">
-                AI 设计稿工作台
+                产品规格系统
               </div>
               <div className="text-xs text-slate-500">
-                成品稿 / 制帽 / 胶丝比例 / 客户管理（Demo）
+                Product Specification System
               </div>
             </div>
           </div>

@@ -62,10 +62,10 @@ export default function LoginPage() {
           />
           <div className="text-center">
             <div className="text-lg font-semibold text-slate-900">
-              AI 设计稿工作台
+              产品规格系统
             </div>
             <div className="mt-0.5 text-xs text-slate-500">
-              成品稿 / 制帽 / 胶丝比例 / 客户管理
+              Product Specification System
             </div>
           </div>
         </div>

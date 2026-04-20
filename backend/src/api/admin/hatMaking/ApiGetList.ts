@@ -12,6 +12,17 @@ const ReqSchema = z.object({
   orderSort: z.enum(["asc", "desc"]).default("asc"),
 })
 
+function normalizeHatMaking(item: Db制帽): Db制帽 {
+  return {
+    ...item,
+    名称: item.名称 ?? "",
+    高针图: item.高针图 ?? undefined,
+    手织图: item.手织图 ?? undefined,
+    高针图系统预置区域列表: item.高针图系统预置区域列表 ?? [],
+    手织图系统预置区域列表: item.手织图系统预置区域列表 ?? [],
+  }
+}
+
 export default async function (call: ApiCall<ReqGetList, ResGetList>) {
   const parsed = ReqSchema.safeParse(call.req)
   if (!parsed.success) {
@@ -40,5 +51,10 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
       .toArray(),
   ])
 
-  call.succ({ list, total, pageNum, pageSize })
+  call.succ({
+    list: list.map(item => normalizeHatMaking(item as Db制帽)),
+    total,
+    pageNum,
+    pageSize,
+  })
 }

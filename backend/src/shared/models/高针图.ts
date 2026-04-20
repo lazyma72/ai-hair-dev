@@ -3,45 +3,45 @@ import { DML规则 } from "./DML规则"
 export interface 高针图 {
   底图: {
     /** SVG 字符串（底图数据，不包含运行时 UI 叠加标记） */
-    svg: string;
-    区域名: string[];
+    svg: string
+    区域名: string[]
     /** 每根线一个记录 */
     区域线条: {
-      区域名: string;
-      lineNodeIds: string[];
-      lineLength: number;
-      区域内位置占比: number;
-    }[];
+      区域名: string
+      lineNodeIds: string[]
+      lineLength: number
+      区域内位置占比: number
+    }[]
     档位标注: {
-      区域名: string;
-      lineNodeIds: string[];
-      textNodeIds: string[];
-    }[];
+      区域名: string
+      lineNodeIds: string[]
+      textNodeIds: string[]
+    }[]
 
     /** 自定义文本节点（保留/新增需要的 text 节点） */
     文本节点: {
       [key: string]: {
-        textNodeId: string;
-        text?: string;
-        created?: boolean;
-        fontStyle?: { [key: string]: unknown };
-      };
-    };
-  };
+        textNodeId: string
+        text?: string
+        created?: boolean
+        fontStyle?: { [key: string]: unknown }
+      }
+    }
+  }
 
   自定义数据: {
-    DML规则: DML规则;
+    DML规则: DML规则
     单双标注: {
-      lineNodeId: string;
-      双数: boolean;
-      textNodeId: string;
-    }[];
-  };
+      lineNodeId: string
+      双数: boolean
+      textNodeId: string
+    }[]
+  }
 }
 
 export interface 高针图系统预置区域 {
-  name: string;
-  lineLength: number;
+  name: string
+  lineLength: number
 }
 
 export const 高针图系统预置区域列表: 高针图系统预置区域[] = [
@@ -50,7 +50,11 @@ export const 高针图系统预置区域列表: 高针图系统预置区域[] = 
   { name: "耳朵", lineLength: 30 },
   { name: "竖车", lineLength: 40 },
   { name: "横车", lineLength: 50 },
-];
+  { name: "鱼眼", lineLength: 60 },
+  { name: "鱼眼上-横车", lineLength: 70 },
+  { name: "鱼眼下-横车", lineLength: 70 },
+  { name: "测分雪花", lineLength: 80 },
+]
 
 // 思路一：基于已有的图来改
 // 1. 已有的图：SVG 底图

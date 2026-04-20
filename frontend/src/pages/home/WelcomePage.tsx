@@ -50,15 +50,15 @@ export default function WelcomePage() {
     loading ? "加载中…" : error ? "—" : String(n ?? 0);
 
   return (
-    <PageShell title="Welcome">
+    <PageShell title="产品规格系统 / Product Specification System">
       <div className="rounded-2xl bg-slate-900 px-6 py-6 text-white">
         <div className="text-sm text-white/70">你好，{account}</div>
         <div className="mt-2 text-2xl font-semibold">
-          今天想从哪里开始？
+          产品规格系统 / Product Specification System
         </div>
         <div className="mt-3 max-w-3xl text-sm text-white/80">
-          这里把“设计稿管理 / 添加设计稿 / 制帽 / 胶丝比例 / 客户 / 用户管理 / 测试页面”串成一个可浏览的 Demo。
-          现有的详情页、导入页和高针工具页会在对应入口继续复用。
+          这里统一提供成品稿、制品规格书、制帽、胶丝比例、客户与相关工具页面的入口。
+          现有的详情页、导入页和高针工具页会在对应入口继续复用，形成完整的产品规格系统体验。
         </div>
       </div>
 

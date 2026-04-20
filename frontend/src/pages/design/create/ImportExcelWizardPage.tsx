@@ -269,7 +269,7 @@ export default function ImportExcelWizardPage() {
 
   return (
     <PageShell
-      title="导入 Excel（Demo）"
+      title="产品规格系统 · 导入 Excel"
       onBack={() => navigate("/designs/create")}
       fullWidth={step === 1}
       compact

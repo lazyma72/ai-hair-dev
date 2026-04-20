@@ -67,14 +67,14 @@ export default function DesignDraftListPage() {
 
   return (
     <PageShell
-      title="设计稿管理"
+      title="产品规格系统 · 成品稿管理"
       actions={
         <button
           type="button"
           className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
           onClick={() => navigate("/designs/create")}
         >
-          + 添加设计稿
+          + 新建产品规格稿
         </button>
       }
     >
@@ -113,60 +113,62 @@ export default function DesignDraftListPage() {
         empty={filteredList.length === 0}
         emptyText="暂无设计稿"
       >
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {pagedList.map((item) => (
-            <div
-              key={item._id}
-              className="rounded-2xl border border-slate-200 bg-white p-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    样品编号：{item._id}
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {pagedList.map((item) => (
+              <div
+                key={item._id}
+                className="rounded-2xl border border-slate-200 bg-white p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      样品编号：{item._id}
+                    </div>
+                    <div className="mt-1 space-y-0.5 text-xs text-slate-500">
+                      <div>假发类型：{item.假发类型}</div>
+                      <div>品名：{item.品名}</div>
+                      <div>原材料：{item.原材料 || "—"}</div>
+                    </div>
                   </div>
-                  <div className="mt-1 space-y-0.5 text-xs text-slate-500">
-                    <div>假发类型：{item.假发类型}</div>
-                    <div>品名：{item.品名}</div>
-                    <div>原材料：{item.原材料 || "—"}</div>
-                  </div>
+                  <Badge>{item.客户编号}</Badge>
                 </div>
-                <Badge>{item.客户编号}</Badge>
-              </div>
 
-              <div className="mt-3 text-[11px] text-slate-400">
-                CAP: {item.CAP}
-              </div>
+                <div className="mt-3 text-[11px] text-slate-400">
+                  CAP: {item.CAP}
+                </div>
 
-              <div className="mt-4 flex items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
-                  onClick={() => navigate(`/file/${item._id}`)}
-                >
-                  查看详情
-                </button>
-                <button
-                  type="button"
-                  className="rounded bg-rose-50 px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-100 disabled:opacity-50"
-                  disabled={deleting === item._id}
-                  onClick={() => handleDelete(item._id)}
-                >
-                  {deleting === item._id ? "删除中…" : "删除"}
-                </button>
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+                    onClick={() => navigate(`/file/${item._id}`)}
+                  >
+                    查看详情
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded bg-rose-50 px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                    disabled={deleting === item._id}
+                    onClick={() => handleDelete(item._id)}
+                  >
+                    {deleting === item._id ? "删除中…" : "删除"}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          <PaginationBar
+            total={total}
+            pageNum={pageNum}
+            pageSize={pageSize}
+            onPageNumChange={setPageNum}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPageNum(1);
+            }}
+          />
         </div>
-        <PaginationBar
-          total={total}
-          pageNum={pageNum}
-          pageSize={pageSize}
-          onPageNumChange={setPageNum}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setPageNum(1);
-          }}
-        />
       </StatusView>
     </PageShell>
   );
