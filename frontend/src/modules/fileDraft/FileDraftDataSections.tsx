@@ -503,6 +503,81 @@ function FileDraftEditSections({
     }));
   }
 
+  // 上下分的存在 M/L 是“全局配置”。如果清单为空，不能再用“从清单推导”作为唯一来源，
+  // 否则 checkbox 会变成受控但永远为 false（点击立刻回弹）。
+  const [上下分配置, set上下分配置] = React.useState<{
+    hasM: boolean;
+    hasL: boolean;
+  }>({ hasM: false, hasL: false });
+
+  React.useEffect(() => {
+    if (value.假发类型 !== 假发类型.上下分) return;
+    const derivedHasM = value.制品规格书.机器规格清单.some(
+      (row) => row.双针.尺数.M != null,
+    );
+    const derivedHasL = value.制品规格书.机器规格清单.some(
+      (row) => row.双针.尺数.L != null,
+    );
+    // 只有当清单已有数据时，才用推导值去同步全局开关，避免覆盖用户在“空清单”时的选择。
+    if (value.制品规格书.机器规格清单.length > 0) {
+      set上下分配置({ hasM: derivedHasM, hasL: derivedHasL });
+    }
+  }, [value.假发类型, value.制品规格书.机器规格清单]);
+
+  function handleToggle上下分尺数(key: "M" | "L", enabled: boolean) {
+    set上下分配置((prev) => ({ ...prev, [key === "M" ? "hasM" : "hasL"]: enabled }));
+    onChange((prev) => ({
+      ...prev,
+      制品规格书: {
+        ...prev.制品规格书,
+        机器规格清单: prev.制品规格书.机器规格清单.map((row) => {
+          if (enabled) {
+            return {
+              ...row,
+              双针: {
+                ...row.双针,
+                尺数: {
+                  ...row.双针.尺数,
+                  [key]: row.双针.尺数[key] ?? 0,
+                },
+              },
+            };
+          }
+          const { [key]: _omit, ...rest尺数 } = row.双针.尺数;
+          return {
+            ...row,
+            双针: {
+              ...row.双针,
+              尺数: rest尺数,
+            },
+          };
+        }),
+        人工规格清单: prev.制品规格书.人工规格清单.map((row) => ({
+          ...row,
+          裁断与重量: row.裁断与重量.map((item) => {
+            const baseD = item.重量g?.D ?? 0;
+            const next重量 = {
+              ...(item.重量g ?? { D: baseD }),
+              D: baseD,
+            } as { D: number; M?: number; L?: number };
+            if (key === "M") {
+              if (enabled) next重量.M = item.重量g?.M ?? baseD;
+              else delete next重量.M;
+            }
+            if (key === "L") {
+              if (enabled) next重量.L = item.重量g?.L ?? baseD;
+              else delete next重量.L;
+            }
+            return {
+              ...item,
+              重量g: next重量,
+            };
+          }),
+        })),
+      },
+    }));
+  }
+
   return (
     <div className="space-y-3">
       <div className="grid gap-3 xl:grid-cols-2">
@@ -535,6 +610,12 @@ function FileDraftEditSections({
                             机器规格清单: prev.制品规格书.机器规格清单.map(
                               ({ DML比值: _omit, ...rest }) => rest,
                             ),
+                            人工规格清单: prev.制品规格书.人工规格清单.map((row) => {
+                              const { DML比值: _omit, ...rest } = row as typeof row & {
+                                DML比值?: { D: number; L?: number };
+                              };
+                              return rest;
+                            }),
                           }
                         : prev.制品规格书,
                   }));
@@ -781,10 +862,37 @@ function FileDraftEditSections({
         </div>
       </Section>
 
+      {value.假发类型 === 假发类型.上下分 ? (
+        <Section title="上下分配置" compact>
+          <div className="flex flex-wrap gap-4 rounded-xl border border-slate-200 bg-white p-4">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
+                checked={上下分配置.hasM}
+                onChange={(e) => handleToggle上下分尺数("M", e.target.checked)}
+              />
+              <span>存在M</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
+                checked={上下分配置.hasL}
+                onChange={(e) => handleToggle上下分尺数("L", e.target.checked)}
+              />
+              <span>存在L</span>
+            </label>
+          </div>
+        </Section>
+      ) : null}
+
       <MachineSpecSection
         list={value.制品规格书.机器规格清单}
         onChange={(v) => set规格书("机器规格清单", v)}
         假发类型={value.假发类型}
+        hasGlobalM={上下分配置.hasM}
+        hasGlobalL={上下分配置.hasL}
         error={errors?.["机器规格清单"]}
         clearError={() => clearError?.("机器规格清单")}
       />
@@ -792,6 +900,9 @@ function FileDraftEditSections({
       <ManualSpecSection
         list={value.制品规格书.人工规格清单}
         onChange={(v) => set规格书("人工规格清单", v)}
+        假发类型={value.假发类型}
+        hasGlobalM={上下分配置.hasM}
+        hasGlobalL={上下分配置.hasL}
         error={errors?.["人工规格清单"]}
         clearError={() => clearError?.("人工规格清单")}
       />

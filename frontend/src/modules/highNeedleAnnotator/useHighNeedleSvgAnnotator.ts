@@ -119,6 +119,21 @@ function allocLocalId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 }
 
+function allocDmlLevelRuleId(commands: DML规则命令[]): string {
+  const used = new Set(
+    commands
+      .filter((item): item is DML按档位标记命令 => item.type === "按档位标记")
+      .map((item) => Number(item.id))
+      .filter((id) => Number.isInteger(id) && id > 0),
+  );
+
+  let next = 1;
+  while (used.has(next)) {
+    next += 1;
+  }
+  return String(next);
+}
+
 function stepToIndex(step: 标注步骤): number {
   return STEP_ORDER.indexOf(step);
 }
@@ -159,7 +174,11 @@ function normalize高针图值(value: 高针图): 高针图 {
     },
     自定义数据: {
       ...value.自定义数据,
-      DML规则: value.自定义数据.DML规则 ?? 空DML规则(),
+      DML规则: {
+        命令列表: (
+          (value.自定义数据.DML规则 ?? 空DML规则()).命令列表 ?? []
+        ).map((item) => ({ ...item, lineNodeIds: item.lineNodeIds ?? [] })),
+      },
       单双标注: (value.自定义数据.单双标注 ?? []).map((item) => ({
         ...item,
         textNodeId: item.textNodeId ?? "",
@@ -250,7 +269,10 @@ function parseLevelNo(levelLabel: string, fallbackNo: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackNo;
 }
 
-function deriveIndexRange(lineCount: number, selectedIndexes: number[]): {
+function deriveIndexRange(
+  lineCount: number,
+  selectedIndexes: number[],
+): {
   开始位置: number;
   结束位置: number;
 } | null {
@@ -285,7 +307,9 @@ function sameStringArray(left: string[], right: string[]): boolean {
 }
 
 function normalizeSingleDmlValue(value: string): DmlValue {
-  const normalized = String(value ?? "").trim().toUpperCase();
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
   return normalized === "M" || normalized === "L" ? normalized : "D";
 }
 
@@ -430,11 +454,14 @@ export default function useHighNeedleSvgAnnotator({
   const [draftSelected, setDraftSelected] = useState<string[]>([]);
 
   const [activeDmlRuleId, setActiveDmlRuleId] = useState("");
-  const [activeDmlRuleType, setActiveDmlRuleType] =
-    useState<ActiveDmlRuleType | "">("");
+  const [activeDmlRuleType, setActiveDmlRuleType] = useState<
+    ActiveDmlRuleType | ""
+  >("");
   const [activeSpecialDmlValue, setActiveSpecialDmlValue] =
     useState<DmlValue>("D");
-  const [activeDmlRuleLineIds, setActiveDmlRuleLineIds] = useState<string[]>([]);
+  const [activeDmlRuleLineIds, setActiveDmlRuleLineIds] = useState<string[]>(
+    [],
+  );
   const manualDmlOverridesRef = useRef<Record<string, DmlValue>>({});
   const autoDmlAssignmentsRef = useRef<Map<string, DmlValue>>(new Map());
   const autoDmlManagedIdsRef = useRef<Set<string>>(new Set());
@@ -747,7 +774,10 @@ export default function useHighNeedleSvgAnnotator({
     [value.自定义数据.DML规则.命令列表],
   );
 
-  const dmlSpecialRule = useMemo(() => extractSpecialDmlCommand(value), [value]);
+  const dmlSpecialRule = useMemo(
+    () => extractSpecialDmlCommand(value),
+    [value],
+  );
 
   const dmlLevelNames = useMemo(
     () => uniquePreserveOrder(value.底图.档位标注.map((item) => item.区域名)),
@@ -1011,10 +1041,7 @@ export default function useHighNeedleSvgAnnotator({
   }, [regionLineItems]);
 
   const orderedRegionLinesByName = useMemo(() => {
-    const map = new Map<
-      string,
-      Array<{ lineId: string; posRatio: number }>
-    >();
+    const map = new Map<string, Array<{ lineId: string; posRatio: number }>>();
     regionLineItems.forEach((item) => {
       const list = map.get(item.regionName) ?? [];
       list.push({ lineId: item.lineId, posRatio: item.posRatio });
@@ -1183,7 +1210,9 @@ export default function useHighNeedleSvgAnnotator({
         textNodeId,
         text: dmlById.get(lineId) ?? "",
       }))
-      .filter((item) => item.text === "D" || item.text === "M" || item.text === "L");
+      .filter(
+        (item) => item.text === "D" || item.text === "M" || item.text === "L",
+      );
 
     const staleDmlEntries = Object.entries(value.底图.文本节点 ?? {})
       .filter(([key]) => key.startsWith("dml:"))
@@ -1237,7 +1266,12 @@ export default function useHighNeedleSvgAnnotator({
     if (staleTextIds.length > 0) {
       setAllTextIds((prev) => mergeTextIdList(prev, [], staleTextIds));
     }
-  }, [actualDmlTextNodeIdByLineId, dmlById, value.底图.svg, value.底图.文本节点]);
+  }, [
+    actualDmlTextNodeIdByLineId,
+    dmlById,
+    value.底图.svg,
+    value.底图.文本节点,
+  ]);
 
   const visibleMarkerById = useMemo(() => {
     const map = new Map<
@@ -1510,29 +1544,29 @@ export default function useHighNeedleSvgAnnotator({
       const nextTextNodes = { ...cur.底图.文本节点 };
 
       Array.from(merged.entries()).forEach(([lineNodeId, 标注DML]) => {
-          const prevTextNodeId = prevTextNodeIdByLineId.get(lineNodeId) ?? "";
-          const dmlPos =
-            pendingDmlMarkerPosByLineIdRef.current.get(lineNodeId) ??
-            dmlMarkerPosByLineIdRef.current.get(lineNodeId) ??
-            preferredDmlPosByLineId.get(lineNodeId);
-          const result = upsertMarkerTextNode(nextSvg, {
-            textNodeId: prevTextNodeId,
-            createNodeId: allocLocalId("dml_text"),
-            createWhenMissing: Boolean(prevTextNodeId || dmlPos),
-            text: 标注DML,
-            pos: dmlPos,
-            fontStyle: getMarkerTextFontStyle("dml"),
-          });
-          nextSvg = result.svg;
-          if (result.created && result.textNodeId) {
-            addedTextIds.push(result.textNodeId);
-          }
-          nextTextNodes[getDmlTextNodeKey(lineNodeId)] = {
-            textNodeId: result.textNodeId,
-            text: 标注DML,
-            created: true,
-            fontStyle: getMarkerTextFontStyle("dml"),
-          };
+        const prevTextNodeId = prevTextNodeIdByLineId.get(lineNodeId) ?? "";
+        const dmlPos =
+          pendingDmlMarkerPosByLineIdRef.current.get(lineNodeId) ??
+          dmlMarkerPosByLineIdRef.current.get(lineNodeId) ??
+          preferredDmlPosByLineId.get(lineNodeId);
+        const result = upsertMarkerTextNode(nextSvg, {
+          textNodeId: prevTextNodeId,
+          createNodeId: allocLocalId("dml_text"),
+          createWhenMissing: Boolean(prevTextNodeId || dmlPos),
+          text: 标注DML,
+          pos: dmlPos,
+          fontStyle: getMarkerTextFontStyle("dml"),
+        });
+        nextSvg = result.svg;
+        if (result.created && result.textNodeId) {
+          addedTextIds.push(result.textNodeId);
+        }
+        nextTextNodes[getDmlTextNodeKey(lineNodeId)] = {
+          textNodeId: result.textNodeId,
+          text: 标注DML,
+          created: true,
+          fontStyle: getMarkerTextFontStyle("dml"),
+        };
       });
 
       prevTextNodeIdByLineId.forEach((prevTextNodeId, lineNodeId) => {
@@ -1560,6 +1594,7 @@ export default function useHighNeedleSvgAnnotator({
               id: dmlSpecialRule?.id ?? "dml_special_rule",
               type: "特殊标记",
               备注: dmlSpecialRule?.备注,
+              lineNodeIds: dmlSpecialRule?.lineNodeIds ?? [],
               标记: manualMarks,
             }
           : null;
@@ -1643,9 +1678,7 @@ export default function useHighNeedleSvgAnnotator({
     }
 
     const targetCommand = commands.find(
-      (
-        item,
-      ): item is DML区域百分比命令 | DML按档位标记命令 =>
+      (item): item is DML区域百分比命令 | DML按档位标记命令 =>
         item.id === ruleId && item.type === ruleType,
     );
     if (!targetCommand) return [];
@@ -1701,10 +1734,12 @@ export default function useHighNeedleSvgAnnotator({
             .filter((index) => index >= 0);
 
           if (selectedIndexes.length === 0) {
-            if (item.区域百分比.length === 0) return item;
+            if (item.区域百分比.length === 0 && !item.lineNodeIds?.length)
+              return item;
             changed = true;
             return {
               ...item,
+              lineNodeIds: [],
               区域百分比: [],
             };
           }
@@ -1716,16 +1751,27 @@ export default function useHighNeedleSvgAnnotator({
             结束位置:
               lastIndex >= ordered.length - 1
                 ? 1
-                : ordered[lastIndex + 1]?.posRatio ?? 1,
+                : (ordered[lastIndex + 1]?.posRatio ?? 1),
           };
 
-          if (first.区域 === targetRegion && sameRange(first, nextRange)) {
+          // 以标记为主：将显式选中的线条 ID 存入命令，位置仅作辅助参考
+          const nextLineNodeIds = uniquePreserveOrder(
+            nextLineIds.filter(Boolean),
+          );
+          const prevLineNodeIds = item.lineNodeIds ?? [];
+
+          if (
+            first.区域 === targetRegion &&
+            sameRange(first, nextRange) &&
+            sameStringArray(prevLineNodeIds, nextLineNodeIds)
+          ) {
             return item;
           }
 
           changed = true;
           return {
             ...item,
+            lineNodeIds: nextLineNodeIds,
             区域百分比: [
               {
                 区域: targetRegion,
@@ -1748,27 +1794,37 @@ export default function useHighNeedleSvgAnnotator({
           "";
         const ordered = orderedLevelLinesByName.get(targetLevel) ?? [];
         const selectedIndexes = ordered
-          .map((lineId, index) =>
-            nextLineIds.includes(lineId) ? index : -1,
-          )
+          .map((lineId, index) => (nextLineIds.includes(lineId) ? index : -1))
           .filter((index) => index >= 0);
         const nextRange = deriveIndexRange(ordered.length, selectedIndexes);
         if (!nextRange) {
-          if (item.档位.length === 0) return item;
+          if (item.档位.length === 0 && !item.lineNodeIds?.length) return item;
           changed = true;
           return {
             ...item,
+            lineNodeIds: [],
             档位: [],
           };
         }
 
-        if (first.档位名称 === targetLevel && sameRange(first, nextRange)) {
+        // 以标记为主：将显式选中的线条 ID 存入命令，位置仅作辅助参考
+        const nextLineNodeIds = uniquePreserveOrder(
+          nextLineIds.filter(Boolean),
+        );
+        const prevLineNodeIds = item.lineNodeIds ?? [];
+
+        if (
+          first.档位名称 === targetLevel &&
+          sameRange(first, nextRange) &&
+          sameStringArray(prevLineNodeIds, nextLineNodeIds)
+        ) {
           return item;
         }
 
         changed = true;
         return {
           ...item,
+          lineNodeIds: nextLineNodeIds,
           档位: [
             {
               档位名称: targetLevel,
@@ -1905,7 +1961,8 @@ export default function useHighNeedleSvgAnnotator({
       if (activeDmlRuleType === "特殊标记") {
         const mode = options?.dmlSelectionMode ?? "toggle";
         const normalizedValue = normalizeSingleDmlValue(activeSpecialDmlValue);
-        const existedSameValue = manualDmlOverridesRef.current[id] === normalizedValue;
+        const existedSameValue =
+          manualDmlOverridesRef.current[id] === normalizedValue;
 
         if (mode === "remove" || (mode === "toggle" && existedSameValue)) {
           delete manualDmlOverridesRef.current[id];
@@ -2553,9 +2610,7 @@ export default function useHighNeedleSvgAnnotator({
       prev: 高针图["自定义数据"]["DML规则"]["命令列表"],
     ) => 高针图["自定义数据"]["DML规则"]["命令列表"],
     options?: {
-      afterChange?: (
-        next: 高针图["自定义数据"]["DML规则"]["命令列表"],
-      ) => void;
+      afterChange?: (next: 高针图["自定义数据"]["DML规则"]["命令列表"]) => void;
     },
   ) {
     setDirty(true);
@@ -2567,10 +2622,9 @@ export default function useHighNeedleSvgAnnotator({
       自定义数据: {
         ...cur.自定义数据,
         DML规则: {
-          命令列表:
-            (nextCommandsSnapshot = updater(
-              cur.自定义数据.DML规则.命令列表,
-            )),
+          命令列表: (nextCommandsSnapshot = updater(
+            cur.自定义数据.DML规则.命令列表,
+          )),
         },
       },
     }));
@@ -2588,6 +2642,7 @@ export default function useHighNeedleSvgAnnotator({
         id: nextRuleId,
         type: "区域百分比",
         规律: ["D", "M", "L"],
+        lineNodeIds: [],
         区域百分比: [],
       },
       ...prev.filter((item) => item.type === "特殊标记"),
@@ -2606,29 +2661,34 @@ export default function useHighNeedleSvgAnnotator({
       规律?: DML值[];
     },
   ) {
-    updateDmlCommands((prev) =>
-      prev.map((item) => {
-        if (item.type !== "区域百分比" || item.id !== ruleId) return item;
-        const first = item.区域百分比[0] ?? { 区域: "", 开始位置: 0, 结束位置: 1 };
-        const hasSegment = item.区域百分比.length > 0;
-        const shouldCreateSegment =
-          hasSegment ||
-          patch.开始位置 !== undefined ||
-          patch.结束位置 !== undefined;
-        return {
-          ...item,
-          ...(patch.规律 ? { 规律: patch.规律 } : {}),
-          区域百分比: shouldCreateSegment
-            ? [
-                {
-                  区域: patch.区域 ?? first.区域,
-                  开始位置: patch.开始位置 ?? first.开始位置,
-                  结束位置: patch.结束位置 ?? first.结束位置,
-                },
-              ]
-            : item.区域百分比,
-        };
-      }),
+    updateDmlCommands(
+      (prev) =>
+        prev.map((item) => {
+          if (item.type !== "区域百分比" || item.id !== ruleId) return item;
+          const first = item.区域百分比[0] ?? {
+            区域: "",
+            开始位置: 0,
+            结束位置: 1,
+          };
+          const hasSegment = item.区域百分比.length > 0;
+          const shouldCreateSegment =
+            hasSegment ||
+            patch.开始位置 !== undefined ||
+            patch.结束位置 !== undefined;
+          return {
+            ...item,
+            ...(patch.规律 ? { 规律: patch.规律 } : {}),
+            区域百分比: shouldCreateSegment
+              ? [
+                  {
+                    区域: patch.区域 ?? first.区域,
+                    开始位置: patch.开始位置 ?? first.开始位置,
+                    结束位置: patch.结束位置 ?? first.结束位置,
+                  },
+                ]
+              : item.区域百分比,
+          };
+        }),
       {
         afterChange: (nextCommands) => {
           if (
@@ -2636,11 +2696,7 @@ export default function useHighNeedleSvgAnnotator({
             activeDmlRuleType === "区域百分比"
           ) {
             setActiveDmlRuleLineIdsIfChanged(
-              getDmlRuleLineIdsFromCommands(
-                nextCommands,
-                ruleId,
-                "区域百分比",
-              ),
+              getDmlRuleLineIdsFromCommands(nextCommands, ruleId, "区域百分比"),
             );
           }
         },
@@ -2649,17 +2705,21 @@ export default function useHighNeedleSvgAnnotator({
   }
 
   function addDmlLevelRule() {
-    const nextRuleId = allocLocalId("dml_level");
-    updateDmlCommands((prev) => [
-      ...prev.filter((item) => item.type !== "特殊标记"),
-      {
-        id: nextRuleId,
-        type: "按档位标记",
-        规律: ["D", "M", "L"],
-        档位: [],
-      },
-      ...prev.filter((item) => item.type === "特殊标记"),
-    ]);
+    let nextRuleId = "1";
+    updateDmlCommands((prev) => {
+      nextRuleId = allocDmlLevelRuleId(prev);
+      return [
+        ...prev.filter((item) => item.type !== "特殊标记"),
+        {
+          id: nextRuleId,
+          type: "按档位标记",
+          规律: ["D", "M", "L"],
+          lineNodeIds: [],
+          档位: [],
+        },
+        ...prev.filter((item) => item.type === "特殊标记"),
+      ];
+    });
     setActiveDmlRuleId(nextRuleId);
     setActiveDmlRuleType("按档位标记");
     setActiveDmlRuleLineIds([]);
@@ -2677,6 +2737,7 @@ export default function useHighNeedleSvgAnnotator({
         {
           id: existingRuleId,
           type: "特殊标记",
+          lineNodeIds: [],
           标记: [],
         },
       ]);
@@ -2693,6 +2754,7 @@ export default function useHighNeedleSvgAnnotator({
               {
                 id: existingRuleId,
                 type: "特殊标记",
+                lineNodeIds: [],
                 标记: [],
               },
             ],
@@ -2712,29 +2774,34 @@ export default function useHighNeedleSvgAnnotator({
       规律?: DML值[];
     },
   ) {
-    updateDmlCommands((prev) =>
-      prev.map((item) => {
-        if (item.type !== "按档位标记" || item.id !== ruleId) return item;
-        const first = item.档位[0] ?? { 档位名称: "", 开始位置: 0, 结束位置: 1 };
-        const hasSegment = item.档位.length > 0;
-        const shouldCreateSegment =
-          hasSegment ||
-          patch.开始位置 !== undefined ||
-          patch.结束位置 !== undefined;
-        return {
-          ...item,
-          ...(patch.规律 ? { 规律: patch.规律 } : {}),
-          档位: shouldCreateSegment
-            ? [
-                {
-                  档位名称: patch.档位名称 ?? first.档位名称,
-                  开始位置: patch.开始位置 ?? first.开始位置,
-                  结束位置: patch.结束位置 ?? first.结束位置,
-                },
-              ]
-            : item.档位,
-        };
-      }),
+    updateDmlCommands(
+      (prev) =>
+        prev.map((item) => {
+          if (item.type !== "按档位标记" || item.id !== ruleId) return item;
+          const first = item.档位[0] ?? {
+            档位名称: "",
+            开始位置: 0,
+            结束位置: 1,
+          };
+          const hasSegment = item.档位.length > 0;
+          const shouldCreateSegment =
+            hasSegment ||
+            patch.开始位置 !== undefined ||
+            patch.结束位置 !== undefined;
+          return {
+            ...item,
+            ...(patch.规律 ? { 规律: patch.规律 } : {}),
+            档位: shouldCreateSegment
+              ? [
+                  {
+                    档位名称: patch.档位名称 ?? first.档位名称,
+                    开始位置: patch.开始位置 ?? first.开始位置,
+                    结束位置: patch.结束位置 ?? first.结束位置,
+                  },
+                ]
+              : item.档位,
+          };
+        }),
       {
         afterChange: (nextCommands) => {
           if (
@@ -2742,11 +2809,7 @@ export default function useHighNeedleSvgAnnotator({
             activeDmlRuleType === "按档位标记"
           ) {
             setActiveDmlRuleLineIdsIfChanged(
-              getDmlRuleLineIdsFromCommands(
-                nextCommands,
-                ruleId,
-                "按档位标记",
-              ),
+              getDmlRuleLineIdsFromCommands(nextCommands, ruleId, "按档位标记"),
             );
           }
         },
@@ -2837,15 +2900,35 @@ export default function useHighNeedleSvgAnnotator({
     setDirty(true);
     setDraftSelected([]);
 
+    const addedRegionTextIds: string[] = [];
+
     setValue((v) => {
       const regionNameList = [...v.底图.区域名, draft.name];
 
-      const startNo = v.底图.区域线条.length;
+      let nextSvg = v.底图.svg;
+      const startNoInSetter = v.底图.区域线条.length;
       const newLines = selected.map((lineId, i) => {
-        // 不在 finishRegion 中创建文本节点，让画布自动创建效果使用线条中点位置，避免刷选位置导致数字偏移过远
+        const markerPos =
+          draftMarkerPosByLineIdRef.current.get(lineId) ??
+          preferredMarkerPosByLineId.get(lineId);
+        const regionNo = String(startNoInSetter + i + 1);
+        const result = upsertMarkerTextNode(nextSvg, {
+          textNodeId: "",
+          createNodeId: allocLocalId("region_text"),
+          createWhenMissing: Boolean(markerPos),
+          text: regionNo,
+          pos: markerPos,
+          fontStyle: getMarkerTextFontStyle("region"),
+        });
+        nextSvg = result.svg;
+        if (result.created && result.textNodeId) {
+          addedRegionTextIds.push(result.textNodeId);
+        }
         return {
           区域名: draft.name,
-          textNodeIds: [] as string[],
+          textNodeIds: result.textNodeId
+            ? [result.textNodeId]
+            : ([] as string[]),
           lineNodeIds: [lineId],
           lineLength: draft.lineLength,
           区域内位置占比:
@@ -2857,11 +2940,16 @@ export default function useHighNeedleSvgAnnotator({
         ...v,
         底图: {
           ...v.底图,
+          svg: nextSvg,
           区域名: regionNameList,
           区域线条: [...v.底图.区域线条, ...newLines],
         },
       };
     });
+
+    if (addedRegionTextIds.length > 0) {
+      setAllTextIds((prev) => mergeTextIdList(prev, addedRegionTextIds, []));
+    }
 
     selected.forEach((id) => draftMarkerPosByLineIdRef.current.delete(id));
 
@@ -3188,7 +3276,7 @@ export default function useHighNeedleSvgAnnotator({
       : step === "档位"
         ? "第 2 步：从 1 档开始，批量选择线条并保存，下一档继续。"
         : step === "DML"
-            ? "第 3 步：选中区域规律 / 档位规律 / 特殊规律后，沿线滑动勾选或取消。"
+          ? "第 3 步：选中区域规律 / 档位规律 / 特殊规律后，沿线滑动勾选或取消。"
           : step === "单双"
             ? "第 4 步：点击线条切换“是否双数”。"
             : step === "自定义文本"

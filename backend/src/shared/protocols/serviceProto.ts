@@ -3,6 +3,7 @@ import { ReqAdd, ResAdd } from './admin/customer/PtlAdd';
 import { ReqGetList, ResGetList } from './admin/customer/PtlGetList';
 import { ReqAdd as ReqAdd_1, ResAdd as ResAdd_1 } from './admin/file/PtlAdd';
 import { ReqDelete, ResDelete } from './admin/file/PtlDelete';
+import { ReqGenerateByAB, ResGenerateByAB } from './admin/file/PtlGenerateByAB';
 import { ReqGetDetail, ResGetDetail } from './admin/file/PtlGetDetail';
 import { ReqGetList as ReqGetList_1, ResGetList as ResGetList_1 } from './admin/file/PtlGetList';
 import { ReqUpdate, ResUpdate } from './admin/file/PtlUpdate';
@@ -37,6 +38,10 @@ export interface ServiceType {
         "admin/file/Delete": {
             req: ReqDelete,
             res: ResDelete
+        },
+        "admin/file/GenerateByAB": {
+            req: ReqGenerateByAB,
+            res: ResGenerateByAB
         },
         "admin/file/GetDetail": {
             req: ReqGetDetail,
@@ -109,7 +114,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 20,
+    "version": 22,
     "services": [
         {
             "id": 9,
@@ -132,6 +137,12 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 20,
             "name": "admin/file/Delete",
+            "type": "api",
+            "conf": {}
+        },
+        {
+            "id": 24,
+            "name": "admin/file/GenerateByAB",
             "type": "api",
             "conf": {}
         },
@@ -1155,14 +1166,16 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                                 "name": "磅发",
                                                 "type": {
                                                     "type": "Number"
-                                                }
+                                                },
+                                                "optional": true
                                             },
                                             {
                                                 "id": 2,
                                                 "name": "密度",
                                                 "type": {
                                                     "type": "Number"
-                                                }
+                                                },
+                                                "optional": true
                                             }
                                         ]
                                     }
@@ -1965,6 +1978,16 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "String"
                     },
                     "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "lineNodeIds",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
+                        }
+                    }
                 }
             ]
         },
@@ -2395,6 +2418,56 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "type": {
                         "type": "Reference",
                         "target": "base/BaseResponse"
+                    }
+                }
+            ]
+        },
+        "admin/file/PtlGenerateByAB/ReqGenerateByAB": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "fileAId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "fileBId",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "admin/file/PtlGenerateByAB/ResGenerateByAB": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "file",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿"
                     }
                 }
             ]

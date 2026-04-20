@@ -57,6 +57,12 @@ export default function BasicInfoSection({
                         机器规格清单: f.制品规格书.机器规格清单.map(
                           ({ DML比值: _omit, ...rest }) => rest,
                         ),
+                        人工规格清单: f.制品规格书.人工规格清单.map((row) => {
+                          const { DML比值: _omit, ...rest } = row as typeof row & {
+                            DML比值?: { D: number; L?: number };
+                          };
+                          return rest;
+                        }),
                       }
                     : f.制品规格书,
               }));

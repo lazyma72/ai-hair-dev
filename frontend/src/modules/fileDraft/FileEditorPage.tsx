@@ -320,7 +320,6 @@ export default function FileEditorPage({
                 onChange={(v) => updateForm((prev) => ({ ...prev, 高针指示单: v }))}
                 showJsonImporter={false}
                 previewData={高针数据}
-                hideUploader={mode === "edit"}
               />
             ) : null}
 

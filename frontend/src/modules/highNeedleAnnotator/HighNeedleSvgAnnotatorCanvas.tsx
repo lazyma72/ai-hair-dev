@@ -1217,19 +1217,17 @@ export default function HighNeedleSvgAnnotatorCanvas({
     const dx = cur.x - prev.x;
     const dy = cur.y - prev.y;
     const distance = Math.hypot(dx, dy);
-    const steps = Math.max(1, Math.ceil(distance / 2));
+    // 步长改为 1px，保证快速拖动时不漏过细线条（原 2px 步长 + 单点命中会跳过 1px 宽线）
+    const steps = Math.max(1, Math.ceil(distance));
     const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
 
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
       const sampleX = prev.x + dx * t;
       const sampleY = prev.y + dy * t;
-      const lineIds = getLineIdsFromPoint(
-        sampleX,
-        sampleY,
-        lineSelector,
-        allLineIdSet,
-      );
+      // 使用单点命中测试，避免 BRUSH_HIT_OFFSETS 的多点扩散采样在密集线条中误选相邻线条
+      const singleId = getLineIdFromPoint(sampleX, sampleY);
+      const lineIds = singleId ? [singleId] : [];
 
       for (const id of lineIds) {
         if (brushVisitedRef.current.has(id)) continue;
@@ -1309,20 +1307,11 @@ export default function HighNeedleSvgAnnotatorCanvas({
       }
     });
 
-    // Region keeps the original alternating offset. Level aligns with the
-    // clicked marker position and therefore should not be staggered away.
-    numbered.forEach(({ id, no }) => {
-      const anchor = anchorById.get(id);
-      const marks = filteredMarkerById.get(id);
-      if (typeof marks?.levelNo === "number") {
-        m.set(id, { dx: 0, dy: 0 });
-        return;
-      }
-      const sign = no % 2 === 1 ? -DIST : DIST;
-      m.set(id, {
-        dx: (anchor?.perpX ?? 0) * sign,
-        dy: (anchor?.perpY ?? 1) * sign,
-      });
+    // Both region and level align with the clicked/brush intersection position
+    // and should not be staggered away (stagger would shift the badge to a
+    // neighbouring line, causing a visual mismatch).
+    numbered.forEach(({ id }) => {
+      m.set(id, { dx: 0, dy: 0 });
     });
 
     // Unnumbered (DML, double): sort by anchor.x then alternate by index.

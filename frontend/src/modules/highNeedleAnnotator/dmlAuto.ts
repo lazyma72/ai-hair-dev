@@ -155,6 +155,10 @@ function collectRegionCommandTargets(
   command: DML区域百分比命令,
   byRegion: Map<string, OrderedRegionLine[]>,
 ): string[] {
+  // 以标记为主：如果命令存有显式 lineNodeIds，直接使用，跳过位置计算避免边界拓占
+  if (command.lineNodeIds.length > 0) {
+    return command.lineNodeIds.filter(Boolean);
+  }
   return command.区域百分比.flatMap((segment) => {
     const start = clampRatio(segment.开始位置);
     const end = clampRatio(segment.结束位置);
@@ -169,6 +173,10 @@ function collectLevelCommandTargets(
   command: DML按档位标记命令,
   byLevel: Map<string, string[]>,
 ): string[] {
+  // 以标记为主：如果命令存有显式 lineNodeIds，直接使用，跳过位置计算避免边界拓占
+  if (command.lineNodeIds.length > 0) {
+    return command.lineNodeIds.filter(Boolean);
+  }
   return command.档位.flatMap((segment) => {
     const list = byLevel.get(segment.档位名称) ?? [];
     if (list.length === 0) return [];

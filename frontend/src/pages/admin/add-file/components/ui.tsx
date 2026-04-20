@@ -5,7 +5,7 @@ export const inputCls =
   "w-full rounded border border-slate-200 px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-slate-300";
 
 export const numInputCls =
-  "w-full rounded border border-slate-200 px-1.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-slate-300";
+  "w-full rounded border border-slate-200 px-1.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-slate-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
 function fmt最多一位小数(n: number): string {
   const rounded = Math.round(n * 10) / 10;
@@ -57,12 +57,14 @@ export function NumInput({
   step = "0.01",
   placeholder,
   disabled,
+  className,
 }: {
   value: number;
   onChange: (n: number) => void;
   step?: string;
   placeholder?: string;
   disabled?: boolean;
+  className?: string;
 }) {
   const fmt = (n: number) =>
     step === "1" ? String(Math.round(n)) : n.toFixed(2);
@@ -80,7 +82,7 @@ export function NumInput({
       min="0"
       placeholder={placeholder ?? "0"}
       disabled={disabled}
-      className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}`}
+      className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}${className ? ` ${className}` : ""}`}
       value={raw}
       onChange={(e) => {
         setRaw(e.target.value);
@@ -96,11 +98,13 @@ export function OneDecimalInput({
   onChange,
   placeholder,
   disabled,
+  className,
 }: {
   value: number;
   onChange: (n: number) => void;
   placeholder?: string;
   disabled?: boolean;
+  className?: string;
 }) {
   const [raw, setRaw] = useState(fmt最多一位小数(value));
 
@@ -119,7 +123,7 @@ export function OneDecimalInput({
       min="0"
       placeholder={placeholder ?? "0"}
       disabled={disabled}
-      className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}`}
+      className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}${className ? ` ${className}` : ""}`}
       value={raw}
       onChange={(e) => {
         setRaw(e.target.value);
@@ -134,16 +138,31 @@ export function TextInput({
   value,
   onChange,
   placeholder,
+  className,
+  multiline = false,
+  rows = 2,
 }: {
   value: string;
   onChange: (s: string) => void;
   placeholder?: string;
+  className?: string;
+  multiline?: boolean;
+  rows?: number;
 }) {
-  return (
+  const mergedClassName = `${inputCls}${className ? ` ${className}` : ""}`;
+  return multiline ? (
+    <textarea
+      rows={rows}
+      placeholder={placeholder}
+      className={mergedClassName}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  ) : (
     <input
       type="text"
       placeholder={placeholder}
-      className={inputCls}
+      className={mergedClassName}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -155,13 +174,17 @@ export function PresetTextInput({
   onChange,
   options,
   placeholder,
+  className,
 }: {
   value: string;
   onChange: (s: string) => void;
   options: readonly string[];
   placeholder?: string;
+  className?: string;
 }) {
   const listId = React.useId();
+
+  const mergedClassName = `${inputCls}${className ? ` ${className}` : ""}`;
 
   return (
     <>
@@ -169,7 +192,7 @@ export function PresetTextInput({
         type="text"
         list={listId}
         placeholder={placeholder}
-        className={inputCls}
+        className={mergedClassName}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -186,10 +209,12 @@ export function QuarterFractionInput({
   value,
   onChange,
   disabled,
+  className,
 }: {
   value: number;
   onChange: (n: number) => void;
   disabled?: boolean;
+  className?: string;
 }) {
   const fmt = (n: number) => {
     const normalized = Math.round(n * 4) / 4;
@@ -221,7 +246,7 @@ export function QuarterFractionInput({
       step="0.25"
       min="0"
       disabled={disabled}
-      className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}`}
+      className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}${className ? ` ${className}` : ""}`}
       value={raw}
       onChange={(e) => {
         const nextRaw = e.target.value;
@@ -251,13 +276,15 @@ export function OptionalQuarterFractionInput({
   enabled,
   value,
   onChange,
+  className,
 }: {
   enabled: boolean;
   value: number;
   onChange: (n: number) => void;
+  className?: string;
 }) {
   return enabled ? (
-    <QuarterFractionInput value={value} onChange={onChange} />
+    <QuarterFractionInput value={value} onChange={onChange} className={className} />
   ) : null;
 }
 

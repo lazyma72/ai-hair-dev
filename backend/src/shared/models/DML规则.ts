@@ -20,6 +20,11 @@ export interface DML规则命令基础 {
    * 可选备注，便于人工识别该条规则的业务意图。
    */
   备注?: string
+  /**
+   * 以标记为主：用户手动圈选的线条 ID 列表（主要依据）。
+   * 开始/结束位置仅作辅助参考。
+   */
+  lineNodeIds: string[]
 }
 
 export interface DML区域百分比命令 extends DML规则命令基础 {

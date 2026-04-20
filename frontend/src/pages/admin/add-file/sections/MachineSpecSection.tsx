@@ -8,6 +8,8 @@ type Props = {
   list: 制品规格书["机器规格清单"];
   onChange: (v: 制品规格书["机器规格清单"]) => void;
   假发类型: 假发类型;
+  hasGlobalM?: boolean;
+  hasGlobalL?: boolean;
   error?: string;
   clearError?: () => void;
 };
@@ -16,6 +18,8 @@ export default function MachineSpecSection({
   list,
   onChange,
   假发类型,
+  hasGlobalM = false,
+  hasGlobalL = false,
   error,
   clearError,
 }: Props) {
@@ -24,6 +28,8 @@ export default function MachineSpecSection({
       <EditableExcelStyleMachineTable
         rows={list}
         假发类型={假发类型}
+        hasGlobalM={hasGlobalM}
+        hasGlobalL={hasGlobalL}
         onChange={(next) => {
           clearError?.();
           onChange(next);
@@ -33,6 +39,14 @@ export default function MachineSpecSection({
           next.splice(rowIndex + 1, 0, {
             ...empty机器档位(),
             档位: String(rowIndex + 2),
+            双针: {
+              ...empty机器档位().双针,
+              尺数: {
+                D: 0,
+                ...(hasGlobalM ? { M: 0 } : {}),
+                ...(hasGlobalL ? { L: 0 } : {}),
+              },
+            },
           });
           clearError?.();
           onChange(
