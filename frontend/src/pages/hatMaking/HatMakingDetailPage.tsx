@@ -62,97 +62,29 @@ export default function HatMakingDetailPage() {
                 <Row label="帽围" value={`${hatMaking.帽围} cm`} />
                 <Row label="帽深" value={`${hatMaking.帽深} cm`} />
                 <Row label="前后" value={`${hatMaking.前后} cm`} />
+                <Row label="帽网款式" value={hatMaking.帽网款式} />
+                <Row label="备注" value={hatMaking.备注 || "-"} />
               </div>
             </Section>
 
             <Section title="图片">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded border border-slate-200 p-3">
-                  <div className="mb-2 text-sm font-medium text-slate-700">
-                    高针图
-                  </div>
-                  {hatMaking.高针图 ? (
-                    <img
-                      src={resolveImageUrl(hatMaking.高针图)}
-                      alt="高针图"
-                      className="max-h-64 w-full rounded border border-slate-100 object-contain"
-                    />
-                  ) : (
-                    <div className="text-sm text-slate-400">未配置</div>
-                  )}
-                </div>
-                <div className="rounded border border-slate-200 p-3">
-                  <div className="mb-2 text-sm font-medium text-slate-700">
-                    手织图
-                  </div>
-                  {hatMaking.手织图 ? (
-                    <img
-                      src={resolveImageUrl(hatMaking.手织图)}
-                      alt="手织图"
-                      className="max-h-64 w-full rounded border border-slate-100 object-contain"
-                    />
-                  ) : (
-                    <div className="text-sm text-slate-400">未配置</div>
-                  )}
-                </div>
-              </div>
-            </Section>
-
-            <Section title="高针图系统预置区域列表">
-              <div className="overflow-x-auto rounded border border-slate-200">
-                <table className="w-full border-collapse text-sm">
-                  <thead className="bg-slate-50 text-slate-600">
-                    <tr>
-                      <th className="border border-slate-200 px-3 py-2 text-left">
-                        区域名
-                      </th>
-                      <th className="border border-slate-200 px-3 py-2 text-left">
-                        长度
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {hatMaking.高针图系统预置区域列表.map((item) => (
-                      <tr key={item.name} className="bg-white">
-                        <td className="border border-slate-200 px-3 py-2">
-                          {item.name}
-                        </td>
-                        <td className="border border-slate-200 px-3 py-2">
-                          {item.lineLength}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Section>
-
-            <Section title="手织图系统预置区域列表">
-              <div className="overflow-x-auto rounded border border-slate-200">
-                <table className="w-full border-collapse text-sm">
-                  <thead className="bg-slate-50 text-slate-600">
-                    <tr>
-                      <th className="border border-slate-200 px-3 py-2 text-left">
-                        区域名
-                      </th>
-                      <th className="border border-slate-200 px-3 py-2 text-left">
-                        长度
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {hatMaking.手织图系统预置区域列表.map((item) => (
-                      <tr key={item.name} className="bg-white">
-                        <td className="border border-slate-200 px-3 py-2">
-                          {item.name}
-                        </td>
-                        <td className="border border-slate-200 px-3 py-2">
-                          {item.lineLength}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {(hatMaking.imgList ?? []).length > 0 ? (
+                  hatMaking.imgList!.map((img, index) => (
+                    <div
+                      key={`${img}-${index}`}
+                      className="rounded border border-slate-200 p-3"
+                    >
+                      <img
+                        src={resolveImageUrl(img)}
+                        alt={`制帽图片${index + 1}`}
+                        className="max-h-64 w-full rounded border border-slate-100 object-contain"
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-slate-400">未配置</div>
+                )}
               </div>
             </Section>
           </div>

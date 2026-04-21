@@ -114,7 +114,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 22,
+    "version": 24,
     "services": [
         {
             "id": 9,
@@ -414,6 +414,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 0,
                     "name": "_id",
+                    "type": {
+                        "type": "Reference",
+                        "target": "?mongodb/ObjectId"
+                    }
+                },
+                {
+                    "id": 13,
+                    "name": "样品编号",
                     "type": {
                         "type": "String"
                     }
@@ -2487,6 +2495,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
+                    "id": 4,
+                    "name": "样品编号",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
                     "id": 1,
                     "name": "制品规格书",
                     "type": {
@@ -3383,6 +3398,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
+                    "id": 7,
+                    "name": "样品编号",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
                     "id": 5,
                     "name": "客户编号",
                     "type": {
@@ -3518,72 +3540,30 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 5,
-                    "name": "高针图",
+                    "id": 9,
+                    "name": "帽网款式",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 10,
+                    "name": "备注",
                     "type": {
                         "type": "String"
                     },
                     "optional": true
                 },
                 {
-                    "id": 6,
-                    "name": "手织图",
+                    "id": 11,
+                    "name": "imgList",
                     "type": {
-                        "type": "String"
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
+                        }
                     },
                     "optional": true
-                },
-                {
-                    "id": 7,
-                    "name": "高针图系统预置区域列表",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Interface",
-                            "properties": [
-                                {
-                                    "id": 0,
-                                    "name": "name",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 1,
-                                    "name": "lineLength",
-                                    "type": {
-                                        "type": "Number"
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "id": 8,
-                    "name": "手织图系统预置区域列表",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Interface",
-                            "properties": [
-                                {
-                                    "id": 0,
-                                    "name": "name",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 1,
-                                    "name": "lineLength",
-                                    "type": {
-                                        "type": "Number"
-                                    }
-                                }
-                            ]
-                        }
-                    }
                 }
             ]
         },
@@ -3691,15 +3671,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 },
                 {
                     "id": 5,
-                    "name": "高针图",
+                    "name": "帽网款式",
                     "type": {
                         "type": "String"
-                    },
-                    "optional": true
+                    }
                 },
                 {
                     "id": 6,
-                    "name": "手织图",
+                    "name": "备注",
                     "type": {
                         "type": "String"
                     },
@@ -3707,55 +3686,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 },
                 {
                     "id": 7,
-                    "name": "高针图系统预置区域列表",
+                    "name": "imgList",
                     "type": {
                         "type": "Array",
                         "elementType": {
-                            "type": "Interface",
-                            "properties": [
-                                {
-                                    "id": 0,
-                                    "name": "name",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 1,
-                                    "name": "lineLength",
-                                    "type": {
-                                        "type": "Number"
-                                    }
-                                }
-                            ]
+                            "type": "String"
                         }
-                    }
-                },
-                {
-                    "id": 8,
-                    "name": "手织图系统预置区域列表",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Interface",
-                            "properties": [
-                                {
-                                    "id": 0,
-                                    "name": "name",
-                                    "type": {
-                                        "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 1,
-                                    "name": "lineLength",
-                                    "type": {
-                                        "type": "Number"
-                                    }
-                                }
-                            ]
-                        }
-                    }
+                    },
+                    "optional": true
                 }
             ]
         },

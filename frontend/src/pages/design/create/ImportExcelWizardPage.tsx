@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageShell from "../../../components/PageShell";
-import type { 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import { 假发类型 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import { emptyFile } from "../../admin/add-file/defaults";
 import { createEmpty手织图 } from "../../../modules/highNeedleAnnotator/types";
 import { callApi } from "../../../api/callApi";
 import FileEditorPage from "../../../modules/fileDraft/FileEditorPage";
 import { toDbPayload } from "../../../shared/fileDraft/adapters/toDbPayload";
+import type { FileDraftViewModel } from "../../../shared/fileDraft/model";
 import DocumentTabs from "../../../modules/fileDraft/DocumentTabs";
 import FileDraftDataSections from "../../../modules/fileDraft/FileDraftDataSections";
 import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend";
@@ -91,15 +91,16 @@ function UploadCard({
 
 function buildDemoFile(params: {
   excelFileName: string;
-  highNeedle图: 沐茵丝假发成品稿["高针指示单"]["高针图"];
+  highNeedle图: FileDraftViewModel["高针指示单"]["高针图"];
   handWovenSvg: string;
-}): 沐茵丝假发成品稿 {
+}): FileDraftViewModel {
   const guess = params.excelFileName.replace(/\.(xlsx|xls|csv)$/i, "");
   const file = emptyFile();
 
   return {
     ...file,
     _id: guess || "XM-6190(L)",
+    样品编号: guess || "XM-6190(L)",
     假发类型: 假发类型.纯色,
     客户编号: "XM",
     品名: "Michelle BB TBOB080",
@@ -111,7 +112,7 @@ function buildDemoFile(params: {
       制帽: {
         唛头: "2个标",
         编号: "P-025",
-      } as unknown as 沐茵丝假发成品稿["制品规格书"]["制帽"],
+      } as unknown as FileDraftViewModel["制品规格书"]["制帽"],
       工艺说明: {
         作业方法: '本规格书为 "TT6/1062#" 作业',
         整毛: "按 MIX 比例各整毛计量。",
@@ -193,7 +194,7 @@ export default function ImportExcelWizardPage() {
     () => emptyFile().高针指示单.高针图,
   );
   const [handWovenSvg, setHandWovenSvg] = useState<string>("");
-  const [draft, setDraft] = useState<沐茵丝假发成品稿 | null>(null);
+  const [draft, setDraft] = useState<FileDraftViewModel | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -219,14 +220,14 @@ export default function ImportExcelWizardPage() {
   useEffect(() => {
     if (!isPreviewStep) return;
     if (draft) return;
-    setDraft(JSON.parse(JSON.stringify(demoFile)) as 沐茵丝假发成品稿);
+    setDraft(JSON.parse(JSON.stringify(demoFile)) as FileDraftViewModel);
   }, [demoFile, draft, isPreviewStep]);
 
   if (isPreviewStep && draft && editing) {
     return (
       <FileEditorPage
         mode="add"
-        title={`编辑导入稿（未保存）· ${draft._id}`}
+        title={`编辑导入稿（未保存）· ${draft.样品编号}`}
         initialValue={draft}
         submitLabel="保存成品稿"
         submittingLabel="保存中…"
@@ -411,11 +412,11 @@ export default function ImportExcelWizardPage() {
           ) : null}
 
           {previewTab === "高针指示单" ? (
-            <高针指示单View data={to高针指示单Frontend(draft)} />
+            <高针指示单View data={to高针指示单Frontend(toDbPayload(draft))} />
           ) : null}
 
           {previewTab === "手织指示单" ? (
-            <手织指示单View data={to手织指示单Frontend(draft)} />
+            <手织指示单View data={to手织指示单Frontend(toDbPayload(draft))} />
           ) : null}
         </div>
       ) : null}

@@ -1,9 +1,9 @@
 import type {
   制品规格书,
-  沐茵丝假发成品稿,
 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import { 假发类型 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import { 空DML规则命令列表 } from "../../../shared/models/DML规则";
+import type { FileDraftViewModel } from "../../../shared/fileDraft/model";
 
 export const 工艺说明Keys = [
   "作业方法",
@@ -50,8 +50,9 @@ export const empty工艺说明 = (): 制品规格书["工艺说明"] => ({
   包装: "",
 });
 
-export const emptyFile = (): 沐茵丝假发成品稿 => ({
+export const emptyFile = (): FileDraftViewModel => ({
   _id: "",
+  样品编号: "",
   假发类型: 假发类型.纯色,
   客户编号: "",
   品名: "",
@@ -104,12 +105,13 @@ export const createTestFileDraft = (options?: {
   customerNo?: string;
   发丝种类?: string;
   颜色编号?: string;
-}): 沐茵丝假发成品稿 => {
+}): FileDraftViewModel => {
   const file = emptyFile();
 
   return {
     ...file,
     _id: "TEST-001",
+    样品编号: "TEST-001",
     客户编号: options?.customerNo ?? "",
     品名: "Michelle BB TBOB080",
     原材料: "FU:50%+HL:50%",

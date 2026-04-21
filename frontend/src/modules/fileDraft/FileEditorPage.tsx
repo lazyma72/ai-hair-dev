@@ -4,7 +4,10 @@ import { callApi } from "../../api/callApi";
 import PageShell from "../../components/PageShell";
 import StatusView from "../../components/StatusView";
 import type { DbCustomer } from "../../shared/db/DbCustomer";
-import type { 胶丝比例ListItem } from "../../shared/frontend/model/model";
+import type {
+  胶丝比例Frontend,
+  胶丝比例ListItem,
+} from "../../shared/frontend/model/model";
 import { to手织指示单Frontend } from "../../shared/frontend/converters/to手织指示单Frontend";
 import { to高针指示单Frontend } from "../../shared/frontend/converters/to高针指示单Frontend";
 import type { FileDraftViewModel } from "../../shared/fileDraft/model";
@@ -14,6 +17,7 @@ import HandWovenSection from "../../pages/admin/add-file/sections/HandWovenSecti
 import HighNeedleSection from "../../pages/admin/add-file/sections/HighNeedleSection";
 import FileDraftDataSections from "./FileDraftDataSections";
 import DocumentTabs from "./DocumentTabs";
+import { toDbPayload } from "../../shared/fileDraft/adapters/toDbPayload";
 
 const MAX_CUT_WEIGHT_ITEMS = 3;
 const EDITOR_TABS = [
@@ -68,6 +72,7 @@ export default function FileEditorPage({
   const [form, setForm] = useState<FileDraftViewModel | null>(initialValue);
   const [activeTab, setActiveTab] = useState<EditorTabKey>("制品规格书");
   const [ratioList, setRatioList] = useState<胶丝比例ListItem[]>([]);
+  const [currentRatioDetail, setCurrentRatioDetail] = useState<胶丝比例Frontend | null>(null);
   const [hatMakingList, setHatMakingList] = useState<HatMakingOption[]>([]);
   const [customerList, setCustomerList] = useState<DbCustomer[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -120,6 +125,28 @@ export default function FileEditorPage({
     [ratioList, form?.制品规格书.胶丝比例id.发丝种类],
   );
 
+  useEffect(() => {
+    const 发丝种类 = form?.制品规格书.胶丝比例id.发丝种类?.trim();
+    const 颜色编号 = form?.制品规格书.胶丝比例id.颜色编号?.trim();
+    if (!发丝种类 || !颜色编号) {
+      setCurrentRatioDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+    callApi("admin/ratio/GetDetail", { 发丝种类, 颜色编号 }).then((r) => {
+      if (cancelled) return;
+      if (r.isSucc) setCurrentRatioDetail(r.res.胶丝比例);
+      else setCurrentRatioDetail(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    form?.制品规格书.胶丝比例id.发丝种类,
+    form?.制品规格书.胶丝比例id.颜色编号,
+  ]);
+
   const 全部档位名 = useMemo(() => {
     if (!form) return [];
     const 机器 = form.制品规格书.机器规格清单
@@ -131,8 +158,14 @@ export default function FileEditorPage({
     return [...机器, ...人工];
   }, [form]);
 
-  const 高针数据 = useMemo(() => (form ? to高针指示单Frontend(form) : null), [form]);
-  const 手织数据 = useMemo(() => (form ? to手织指示单Frontend(form) : null), [form]);
+  const 高针数据 = useMemo(
+    () => (form ? to高针指示单Frontend(toDbPayload(form)) : null),
+    [form],
+  );
+  const 手织数据 = useMemo(
+    () => (form ? to手织指示单Frontend(toDbPayload(form)) : null),
+    [form],
+  );
 
   const updateForm: React.Dispatch<React.SetStateAction<FileDraftViewModel>> = (
     next,
@@ -164,7 +197,7 @@ export default function FileEditorPage({
     if (!form) return;
 
     const required: Array<{ name: string; value: string }> = [
-      { name: "样品编号", value: form._id },
+      { name: "样品编号", value: form.样品编号 },
       { name: "客户编号", value: form.客户编号 },
       { name: "品名", value: form.品名 },
       { name: "原材料", value: form.原材料 },
@@ -307,6 +340,7 @@ export default function FileEditorPage({
                   onChange={updateForm}
                   customerList={customerList}
                 hatMakingList={hatMakingList}
+                  当前胶丝比例详情={currentRatioDetail}
                   发丝种类选项={发丝种类选项}
                   颜色编号选项={当前发丝种类颜色编号列表}
                   全部档位名={全部档位名}

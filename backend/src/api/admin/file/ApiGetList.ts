@@ -41,7 +41,7 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
   const kw = keyword?.trim()
   if (kw) {
     mongoFilter.$or = [
-      { _id: { $regex: kw, $options: "i" } },
+      { 样品编号: { $regex: kw, $options: "i" } },
       { 客户编号: { $regex: kw, $options: "i" } },
       { 品名: { $regex: kw, $options: "i" } },
       { 原材料: { $regex: kw, $options: "i" } },
@@ -55,7 +55,7 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
     col.countDocuments(mongoFilter),
     col
       .find(mongoFilter, {
-        projection: { _id: 1, 客户编号: 1, 品名: 1, 原材料: 1, 假发类型: 1, CAP: 1 },
+        projection: { _id: 1, 样品编号: 1, 客户编号: 1, 品名: 1, 原材料: 1, 假发类型: 1, CAP: 1 },
       })
       .sort(sort)
       .skip((pageNum - 1) * pageSize)
@@ -65,7 +65,8 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
 
   call.succ({
     list: list.map(doc => ({
-      _id: doc._id,
+      _id: doc._id.toHexString(),
+      样品编号: doc.样品编号,
       客户编号: doc.客户编号,
       品名: doc.品名,
       原材料: doc.原材料,

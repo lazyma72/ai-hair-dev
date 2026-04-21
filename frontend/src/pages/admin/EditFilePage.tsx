@@ -5,6 +5,7 @@ import { useApi } from "../../hooks/useApi";
 import FileEditorPage from "../../modules/fileDraft/FileEditorPage";
 import { fromDbToFileDraftViewModel } from "../../shared/fileDraft/adapters/fromDbToFileDraftViewModel";
 import { toDbPayload } from "../../shared/fileDraft/adapters/toDbPayload";
+import type { 沐茵丝假发成品稿 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { FileDraftViewModel } from "../../shared/fileDraft/model";
 
 export default function EditFilePage() {
@@ -17,7 +18,7 @@ export default function EditFilePage() {
   );
 
   useEffect(() => {
-    const rawFile = (data as { rawFile?: FileDraftViewModel } | undefined)?.rawFile;
+    const rawFile = (data as { rawFile?: 沐茵丝假发成品稿 } | undefined)?.rawFile;
     if (!rawFile) return;
     setForm(fromDbToFileDraftViewModel(rawFile));
   }, [data]);
@@ -25,7 +26,7 @@ export default function EditFilePage() {
   return (
     <FileEditorPage
       mode="edit"
-      title={form ? `编辑成品稿 · ${form._id}` : "编辑成品稿"}
+      title={form ? `编辑成品稿 · ${form.样品编号}` : "编辑成品稿"}
       initialValue={form}
       loading={loading}
       error={error}

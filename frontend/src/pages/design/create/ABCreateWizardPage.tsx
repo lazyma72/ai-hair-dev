@@ -8,9 +8,10 @@ import { useApi } from "../../../hooks/useApi";
 import type {
   沐茵丝假发成品稿ListItem,
 } from "../../../shared/frontend/model/model";
-import type { 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import FileEditorPage from "../../../modules/fileDraft/FileEditorPage";
 import { toDbPayload } from "../../../shared/fileDraft/adapters/toDbPayload";
+import { fromDbToFileDraftViewModel } from "../../../shared/fileDraft/adapters/fromDbToFileDraftViewModel";
+import type { FileDraftViewModel } from "../../../shared/fileDraft/model";
 import DocumentTabs from "../../../modules/fileDraft/DocumentTabs";
 import FileDraftDataSections from "../../../modules/fileDraft/FileDraftDataSections";
 import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend";
@@ -47,10 +48,11 @@ function Stepper({ step }: { step: number }) {
   );
 }
 
-function withNewId(file: 沐茵丝假发成品稿, id: string): 沐茵丝假发成品稿 {
+function withNewId(file: FileDraftViewModel, id: string): FileDraftViewModel {
   return {
-    ...(JSON.parse(JSON.stringify(file)) as 沐茵丝假发成品稿),
+    ...(JSON.parse(JSON.stringify(file)) as FileDraftViewModel),
     _id: id,
+    样品编号: file.样品编号 || id,
   };
 }
 
@@ -65,7 +67,7 @@ export default function ABCreateWizardPage() {
 
   const [loadingC, setLoadingC] = useState(false);
   const [errorC, setErrorC] = useState("");
-  const [cDraft, setCDraft] = useState<沐茵丝假发成品稿 | null>(null);
+  const [cDraft, setCDraft] = useState<FileDraftViewModel | null>(null);
 
   const listState = useApi(() =>
     callApi("admin/file/GetList", {
@@ -83,7 +85,7 @@ export default function ABCreateWizardPage() {
     () =>
       list.map((x) => ({
         value: x._id,
-        label: `${x._id} · ${x.客户编号} · ${x.品名}`,
+        label: `${(x as any).样品编号 ?? x._id} · ${x.客户编号} · ${x.品名}`,
       })),
     [list],
   );
@@ -116,7 +118,7 @@ export default function ABCreateWizardPage() {
           return;
         }
         // 后端生成的文件默认会沿用 A 的 _id；前端这里改成新 id，便于直接保存为新稿。
-        setCDraft(withNewId(r.res.file, `C-${aId}-${bId}`));
+        setCDraft(withNewId(fromDbToFileDraftViewModel(r.res.file), `C-${aId}-${bId}`));
       })
       .catch((e) => {
         if (cancelled) return;
@@ -239,7 +241,7 @@ export default function ABCreateWizardPage() {
             />
           ) : (
             <PageShell
-              title={`C 稿预览（未保存）· ${cDraft._id}`}
+              title={`C 稿预览（未保存）· ${cDraft.样品编号}`}
               onBack={() => setStep(1)}
               actions={actions}
             >
@@ -254,11 +256,11 @@ export default function ABCreateWizardPage() {
               ) : null}
 
               {previewTab === "高针指示单" ? (
-                <高针指示单View data={to高针指示单Frontend(cDraft)} />
+                <高针指示单View data={to高针指示单Frontend(toDbPayload(cDraft))} />
               ) : null}
 
               {previewTab === "手织指示单" ? (
-                <手织指示单View data={to手织指示单Frontend(cDraft)} />
+                <手织指示单View data={to手织指示单Frontend(toDbPayload(cDraft))} />
               ) : null}
             </PageShell>
           )

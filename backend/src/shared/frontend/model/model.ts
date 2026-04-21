@@ -22,6 +22,7 @@ export interface 胶丝比例Frontend extends Omit<Db胶丝比例, "颜色图片
 // ==============================
 export interface 沐茵丝假发成品稿ListItem {
   _id: string
+  样品编号: string
   客户编号: string
   品名: string
   原材料: string
@@ -31,6 +32,7 @@ export interface 沐茵丝假发成品稿ListItem {
 
 export interface 沐茵丝假发成品稿Frontend {
   _id: string
+  样品编号: string
   制品规格书: 制品规格书Frontend
   高针指示单: 高针指示单Frontend
   手织指示单: 手织指示单Frontend

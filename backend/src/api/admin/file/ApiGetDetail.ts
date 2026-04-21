@@ -6,14 +6,18 @@ import { to高针指示单Frontend } from "../../../shared/frontend/converters/t
 import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend"
 import { normalize染色档位列表 } from "./normalizeDyeLevels"
 import { normalize手织图, normalize高针图 } from "./normalizeNeedleGraphs"
+import { ObjectId } from "mongodb"
 
 function getHatMakingIdFromCAP(cap: string): string {
   return cap.trim().match(/^[^（(\s]+/)?.[0] ?? ""
 }
 
 export default async function (call: ApiCall<ReqGetDetail, ResGetDetail>) {
+  if (!ObjectId.isValid(call.req.id)) {
+    return call.error("找不到对应的成品稿", { code: "NOT_FOUND" })
+  }
   const col = Global.getCollection("沐茵丝假发成品稿")
-  const db稿 = await col.findOne({ _id: call.req.id })
+  const db稿 = await col.findOne({ _id: new ObjectId(call.req.id) })
   const 稿 = db稿
     ? {
         ...db稿,
@@ -69,7 +73,8 @@ export default async function (call: ApiCall<ReqGetDetail, ResGetDetail>) {
 
   call.succ({
     file: {
-      _id: 稿._id,
+      _id: 稿._id.toHexString(),
+      样品编号: 稿.样品编号,
       制品规格书: to制品规格书Frontend(稿, 胶丝比例, 制帽),
       高针指示单: to高针指示单Frontend(稿),
       手织指示单: to手织指示单Frontend(稿),

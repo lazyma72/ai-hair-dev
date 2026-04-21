@@ -4,6 +4,7 @@ import { Global } from "../../../models/Global"
 import { validateFileInput } from "./fileValidation"
 import { normalize染色档位列表 } from "./normalizeDyeLevels"
 import { normalize手织图, normalize高针图 } from "./normalizeNeedleGraphs"
+import { ObjectId } from "mongodb"
 
 function getHatMakingIdFromCAP(cap: string): string {
   return cap.trim().match(/^[^（(\s]+/)?.[0] ?? ""
@@ -11,6 +12,10 @@ function getHatMakingIdFromCAP(cap: string): string {
 
 export default async function (call: ApiCall<ReqUpdate, ResUpdate>) {
   const { id, file } = call.req
+  if (!ObjectId.isValid(id)) {
+    return call.error("找不到对应的成品稿", { code: "NOT_FOUND" })
+  }
+  const objectId = new ObjectId(id)
   const normalizedInput = {
     ...file,
     染色档位列表: normalize染色档位列表(file.染色档位列表),
@@ -61,22 +66,22 @@ export default async function (call: ApiCall<ReqUpdate, ResUpdate>) {
   }
 
   const col = Global.getCollection("沐茵丝假发成品稿")
-  const existing = await col.findOne({ _id: id })
+  const existing = await col.findOne({ _id: objectId })
   if (!existing) {
     return call.error("找不到对应的成品稿", { code: "NOT_FOUND" })
   }
 
-  if (id === normalizedFile._id) {
-    await col.replaceOne({ _id: id }, normalizedFile)
-    return call.succ({ id: normalizedFile._id })
-  }
-
-  const duplicated = await col.findOne({ _id: normalizedFile._id })
+  const duplicated = await col.findOne({
+    样品编号: normalizedFile.样品编号,
+    _id: { $ne: objectId },
+  } as any)
   if (duplicated) {
     return call.error("该样品编号已存在", { code: "DUPLICATE_ID" })
   }
 
-  await col.insertOne(normalizedFile)
-  await col.deleteOne({ _id: id })
-  call.succ({ id: normalizedFile._id })
+  await col.replaceOne(
+    { _id: objectId },
+    normalizedFile
+  )
+  call.succ({ id })
 }

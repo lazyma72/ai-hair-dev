@@ -21,8 +21,10 @@ import StatusView from "../../components/StatusView";
 import { useApi } from "../../hooks/useApi";
 import DocumentTabs from "../../modules/fileDraft/DocumentTabs";
 import FileDraftDataSections from "../../modules/fileDraft/FileDraftDataSections";
+import { fromDbToFileDraftViewModel } from "../../shared/fileDraft/adapters/fromDbToFileDraftViewModel";
 import type { FileDraftViewModel } from "../../shared/fileDraft/model";
 import type { 沐茵丝假发成品稿Frontend } from "../../shared/frontend/model/model";
+import type { 沐茵丝假发成品稿 } from "../../shared/db/Db沐茵丝假发成品稿";
 import 高针指示单View from "./sections/高针指示单View";
 import 手织指示单View from "./sections/手织指示单View";
 
@@ -52,10 +54,13 @@ export default function FileDetailPage() {
   );
 
   const file: 沐茵丝假发成品稿Frontend | null = data?.file ?? null;
-  const rawFile: FileDraftViewModel | null =
-    ((data as { rawFile?: FileDraftViewModel } | undefined)?.rawFile as
-      | FileDraftViewModel
+  const rawDbFile =
+    ((data as { rawFile?: 沐茵丝假发成品稿 } | undefined)?.rawFile as
+      | 沐茵丝假发成品稿
       | undefined) ?? null;
+  const rawFile: FileDraftViewModel | null = rawDbFile
+    ? fromDbToFileDraftViewModel(rawDbFile)
+    : null;
 
   useEffect(() => {
     callApi(

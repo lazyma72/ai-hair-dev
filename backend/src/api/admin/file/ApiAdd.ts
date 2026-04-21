@@ -4,6 +4,7 @@ import { ReqAdd, ResAdd } from "../../../shared/protocols/admin/file/PtlAdd"
 import { validateFileInput } from "./fileValidation"
 import { normalize染色档位列表 } from "./normalizeDyeLevels"
 import { normalize手织图, normalize高针图 } from "./normalizeNeedleGraphs"
+import { ObjectId } from "mongodb"
 
 function getHatMakingIdFromCAP(cap: string): string {
   return cap.trim().match(/^[^（(\s]+/)?.[0] ?? ""
@@ -61,11 +62,16 @@ export default async function (call: ApiCall<ReqAdd, ResAdd>) {
   }
 
   const col = Global.getCollection("沐茵丝假发成品稿")
-  const existing = await col.findOne({ _id: normalizedFile._id })
+  const existing = await col.findOne({ 样品编号: normalizedFile.样品编号 })
   if (existing) {
     return call.error("该样品编号已存在", { code: "DUPLICATE_ID" })
   }
 
-  await col.insertOne(normalizedFile)
-  call.succ({ id: normalizedFile._id })
+  const fileToInsert = {
+    ...normalizedFile,
+    _id: new ObjectId(),
+  }
+
+  await col.insertOne(fileToInsert)
+  call.succ({ id: fileToInsert._id.toHexString() })
 }

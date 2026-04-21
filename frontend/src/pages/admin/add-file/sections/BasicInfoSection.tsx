@@ -27,16 +27,16 @@ export default function BasicInfoSection({
   return (
     <Section title="基本信息">
       <div className="grid grid-cols-1 gap-3">
-        <Field label="样品编号" required error={err("_id")}>
+        <Field label="样品编号" required error={err("样品编号")}>
           <input
             type="text"
             required
             placeholder="XM-6190(L)"
-            className={`${inputCls}${err("_id") ? " border-rose-400 focus:ring-rose-200" : ""}`}
-            value={form._id}
+            className={`${inputCls}${err("样品编号") ? " border-rose-400 focus:ring-rose-200" : ""}`}
+            value={form.样品编号}
             onChange={(e) => {
-              clearError?.("_id");
-              setForm((f) => ({ ...f, _id: e.target.value }));
+              clearError?.("样品编号");
+              setForm((f) => ({ ...f, 样品编号: e.target.value }));
             }}
           />
         </Field>

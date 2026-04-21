@@ -127,7 +127,7 @@ const 手织图Schema = z.object({
 
 const FileSchema = z
   .object({
-    _id: z.string().trim().min(1, "样品编号不能为空"),
+    样品编号: z.string().trim().min(1, "样品编号不能为空"),
     客户编号: z.string().trim().min(1, "客户编号不能为空"),
     品名: z.string().trim().min(1, "品名不能为空"),
     CAP: z.string().trim().min(1, "CAP不能为空"),

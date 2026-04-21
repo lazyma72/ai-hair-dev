@@ -16,10 +16,9 @@ function normalizeHatMaking(item: Db制帽): Db制帽 {
   return {
     ...item,
     名称: item.名称 ?? "",
-    高针图: item.高针图 ?? undefined,
-    手织图: item.手织图 ?? undefined,
-    高针图系统预置区域列表: item.高针图系统预置区域列表 ?? [],
-    手织图系统预置区域列表: item.手织图系统预置区域列表 ?? [],
+    帽网款式: item.帽网款式 ?? "",
+    备注: item.备注 ?? undefined,
+    imgList: item.imgList ?? [],
   }
 }
 

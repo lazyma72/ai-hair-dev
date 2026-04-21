@@ -1,6 +1,7 @@
 import { Db胶丝比例 } from "./Db胶丝比例"
 import { 高针图 } from "../models/高针图"
 import { 手织图 } from "../models/手织图"
+import type { ObjectId } from "mongodb"
 export enum 假发类型 {
   间色 = "间色",
   纯色 = "纯色",
@@ -17,7 +18,8 @@ export enum 假发类型 {
 
 export interface 沐茵丝假发成品稿 {
   //样品编号
-  _id: string
+  _id: ObjectId
+  样品编号: string
   // 样品编号: string // 例如: "XM-6190(L)"
   假发类型: 假发类型
   /* 如果是间色假发，则需要填写 DML 比例 */

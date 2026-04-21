@@ -75,7 +75,7 @@ export default function AdminFileListPage() {
                 className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:shadow-md"
               >
                 <div className="text-sm font-semibold text-slate-900">
-                  {item._id}
+                  {item.样品编号}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">{item.客户编号}</div>
                 <div className="mt-0.5 text-xs text-slate-400">{item.品名}</div>

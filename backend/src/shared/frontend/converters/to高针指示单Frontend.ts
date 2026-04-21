@@ -1,5 +1,5 @@
-import { 沐茵丝假发成品稿 } from "../../db/Db沐茵丝假发成品稿";
-import { 高针指示单Frontend } from "../model/model";
+import { 沐茵丝假发成品稿 } from "../../db/Db沐茵丝假发成品稿"
+import { 高针指示单Frontend } from "../model/model"
 
 /**
  * 将 沐茵丝假发成品稿 转换为 高针指示单Frontend
@@ -15,30 +15,21 @@ export function to高针指示单Frontend(稿: 沐茵丝假发成品稿): 高针
       // TODO: 即完成重量=机器规格清单DML所有档位重量之和+手工规格清单DML所有档位重量之和+整毛.加减+双针.加减+美容.加减+制帽.加减+高针.加减+手织.加减-剪驳.加减
       重量:
         稿.制品规格书.机器规格清单.reduce((sum, 档位) => {
-          const D = 档位.裁断与重量.reduce(
-            (s, item) => s + (item.重量g?.D ?? 0),
-            0,
-          );
-          const M = 档位.裁断与重量.reduce(
-            (s, item) => s + (item.重量g?.M ?? 0),
-            0,
-          );
-          const L = 档位.裁断与重量.reduce(
-            (s, item) => s + (item.重量g?.L ?? 0),
-            0,
-          );
-          return sum + D + M + L;
+          const D = 档位.裁断与重量.reduce((s, item) => s + (item.重量g?.D ?? 0), 0)
+          const M = 档位.裁断与重量.reduce((s, item) => s + (item.重量g?.M ?? 0), 0)
+          const L = 档位.裁断与重量.reduce((s, item) => s + (item.重量g?.L ?? 0), 0)
+          return sum + D + M + L
         }, 0) +
         Object.values(稿.制品规格书.工程重量 ?? {}).reduce((s, item) => {
-          const it = item as { 加减?: number } | undefined;
-          return s + (it?.加减 ?? 0);
+          const it = item as { 加减?: number } | undefined
+          return s + (it?.加减 ?? 0)
         }, 0),
       品名: 稿.品名,
       //TODO：机器规格清单毛长范围，例如：6½"~20"，小数需要转为分数展示，例如：6.5"展示为6½"
-      尺寸: `${Math.min(...稿.制品规格书.机器规格清单.map((档位) => 档位.双针.毛长))}" ~ ${Math.max(...稿.制品规格书.机器规格清单.map((档位) => 档位.双针.毛长))}"`,
+      尺寸: `${Math.min(...稿.制品规格书.机器规格清单.map(档位 => 档位.双针.毛长))}" ~ ${Math.max(...稿.制品规格书.机器规格清单.map(档位 => 档位.双针.毛长))}"`,
       原料: 稿.原材料,
       CAP: 稿.CAP,
-      样品编号: 稿._id,
+      样品编号: 稿.样品编号,
     },
     // TODO: 高针图svg应将底图与 DML规则命令列表 编译后的结果合并渲染后输出；
     //       渲染逻辑（将 高针图.自定义数据.DML规则命令列表 编译后写入 底图.svg）待实现。
@@ -46,7 +37,7 @@ export function to高针指示单Frontend(稿: 沐茵丝假发成品稿): 高针
     高针图svg: "",
     高针图数据: 稿.高针指示单.高针图,
     // 每个机器规格清单档位对应一条记录
-    机器规格清单_高针图: 稿.制品规格书.机器规格清单.map((档位) => ({
+    机器规格清单_高针图: 稿.制品规格书.机器规格清单.map(档位 => ({
       档位: 档位.档位,
       毛长: 档位.双针.毛长,
       长度: 档位.双针.尺数,
@@ -60,5 +51,5 @@ export function to高针指示单Frontend(稿: 沐茵丝假发成品稿): 高针
     注意事项: 稿.高针指示单.注意事项,
     发型图片: 稿.头型图片,
     染色档位列表: 稿.染色档位列表,
-  };
+  }
 }

@@ -11,7 +11,10 @@ import type { KLS胶丝比例 } from "../../shared/db/Db胶丝比例";
 import { 假发类型 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { 制品规格书, 染色档位 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { FileDraftViewModel } from "../../shared/fileDraft/model";
-import type { 制品规格书Frontend } from "../../shared/frontend/model/model";
+import type {
+  制品规格书Frontend,
+  胶丝比例Frontend,
+} from "../../shared/frontend/model/model";
 import {
   buildPreviewSvg,
   formatInchText,
@@ -72,6 +75,7 @@ type Props = {
   mode: "edit" | "readonly";
   value: FileDraftViewModel;
   制品规格书详情?: 制品规格书Frontend;
+  当前胶丝比例详情?: 胶丝比例Frontend | null;
   onChange?: React.Dispatch<React.SetStateAction<FileDraftViewModel>>;
   customerList?: DbCustomer[];
   hatMakingList?: HatMakingOption[];
@@ -129,6 +133,64 @@ function resolveImageUrl(src: string): string {
   } catch {
     return src;
   }
+}
+
+function RatioDetailInline({
+  ratio,
+}: {
+  ratio: 胶丝比例Frontend;
+}) {
+  return (
+    <div className="mt-2 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className="rounded bg-white p-2 text-xs text-slate-700">
+          <div>发丝种类：{ratio._id.发丝种类}</div>
+          <div className="mt-1">颜色编号：{ratio._id.颜色编号}</div>
+          <div className="mt-1">线色：{ratio.线色 || "—"}</div>
+          <div className="mt-1">备注：{ratio.备注 || "—"}</div>
+        </div>
+        {ratio.颜色图片参考 ? (
+          <div className="rounded bg-white p-2">
+            <img
+              src={`data:image/jpeg;base64,${ratio.颜色图片参考}`}
+              alt="颜色参考"
+              className="max-h-32 rounded object-contain"
+            />
+          </div>
+        ) : null}
+      </div>
+      {ratio.D.length > 0 ? (
+        <div className="space-y-1.5">
+          <div className="text-xs font-medium text-slate-600">D 色配比</div>
+          <DataTable
+            columns={胶丝比例列}
+            rows={ratio.D}
+            rowKey={(r) => `inline-D-${r.发丝}-${r.色号}`}
+          />
+        </div>
+      ) : null}
+      {ratio.M && ratio.M.length > 0 ? (
+        <div className="space-y-1.5">
+          <div className="text-xs font-medium text-slate-600">M 色配比</div>
+          <DataTable
+            columns={胶丝比例列}
+            rows={ratio.M}
+            rowKey={(r) => `inline-M-${r.发丝}-${r.色号}`}
+          />
+        </div>
+      ) : null}
+      {ratio.L && ratio.L.length > 0 ? (
+        <div className="space-y-1.5">
+          <div className="text-xs font-medium text-slate-600">L 色配比</div>
+          <DataTable
+            columns={胶丝比例列}
+            rows={ratio.L}
+            rowKey={(r) => `inline-L-${r.发丝}-${r.色号}`}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function DyeLevelReadonlyCard({
@@ -220,7 +282,7 @@ function FileDraftReadonlySections({
       <div className="grid gap-3 xl:grid-cols-2">
         <Section title="基本信息" compact>
           <div>
-            <ReadonlyRow label="样品编号" value={value._id} />
+            <ReadonlyRow label="样品编号" value={value.样品编号} />
             <ReadonlyRow label="假发类型" value={value.假发类型} />
             <ReadonlyRow label="客户编号" value={value.客户编号} />
             <ReadonlyRow label="品名" value={value.品名} />
@@ -427,6 +489,7 @@ function FileDraftReadonlySections({
 
 function FileDraftEditSections({
   value,
+  当前胶丝比例详情,
   onChange,
   customerList = [],
   hatMakingList = [],
@@ -583,14 +646,14 @@ function FileDraftEditSections({
       <div className="grid gap-3 xl:grid-cols-2">
         <Section title="基本信息" compact>
           <div>
-            <EditableRow label="样品编号" error={err("_id")}>
+            <EditableRow label="样品编号" error={err("样品编号")}>
               <input
                 type="text"
-                className={`${inputCls}${err("_id") ? " border-rose-400 focus:ring-rose-200" : ""}`}
-                value={value._id}
+                className={`${inputCls}${err("样品编号") ? " border-rose-400 focus:ring-rose-200" : ""}`}
+                value={value.样品编号}
                 onChange={(e) => {
-                  clearError?.("_id");
-                  onChange((prev) => ({ ...prev, _id: e.target.value }));
+                  clearError?.("样品编号");
+                  onChange((prev) => ({ ...prev, 样品编号: e.target.value }));
                 }}
               />
             </EditableRow>
@@ -764,6 +827,7 @@ function FileDraftEditSections({
                 }}
               />
             </EditableRow>
+            {当前胶丝比例详情 ? <RatioDetailInline ratio={当前胶丝比例详情} /> : null}
           </div>
         </Section>
 
@@ -959,6 +1023,7 @@ export default function FileDraftDataSections({
   mode,
   value,
   制品规格书详情,
+  当前胶丝比例详情,
   onChange,
   customerList = [],
   hatMakingList = [],
@@ -985,6 +1050,7 @@ export default function FileDraftDataSections({
   return (
     <FileDraftEditSections
       value={value}
+      当前胶丝比例详情={当前胶丝比例详情}
       onChange={onChange}
       customerList={customerList}
       hatMakingList={hatMakingList}

@@ -19,6 +19,7 @@ import {
   recalc机器规格清单按比例DML重量,
 } from "../../../shared/models/重量计算"
 import { Logger } from "tsrpc"
+import { ObjectId } from "mongodb"
 type GraphLike = {
   底图: {
     区域名: string[]
@@ -605,9 +606,12 @@ export default async function (call: ApiCall<ReqGenerateByAB, ResGenerateByAB>) 
   if (call.req.fileAId === call.req.fileBId) {
     return call.error("文件A和文件B不能相同")
   }
+  if (!ObjectId.isValid(call.req.fileAId) || !ObjectId.isValid(call.req.fileBId)) {
+    return call.error("文件A或文件B不存在")
+  }
   const [fileA, fileB] = await Promise.all([
-    Global.getCollection("沐茵丝假发成品稿").findOne({ _id: call.req.fileAId }),
-    Global.getCollection("沐茵丝假发成品稿").findOne({ _id: call.req.fileBId }),
+    Global.getCollection("沐茵丝假发成品稿").findOne({ _id: new ObjectId(call.req.fileAId) }),
+    Global.getCollection("沐茵丝假发成品稿").findOne({ _id: new ObjectId(call.req.fileBId) }),
   ])
   if (!fileA || !fileB) {
     return call.error("文件A或文件B不存在")

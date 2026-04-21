@@ -98,7 +98,7 @@ export function to制品规格书Frontend(
 
   return {
     title: {
-      样品编号: 稿._id,
+      样品编号: 稿.样品编号,
       客户编号: 稿.客户编号,
       品名: 稿.品名,
       // TODO: db中无"订单"字段，待确认来源

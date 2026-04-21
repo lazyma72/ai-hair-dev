@@ -10,7 +10,7 @@ import { 手织指示单Frontend } from "../model/model"
 export function to手织指示单Frontend(稿: 沐茵丝假发成品稿): 手织指示单Frontend {
   return {
     title: {
-      样品编号: 稿._id,
+      样品编号: 稿.样品编号,
       客户编号: 稿.客户编号,
       尺寸: `${Math.min(...稿.制品规格书.人工规格清单.map(档位 => 档位.双针.毛长))}" ~ ${Math.max(...稿.制品规格书.人工规格清单.map(档位 => 档位.双针.毛长))}"`,
       品名: 稿.品名,
