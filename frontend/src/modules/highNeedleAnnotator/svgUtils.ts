@@ -643,8 +643,7 @@ export function decorateLines(
       // 当前区域勾选中的线条最粗，便于即时识别
       nextWidth = Math.max(baseWidth, 6);
     } else if (regionStroke || typeof regionNo === "number") {
-      // 已保存的区域线条持续保持明显加粗
-      nextWidth = Math.max(baseWidth, 5);
+      nextWidth = Math.max(baseWidth, 10);
     } else if (typeof levelNo === "number" || (dml ?? "").trim() || isDouble) {
       nextWidth = Math.max(baseWidth, 3);
     }

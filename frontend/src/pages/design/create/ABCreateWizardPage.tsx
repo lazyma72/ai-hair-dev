@@ -47,18 +47,11 @@ function Stepper({ step }: { step: number }) {
   );
 }
 
-function buildSaveC(
-  cId: string,
-  a: 沐茵丝假发成品稿,
-  b: 沐茵丝假发成品稿,
-): 沐茵丝假发成品稿 {
-  // 用 A 稿作为基础（客户/品名/规格书等），高针/手织取自 B
+function withNewId(file: 沐茵丝假发成品稿, id: string): 沐茵丝假发成品稿 {
   return {
-    ...JSON.parse(JSON.stringify(a)),
-    _id: cId,
-    高针指示单: b.高针指示单,
-    手织指示单: b.手织指示单,
-  } as 沐茵丝假发成品稿;
+    ...(JSON.parse(JSON.stringify(file)) as 沐茵丝假发成品稿),
+    _id: id,
+  };
 }
 
 export default function ABCreateWizardPage() {
@@ -70,12 +63,8 @@ export default function ABCreateWizardPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [aRawFile, setARawFile] = useState<沐茵丝假发成品稿 | null>(null);
-  const [bRawFile, setBRawFile] = useState<沐茵丝假发成品稿 | null>(null);
-  const [loadingA, setLoadingA] = useState(false);
-  const [loadingB, setLoadingB] = useState(false);
-  const [errorA, setErrorA] = useState("");
-  const [errorB, setErrorB] = useState("");
+  const [loadingC, setLoadingC] = useState(false);
+  const [errorC, setErrorC] = useState("");
   const [cDraft, setCDraft] = useState<沐茵丝假发成品稿 | null>(null);
 
   const listState = useApi(() =>
@@ -100,50 +89,9 @@ export default function ABCreateWizardPage() {
   );
 
   useEffect(() => {
-    if (!aId) {
-      setARawFile(null);
-      setErrorA("");
-      return;
-    }
-
-    setLoadingA(true);
-    setErrorA("");
-    void callApi("admin/file/GetDetail", { id: aId })
-      .then((r) => {
-        if (!r.isSucc) {
-          setErrorA(r.err.message);
-          return;
-        }
-        setARawFile(r.res.rawFile);
-      })
-      .catch((e) => setErrorA(e instanceof Error ? e.message : "请求失败"))
-      .finally(() => setLoadingA(false));
-  }, [aId]);
-
-  useEffect(() => {
-    if (!bId) {
-      setBRawFile(null);
-      setErrorB("");
-      return;
-    }
-
-    setLoadingB(true);
-    setErrorB("");
-    void callApi("admin/file/GetDetail", { id: bId })
-      .then((r) => {
-        if (!r.isSucc) {
-          setErrorB(r.err.message);
-          return;
-        }
-        setBRawFile(r.res.rawFile);
-      })
-      .catch((e) => setErrorB(e instanceof Error ? e.message : "请求失败"))
-      .finally(() => setLoadingB(false));
-  }, [bId]);
-
-  useEffect(() => {
     // A/B 变化时，清空 C 草稿，避免引用旧数据
     setCDraft(null);
+    setErrorC("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aId, bId]);
 
@@ -154,13 +102,34 @@ export default function ABCreateWizardPage() {
 
   useEffect(() => {
     if (step !== 2) return;
-    if (!aRawFile || !bRawFile) return;
+    if (!aId || !bId) return;
     if (cDraft) return;
 
-    setCDraft(
-      buildSaveC(`C-${aRawFile._id}-${bRawFile._id}`, aRawFile, bRawFile),
-    );
-  }, [aRawFile, bRawFile, cDraft, step]);
+    let cancelled = false;
+    setLoadingC(true);
+    setErrorC("");
+    void callApi("admin/file/GenerateByAB", { fileAId: aId, fileBId: bId })
+      .then((r) => {
+        if (cancelled) return;
+        if (!r.isSucc) {
+          setErrorC(r.err.message);
+          return;
+        }
+        // 后端生成的文件默认会沿用 A 的 _id；前端这里改成新 id，便于直接保存为新稿。
+        setCDraft(withNewId(r.res.file, `C-${aId}-${bId}`));
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setErrorC(e instanceof Error ? e.message : "请求失败");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingC(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [aId, bId, cDraft, step]);
 
   const actions = (
     <div className="flex items-center gap-2">
@@ -225,7 +194,7 @@ export default function ABCreateWizardPage() {
 
   if (step === 2) {
     return (
-      <StatusView loading={loadingA || loadingB} error={errorA || errorB}>
+      <StatusView loading={loadingC} error={errorC}>
         {cDraft ? (
           editing ? (
             <FileEditorPage
@@ -310,7 +279,7 @@ export default function ABCreateWizardPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="text-sm font-semibold text-slate-900">选择 A 稿</div>
           <div className="mt-1 text-xs text-slate-500">
-            C 稿的“制品规格书”将使用 A 稿的数据。
+            C 稿以 A 为基础（具体以接口规则为准）。
           </div>
           <div className="mt-3">
             <Select
@@ -331,7 +300,7 @@ export default function ABCreateWizardPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="text-sm font-semibold text-slate-900">选择 B 稿</div>
           <div className="mt-1 text-xs text-slate-500">
-            C 稿的“高针/手织指示单”将使用 B 稿的数据。
+            后端会按 B 的假发类型套用生成规则（纯色/间色/上下分/T色）。
           </div>
           <div className="mt-3">
             <Select

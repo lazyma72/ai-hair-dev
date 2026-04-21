@@ -8,7 +8,10 @@ import {
   makeDoubleSet,
 } from "../../modules/highNeedleAnnotator/helpers";
 import type { 高针图 } from "../../modules/highNeedleAnnotator/types";
-import { 空DML规则, type DML规则 } from "../../shared/models/DML规则";
+import {
+  空DML规则命令列表,
+  type DML规则命令列表,
+} from "../../shared/models/DML规则";
 import {
   collectSvgTextNodes,
   pruneSvgTextNodes,
@@ -29,13 +32,11 @@ function downloadJson(filename: string, data: unknown) {
 }
 
 function normalize高针图(raw: any): 高针图 {
-  const DML规则: DML规则 = raw?.自定义数据?.DML规则
-    ? {
-        命令列表: Array.isArray(raw?.自定义数据?.DML规则?.命令列表)
-          ? raw.自定义数据.DML规则.命令列表
-          : [],
-      }
-    : 空DML规则();
+  const DML规则命令列表: DML规则命令列表 = Array.isArray(raw?.自定义数据?.DML规则命令列表)
+    ? raw.自定义数据.DML规则命令列表
+    : Array.isArray(raw?.自定义数据?.DML规则?.命令列表)
+      ? raw.自定义数据.DML规则.命令列表
+      : 空DML规则命令列表();
 
   return {
     ...raw,
@@ -53,7 +54,7 @@ function normalize高针图(raw: any): 高针图 {
     },
     自定义数据: {
       ...raw?.自定义数据,
-      DML规则,
+      DML规则命令列表,
       单双标注: (raw?.自定义数据?.单双标注 ?? []).map((item: any) => ({
         ...item,
         textNodeId: item?.textNodeId ?? "",

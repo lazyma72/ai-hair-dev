@@ -1,4 +1,4 @@
-import { 空DML规则 } from "../../../shared/models/DML规则"
+import { 空DML规则命令列表, type DML规则命令列表 } from "../../../shared/models/DML规则"
 import type { 高针图 } from "../../../shared/models/高针图"
 import type { 手织图 } from "../../../shared/models/手织图"
 
@@ -14,10 +14,12 @@ function normalize底图(raw: any) {
 
 export function normalize高针图(raw: unknown): 高针图 {
   const src = (raw ?? {}) as any
+  const rawDml = src?.自定义数据?.DML规则命令列表 ?? src?.自定义数据?.DML规则?.命令列表
+  const dmlCommands: DML规则命令列表 = Array.isArray(rawDml) ? rawDml : 空DML规则命令列表()
   return {
     底图: normalize底图(src.底图),
     自定义数据: {
-      DML规则: src?.自定义数据?.DML规则 ?? 空DML规则(),
+      DML规则命令列表: dmlCommands,
       单双标注: Array.isArray(src?.自定义数据?.单双标注) ? src.自定义数据.单双标注 : [],
     },
   }
@@ -25,10 +27,12 @@ export function normalize高针图(raw: unknown): 高针图 {
 
 export function normalize手织图(raw: unknown): 手织图 {
   const src = (raw ?? {}) as any
+  const rawDml = src?.自定义数据?.DML规则命令列表 ?? src?.自定义数据?.DML规则?.命令列表
+  const dmlCommands: DML规则命令列表 = Array.isArray(rawDml) ? rawDml : 空DML规则命令列表()
   return {
     底图: normalize底图(src.底图),
     自定义数据: {
-      DML规则: src?.自定义数据?.DML规则 ?? 空DML规则(),
+      DML规则命令列表: dmlCommands,
     },
   }
 }

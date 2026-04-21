@@ -1,4 +1,4 @@
-import { DML规则 } from "./DML规则"
+import type { DML规则命令列表 } from "./DML规则";
 
 export interface 手织图 {
   底图: {
@@ -30,7 +30,8 @@ export interface 手织图 {
   };
 
   自定义数据: {
-    DML规则: DML规则;
+    /** DML 规则命令列表（扁平结构） */
+    DML规则命令列表: DML规则命令列表;
   };
 }
 

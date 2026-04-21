@@ -7,17 +7,18 @@ import { collectSvgTextNodes, decorateLines, pruneSvgTextNodes } from "./svgUtil
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const REGION_COLOR_PALETTE = [
-  "#ef4444",
-  "#f59e0b",
-  "#10b981",
-  "#3b82f6",
-  "#a855f7",
-  "#ec4899",
-  "#14b8a6",
-  "#f97316",
+  "#b91c1c",
+  "#b45309",
+  "#047857",
+  "#1d4ed8",
+  "#6d28d9",
+  "#be185d",
+  "#0f766e",
+  "#c2410c",
 ] as const;
 
 type PreviewToggles = {
+  region: boolean;
   level: boolean;
   dml: boolean;
   double: boolean;
@@ -37,6 +38,25 @@ type Props = {
   className?: string;
   hideDoubleToggle?: boolean;
 };
+
+function buildRegionColorByName(data: 高针图): Map<string, string> {
+  const map = new Map<string, string>();
+  const orderedNames = (data.底图.区域名 ?? [])
+    .map((n) => String(n ?? "").trim())
+    .filter(Boolean);
+  orderedNames.forEach((name) => {
+    if (map.has(name)) return;
+    map.set(name, REGION_COLOR_PALETTE[map.size % REGION_COLOR_PALETTE.length]);
+  });
+
+  data.底图.区域线条.forEach((d) => {
+    const regionName = String(d.区域名 ?? "").trim();
+    if (!regionName || map.has(regionName)) return;
+    map.set(regionName, REGION_COLOR_PALETTE[map.size % REGION_COLOR_PALETTE.length]);
+  });
+
+  return map;
+}
 
 function parseLevelNo(levelLabel: string, fallbackNo: number): number {
   const match = String(levelLabel ?? "")
@@ -166,11 +186,45 @@ function buildPreviewLabels(
   data: 高针图,
   toggles: PreviewToggles,
   existingSvgTextIdSet: ReadonlySet<string>,
+  regionColorByName: ReadonlyMap<string, string>,
 ): PreviewLabelItem[] {
   const dmlById = makeDmlMap(data);
   const doubleSet = makeDoubleSet(data.自定义数据.单双标注);
 
   const out: PreviewLabelItem[] = [];
+
+  if (toggles.region) {
+    const regionLineItems = new Map<
+      string,
+      Array<{ lineId: string; 区域内位置占比: number }>
+    >();
+    data.底图.区域线条.forEach((item) => {
+      const regionName = String(item.区域名 ?? "").trim();
+      if (!regionName) return;
+      const list = regionLineItems.get(regionName) ?? [];
+      (item.lineNodeIds ?? []).forEach((lineNodeId) => {
+        const lineId = String(lineNodeId ?? "").trim();
+        if (!lineId) return;
+        list.push({
+          lineId,
+          区域内位置占比: Number(item.区域内位置占比 ?? 0),
+        });
+      });
+      regionLineItems.set(regionName, list);
+    });
+
+    regionLineItems.forEach((items, regionName) => {
+      if (items.length === 0) return;
+      items.sort((a, b) => a.区域内位置占比 - b.区域内位置占比);
+      const anchor = items[Math.floor(items.length / 2)];
+      out.push({
+        lineId: anchor.lineId,
+        text: regionName,
+        ratio: 0.5,
+        fill: regionColorByName.get(regionName) ?? "#475569",
+      });
+    });
+  }
 
   data.底图.档位标注.forEach(({ 区域名, lineNodeIds, textNodeIds = [] }, index) => {
     if (!toggles.level) return;
@@ -221,7 +275,12 @@ export default function HighNeedlePreviewViewer({
   className = "",
   hideDoubleToggle = false,
 }: Props) {
+  const regionColorByName = useMemo(
+    () => (data ? buildRegionColorByName(data) : new Map<string, string>()),
+    [data],
+  );
   const [toggles, setToggles] = useState<PreviewToggles>({
+    region: true,
     level: true,
     dml: true,
     double: true,
@@ -271,17 +330,6 @@ export default function HighNeedlePreviewViewer({
     let svg = pruneSvgTextNodes(data.底图.svg, Array.from(visibleTextIds));
 
     // 给各区域/档位/DML/单双线条施加颜色和加粗
-    const regionColorByName = new Map<string, string>();
-    const orderedNames = (data.底图.区域名 ?? [])
-      .map((n) => String(n ?? "").trim())
-      .filter(Boolean);
-    orderedNames.forEach((name, idx) => {
-      regionColorByName.set(
-        name,
-        REGION_COLOR_PALETTE[idx % REGION_COLOR_PALETTE.length],
-      );
-    });
-
     const regionStrokeById = new Map<string, string>();
     const allTouchIds: string[] = [];
     data.底图.区域线条.forEach((d) => {
@@ -291,7 +339,7 @@ export default function HighNeedlePreviewViewer({
         const lineId = String(id ?? "").trim();
         if (!lineId) return;
         allTouchIds.push(lineId);
-        if (color) regionStrokeById.set(lineId, color);
+        if (toggles.region && color) regionStrokeById.set(lineId, color);
       });
     });
 
@@ -305,7 +353,9 @@ export default function HighNeedlePreviewViewer({
         const lineId = String(id ?? "").trim();
         if (!lineId) return;
         if (!allTouchIds.includes(lineId)) allTouchIds.push(lineId);
-        levelNoById.set(lineId, Number.isFinite(no) && no > 0 ? no : idx + 1);
+        if (toggles.level && !toggles.region) {
+          levelNoById.set(lineId, Number.isFinite(no) && no > 0 ? no : idx + 1);
+        }
       });
     });
 
@@ -315,21 +365,21 @@ export default function HighNeedlePreviewViewer({
     svg = decorateLines(svg, {
       touchIds: allTouchIds,
       regionStrokeById,
-      levelNoById,
+      levelNoById: levelNoById.size > 0 ? levelNoById : undefined,
       dmlById: previewDml,
       doubleById: previewDouble,
     });
 
     return svg;
-  }, [data, toggles]);
+  }, [data, regionColorByName, toggles]);
 
   const previewLabels = useMemo(() => {
     if (!data) return [];
     const existingSvgTextIdSet = new Set(
       collectSvgTextNodes(data.底图.svg).map((item) => item.id),
     );
-    return buildPreviewLabels(data, toggles, existingSvgTextIdSet);
-  }, [data, toggles]);
+    return buildPreviewLabels(data, toggles, existingSvgTextIdSet, regionColorByName);
+  }, [data, regionColorByName, toggles]);
 
   useEffect(() => {
     const wrap = svgWrapRef.current;
@@ -382,6 +432,16 @@ export default function HighNeedlePreviewViewer({
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm font-semibold text-slate-900">预览选项</div>
         <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+          <label className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={toggles.region}
+              onChange={(e) =>
+                setToggles((v) => ({ ...v, region: e.target.checked }))
+              }
+            />
+            区域
+          </label>
           <label className="flex items-center gap-1">
             <input
               type="checkbox"

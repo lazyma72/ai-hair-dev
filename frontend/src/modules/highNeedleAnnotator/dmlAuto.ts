@@ -1,6 +1,6 @@
 import type {
   DML值,
-  DML规则,
+  DML规则命令列表,
   DML规则命令,
   DML按档位标记命令,
   DML区域百分比命令,
@@ -35,7 +35,7 @@ export type DmlCompilableData = {
     }[];
   };
   自定义数据: {
-    DML规则: DML规则;
+    DML规则命令列表: DML规则命令列表;
   };
 };
 
@@ -225,7 +225,7 @@ export function compileDmlRules(data: DmlCompilableData): DmlCompileResult {
   const assignments = new Map<string, DML值>();
   const managedLineIds = new Set<string>();
   const items: DmlCompiledItem[] = [];
-  const rules = data.自定义数据.DML规则?.命令列表 ?? [];
+  const rules = data.自定义数据.DML规则命令列表 ?? [];
   const regionLinesByName = collectOrderedRegionLines(data);
   const levelLineIdsByName = collectLevelLineIds(data);
 

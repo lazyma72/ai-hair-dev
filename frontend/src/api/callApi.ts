@@ -10,6 +10,10 @@ import { HttpClient } from "tsrpc-browser";
 import { getApiBase } from "./apiBase";
 import { serviceProto } from "../shared/protocols/serviceProto";
 import type { ServiceType } from "../shared/protocols/serviceProto";
+import type {
+  ReqGenerateByAB,
+  ResGenerateByAB,
+} from "../shared/protocols/admin/file/PtlGenerateByAB";
 import { getToken, clearToken } from "../auth";
 import { frontConfig } from "../frontConfig";
 
@@ -47,15 +51,28 @@ addFlows(uploadClient);
 
 export type ApiName = keyof ServiceType["api"];
 
+export async function callApi(
+  apiName: "admin/file/GenerateByAB",
+  req: ReqGenerateByAB,
+): Promise<
+  | { isSucc: true; res: ResGenerateByAB }
+  | { isSucc: false; err: { message: string } }
+>;
 export async function callApi<K extends ApiName>(
   apiName: K,
   req: ServiceType["api"][K]["req"],
 ): Promise<
   | { isSucc: true; res: ServiceType["api"][K]["res"] }
   | { isSucc: false; err: { message: string } }
+>;
+export async function callApi(
+  apiName: ApiName | "admin/file/GenerateByAB",
+  req: any,
+): Promise<
+  { isSucc: true; res: any } | { isSucc: false; err: { message: string } }
 > {
   const c = (apiName as string) === "Upload" ? uploadClient : client;
-  const result = await c.callApi(apiName, req as never);
+  const result = await c.callApi(apiName as any, req as never);
   if (result.isSucc) {
     return { isSucc: true, res: result.res };
   }

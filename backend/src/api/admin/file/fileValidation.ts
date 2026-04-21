@@ -92,9 +92,7 @@ const DyeItemSchema = z
     }
   })
 
-const DML规则Schema = z.object({
-  命令列表: z.array(z.object({}).passthrough()),
-})
+const DML规则命令列表Schema = z.array(z.object({}).passthrough())
 
 const 高针图Schema = z.object({
   底图: z
@@ -107,7 +105,7 @@ const 高针图Schema = z.object({
     })
     .passthrough(),
   自定义数据: z.object({
-    DML规则: DML规则Schema,
+    DML规则命令列表: DML规则命令列表Schema,
     单双标注: z.array(z.object({}).passthrough()),
   }),
 })
@@ -123,7 +121,7 @@ const 手织图Schema = z.object({
     })
     .passthrough(),
   自定义数据: z.object({
-    DML规则: DML规则Schema,
+    DML规则命令列表: DML规则命令列表Schema,
   }),
 })
 

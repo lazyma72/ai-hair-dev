@@ -32,7 +32,7 @@ import {
 import { compileDmlRules } from "./dmlAuto";
 import { 高针图系统预置区域列表 } from "../../shared/models/高针图";
 import {
-  空DML规则,
+  空DML规则命令列表,
   type DML规则命令,
   type DML值,
   type DML区域百分比命令,
@@ -159,11 +159,9 @@ function normalize高针图值(value: 高针图): 高针图 {
     },
     自定义数据: {
       ...value.自定义数据,
-      DML规则: {
-        命令列表: (
-          (value.自定义数据.DML规则 ?? 空DML规则()).命令列表 ?? []
-        ).map((item) => ({ ...item, lineNodeIds: item.lineNodeIds ?? [] })),
-      },
+      DML规则命令列表: (
+        value.自定义数据.DML规则命令列表 ?? 空DML规则命令列表()
+      ).map((item) => ({ ...item, lineNodeIds: item.lineNodeIds ?? [] })),
       单双标注: (value.自定义数据.单双标注 ?? []).map((item) => ({
         ...item,
         textNodeId: item.textNodeId ?? "",
@@ -535,17 +533,17 @@ export default function useHighNeedleSvgAnnotator({
 
     setTextStageHiddenTextIds([]);
     manualDmlOverridesRef.current = {};
-    normalizedInitialValue.自定义数据.DML规则?.命令列表
-      .filter((item): item is DML特殊标记命令 => item.type === "特殊标记")
-      .forEach((cmd) => {
-        const 规律 = cmd.规律;
-        if (规律 !== "D" && 规律 !== "M" && 规律 !== "L") return;
-        cmd.lineNodeIds.forEach((nodeId) => {
-          const id = String(nodeId ?? "").trim();
-          if (!id) return;
-          manualDmlOverridesRef.current[id] = 规律;
-        });
+    normalizedInitialValue.自定义数据.DML规则命令列表.filter(
+      (item): item is DML特殊标记命令 => item.type === "特殊标记",
+    ).forEach((cmd) => {
+      const 规律 = cmd.规律;
+      if (规律 !== "D" && 规律 !== "M" && 规律 !== "L") return;
+      cmd.lineNodeIds.forEach((nodeId) => {
+        const id = String(nodeId ?? "").trim();
+        if (!id) return;
+        manualDmlOverridesRef.current[id] = 规律;
       });
+    });
     autoDmlAssignmentsRef.current = new Map();
     autoDmlManagedIdsRef.current = new Set();
     autoDmlSlotByLineIdRef.current = new Map();
@@ -625,7 +623,7 @@ export default function useHighNeedleSvgAnnotator({
   );
   const hasLevelData = levelLineIdsInOrder.length > 0;
   const hasMarkData =
-    value.自定义数据.DML规则.命令列表.length > 0 ||
+    value.自定义数据.DML规则命令列表.length > 0 ||
     value.自定义数据.单双标注.length > 0;
   const canEditRegion = !hasLevelData && !hasMarkData;
   const canEditDml = missingLevelLineIds.length === 0 && hasLevelData;
@@ -734,31 +732,31 @@ export default function useHighNeedleSvgAnnotator({
 
   const dmlRegionRules = useMemo(
     () =>
-      value.自定义数据.DML规则.命令列表.filter(
+      value.自定义数据.DML规则命令列表.filter(
         (item): item is DML区域百分比命令 => item.type === "区域百分比",
       ),
-    [value.自定义数据.DML规则.命令列表],
+    [value.自定义数据.DML规则命令列表],
   );
 
   const dmlLevelRules = useMemo(
     () =>
-      value.自定义数据.DML规则.命令列表.filter(
+      value.自定义数据.DML规则命令列表.filter(
         (item): item is DML按档位标记命令 => item.type === "按档位标记",
       ),
-    [value.自定义数据.DML规则.命令列表],
+    [value.自定义数据.DML规则命令列表],
   );
 
   const dmlRuleCommands = useMemo<DML规则命令[]>(
-    () => value.自定义数据.DML规则.命令列表,
-    [value.自定义数据.DML规则.命令列表],
+    () => value.自定义数据.DML规则命令列表,
+    [value.自定义数据.DML规则命令列表],
   );
 
   const dmlSpecialRule = useMemo(
     () =>
-      value.自定义数据.DML规则.命令列表.filter(
+      value.自定义数据.DML规则命令列表.filter(
         (item): item is DML特殊标记命令 => item.type === "特殊标记",
       ),
-    [value.自定义数据.DML规则.命令列表],
+    [value.自定义数据.DML规则命令列表],
   );
 
   const dmlLevelNames = useMemo(
@@ -1490,16 +1488,14 @@ export default function useHighNeedleSvgAnnotator({
     const removedTextIds: string[] = [];
 
     setValue((cur) => {
-      const nonSpecialCommands = cur.自定义数据.DML规则.命令列表.filter(
+      const nonSpecialCommands = cur.自定义数据.DML规则命令列表.filter(
         (item) => item.type !== "特殊标记",
       );
       const compiledBase = compileDmlRules({
         ...cur,
         自定义数据: {
           ...cur.自定义数据,
-          DML规则: {
-            命令列表: nonSpecialCommands,
-          },
+          DML规则命令列表: nonSpecialCommands,
         },
       });
 
@@ -1574,9 +1570,9 @@ export default function useHighNeedleSvgAnnotator({
       });
 
       const existingSpecialById = new Map<string, DML特殊标记命令>(
-        cur.自定义数据.DML规则.命令列表
-          .filter((item): item is DML特殊标记命令 => item.type === "特殊标记")
-          .map((cmd) => [cmd.规律, cmd]),
+        cur.自定义数据.DML规则命令列表.filter(
+          (item): item is DML特殊标记命令 => item.type === "特殊标记",
+        ).map((cmd) => [cmd.规律, cmd]),
       );
 
       const specialCommands: DML特殊标记命令[] = (["D", "M", "L"] as DML值[])
@@ -1598,9 +1594,7 @@ export default function useHighNeedleSvgAnnotator({
         },
         自定义数据: {
           ...cur.自定义数据,
-          DML规则: {
-            命令列表: [...nonSpecialCommands, ...specialCommands],
-          },
+          DML规则命令列表: [...nonSpecialCommands, ...specialCommands],
         },
       };
     });
@@ -1645,7 +1639,7 @@ export default function useHighNeedleSvgAnnotator({
   }
 
   function getDmlRuleLineIdsFromCommands(
-    commands: 高针图["自定义数据"]["DML规则"]["命令列表"],
+    commands: 高针图["自定义数据"]["DML规则命令列表"],
     ruleId: string,
     ruleType: ActiveDmlRuleType,
     specialValue: DmlValue = activeSpecialDmlValue,
@@ -1674,9 +1668,7 @@ export default function useHighNeedleSvgAnnotator({
       ...value,
       自定义数据: {
         ...value.自定义数据,
-        DML规则: {
-          命令列表: [targetCommand],
-        },
+        DML规则命令列表: [targetCommand],
       },
     });
 
@@ -1697,7 +1689,7 @@ export default function useHighNeedleSvgAnnotator({
 
     setValue((cur) => {
       let changed = false;
-      const nextCommands = cur.自定义数据.DML规则.命令列表.map((item) => {
+      const nextCommands = cur.自定义数据.DML规则命令列表.map((item) => {
         if (item.id !== activeDmlRuleId || item.type !== activeDmlRuleType) {
           return item;
         }
@@ -1828,9 +1820,7 @@ export default function useHighNeedleSvgAnnotator({
         ...cur,
         自定义数据: {
           ...cur.自定义数据,
-          DML规则: {
-            命令列表: nextCommands,
-          },
+          DML规则命令列表: nextCommands,
         },
       };
     });
@@ -1847,7 +1837,7 @@ export default function useHighNeedleSvgAnnotator({
 
     setActiveDmlRuleLineIdsIfChanged(
       getDmlRuleLineIdsFromCommands(
-        value.自定义数据.DML规则.命令列表,
+        value.自定义数据.DML规则命令列表,
         activeDmlRuleId,
         "特殊标记",
         activeSpecialDmlValue,
@@ -1858,7 +1848,7 @@ export default function useHighNeedleSvgAnnotator({
     activeDmlRuleType,
     activeSpecialDmlValue,
     step,
-    value.自定义数据.DML规则.命令列表,
+    value.自定义数据.DML规则命令列表,
   ]);
 
   useEffect(() => {
@@ -1867,7 +1857,7 @@ export default function useHighNeedleSvgAnnotator({
 
     if (step !== "DML" || prev === "DML") return;
 
-    const specialCommands = value.自定义数据.DML规则.命令列表.filter(
+    const specialCommands = value.自定义数据.DML规则命令列表.filter(
       (item): item is DML特殊标记命令 => item.type === "特殊标记",
     );
     if (specialCommands.length === 0) return;
@@ -1882,7 +1872,7 @@ export default function useHighNeedleSvgAnnotator({
         manualDmlOverridesRef.current[id] = 规律;
       });
     });
-  }, [value.自定义数据.DML规则.命令列表, step]);
+  }, [value.自定义数据.DML规则命令列表, step]);
 
   function toggleSelect(
     id: string,
@@ -2515,7 +2505,7 @@ export default function useHighNeedleSvgAnnotator({
       },
       自定义数据: {
         ...v.自定义数据,
-        DML规则: 空DML规则(),
+        DML规则命令列表: 空DML规则命令列表(),
         单双标注: [],
       },
     }));
@@ -2561,7 +2551,7 @@ export default function useHighNeedleSvgAnnotator({
       },
       自定义数据: {
         ...v.自定义数据,
-        DML规则: 空DML规则(),
+        DML规则命令列表: 空DML规则命令列表(),
       },
     }));
     if (removedTextIds.length > 0) {
@@ -2596,25 +2586,22 @@ export default function useHighNeedleSvgAnnotator({
 
   function updateDmlCommands(
     updater: (
-      prev: 高针图["自定义数据"]["DML规则"]["命令列表"],
-    ) => 高针图["自定义数据"]["DML规则"]["命令列表"],
+      prev: 高针图["自定义数据"]["DML规则命令列表"],
+    ) => 高针图["自定义数据"]["DML规则命令列表"],
     options?: {
-      afterChange?: (next: 高针图["自定义数据"]["DML规则"]["命令列表"]) => void;
+      afterChange?: (next: 高针图["自定义数据"]["DML规则命令列表"]) => void;
     },
   ) {
     setDirty(true);
-    let nextCommandsSnapshot:
-      | 高针图["自定义数据"]["DML规则"]["命令列表"]
-      | null = null;
+    let nextCommandsSnapshot: 高针图["自定义数据"]["DML规则命令列表"] | null =
+      null;
     setValue((cur) => ({
       ...cur,
       自定义数据: {
         ...cur.自定义数据,
-        DML规则: {
-          命令列表: (nextCommandsSnapshot = updater(
-            cur.自定义数据.DML规则.命令列表,
-          )),
-        },
+        DML规则命令列表: (nextCommandsSnapshot = updater(
+          cur.自定义数据.DML规则命令列表,
+        )),
       },
     }));
 
@@ -2759,7 +2746,7 @@ export default function useHighNeedleSvgAnnotator({
     const normalized = normalizeSingleDmlValue(activeSpecialDmlValue);
     if (normalized !== "D" && normalized !== "M" && normalized !== "L") return;
     const validNormalized: DML值 = normalized;
-    const existingCommand = value.自定义数据.DML规则.命令列表.find(
+    const existingCommand = value.自定义数据.DML规则命令列表.find(
       (item): item is DML特殊标记命令 =>
         item.type === "特殊标记" && item.规律 === validNormalized,
     );
@@ -2784,9 +2771,9 @@ export default function useHighNeedleSvgAnnotator({
     setActiveDmlRuleLineIdsIfChanged(
       getDmlRuleLineIdsFromCommands(
         hasExistingRule
-          ? value.自定义数据.DML规则.命令列表
+          ? value.自定义数据.DML规则命令列表
           : [
-              ...value.自定义数据.DML规则.命令列表,
+              ...value.自定义数据.DML规则命令列表,
               {
                 id: existingRuleId,
                 type: "特殊标记" as const,
@@ -2918,7 +2905,7 @@ export default function useHighNeedleSvgAnnotator({
     setActiveDmlRuleType(ruleType);
     setActiveDmlRuleLineIdsIfChanged(
       getDmlRuleLineIdsFromCommands(
-        value.自定义数据.DML规则.命令列表,
+        value.自定义数据.DML规则命令列表,
         ruleId,
         ruleType,
       ),
@@ -2927,7 +2914,7 @@ export default function useHighNeedleSvgAnnotator({
 
   function selectSpecialDmlRule(inputValue: string) {
     const normalized = normalizeSingleDmlValue(inputValue);
-    const existingCommand = value.自定义数据.DML规则.命令列表.find(
+    const existingCommand = value.自定义数据.DML规则命令列表.find(
       (item): item is DML特殊标记命令 =>
         item.type === "特殊标记" && item.规律 === normalized,
     );
@@ -2947,7 +2934,7 @@ export default function useHighNeedleSvgAnnotator({
     setActiveDmlRuleType("特殊标记");
     setActiveDmlRuleLineIdsIfChanged(
       getDmlRuleLineIdsFromCommands(
-        value.自定义数据.DML规则.命令列表,
+        value.自定义数据.DML规则命令列表,
         ruleId,
         "特殊标记",
         normalized,

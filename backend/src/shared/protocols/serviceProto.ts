@@ -1830,11 +1830,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Interface",
                         "properties": [
                             {
-                                "id": 2,
-                                "name": "DML规则",
+                                "id": 3,
+                                "name": "DML规则命令列表",
                                 "type": {
                                     "type": "Reference",
-                                    "target": "../models/DML规则/DML规则"
+                                    "target": "../models/DML规则/DML规则命令列表"
                                 }
                             },
                             {
@@ -1875,21 +1875,12 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 }
             ]
         },
-        "../models/DML规则/DML规则": {
-            "type": "Interface",
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "命令列表",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../models/DML规则/DML规则命令"
-                        }
-                    }
-                }
-            ]
+        "../models/DML规则/DML规则命令列表": {
+            "type": "Array",
+            "elementType": {
+                "type": "Reference",
+                "target": "../models/DML规则/DML规则命令"
+            }
         },
         "../models/DML规则/DML规则命令": {
             "type": "Union",
@@ -2318,11 +2309,11 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Interface",
                         "properties": [
                             {
-                                "id": 1,
-                                "name": "DML规则",
+                                "id": 2,
+                                "name": "DML规则命令列表",
                                 "type": {
                                     "type": "Reference",
-                                    "target": "../models/DML规则/DML规则"
+                                    "target": "../models/DML规则/DML规则命令列表"
                                 }
                             }
                         ]
