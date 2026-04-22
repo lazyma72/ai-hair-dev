@@ -263,6 +263,8 @@ function FileDraftReadonlySections({
     ) ?? null;
   const 胶丝比例 = 制品规格书详情?.胶丝比例;
   const 工程重量 = 制品规格书详情?.工程重量;
+  const 机器规格清单 = 制品规格书详情?.机器规格清单 ?? value.制品规格书.机器规格清单;
+  const 人工规格清单 = 制品规格书详情?.人工规格清单 ?? value.制品规格书.人工规格清单;
   const 工程重量行 = 工程重量
     ? ([
         ["整毛", 工程重量.整毛],
@@ -279,11 +281,11 @@ function FileDraftReadonlySections({
 
   // 判断是否有 M/L 数据
   const hasGlobalM =
-    value.制品规格书.机器规格清单.some(
+    机器规格清单.some(
       (row) => row.双针.尺数.M != null || row.裁断与重量.some((item) => item.重量g?.M != null),
     );
   const hasGlobalL =
-    value.制品规格书.机器规格清单.some(
+    机器规格清单.some(
       (row) => row.双针.尺数.L != null || row.裁断与重量.some((item) => item.重量g?.L != null),
     );
 
@@ -433,7 +435,7 @@ function FileDraftReadonlySections({
       <Section title="机器规格清单" compact>
         <div className="p-3">
           <ExcelStyleMachineTable
-            rows={value.制品规格书.机器规格清单}
+            rows={机器规格清单}
             假发类型={value.假发类型}
             hasGlobalM={hasGlobalM}
             hasGlobalL={hasGlobalL}
@@ -444,7 +446,7 @@ function FileDraftReadonlySections({
       <Section title="人工规格清单" compact>
         <div className="p-3">
           <ExcelStyleManualTable
-            rows={value.制品规格书.人工规格清单}
+            rows={人工规格清单}
             假发类型={value.假发类型}
             hasGlobalM={hasGlobalM}
             hasGlobalL={hasGlobalL}

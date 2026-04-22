@@ -148,10 +148,6 @@ type Props = {
     lineNodeId: string,
     pos: { x: number; y: number },
   ) => void;
-  ensureLevelMarkerTextNode: (
-    lineNodeId: string,
-    pos: { x: number; y: number },
-  ) => void;
   ensureDmlMarkerTextNode: (
     lineNodeId: string,
     pos: { x: number; y: number },
@@ -404,7 +400,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
   activeDmlRuleLineIdSet,
   handleLineDmlCycleOverride,
   ensureRegionMarkerTextNode,
-  ensureLevelMarkerTextNode,
   ensureDmlMarkerTextNode,
   layerToggles,
   setLayerToggles,
@@ -496,7 +491,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
   const dragMoveSampleRef = useRef(0);
   const brushMoveSampleRef = useRef(0);
   const pendingAutoRegionTextNodeIdsRef = useRef<Set<string>>(new Set());
-  const pendingAutoLevelTextNodeIdsRef = useRef<Set<string>>(new Set());
   const pendingAutoDmlTextNodeIdsRef = useRef<Set<string>>(new Set());
 
   // --- 文本缩放拖拽手柄 ---
@@ -529,9 +523,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
   }, [onTextStyleChange]);
 
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
-  const [anchorById, setAnchorById] = useState<
-    Map<string, { x: number; y: number; perpX: number; perpY: number }>
-  >(() => new Map());
   const [regionLabelPosByName, setRegionLabelPosByName] = useState<
     Map<string, { x: number; y: number }>
   >(() => new Map());
@@ -542,6 +533,46 @@ export default function HighNeedleSvgAnnotatorCanvas({
     width: number;
     height: number;
   } | null>(null);
+
+  const getRegionMarkerSvgPos = React.useCallback(
+    (lineId: string) =>
+      draftMarkerPosByLineId.get(lineId) ??
+      preferredRegionPosByLineId.get(lineId) ??
+      null,
+    [draftMarkerPosByLineId, preferredRegionPosByLineId],
+  );
+
+  const getLevelMarkerSvgPos = React.useCallback(
+    (lineId: string) =>
+      (step === "档位" ? draftMarkerPosByLineId.get(lineId) : null) ??
+      pendingLevelMarkerPosByLineId.get(lineId) ??
+      preferredLevelPosByLineId.get(lineId) ??
+      null,
+    [
+      draftMarkerPosByLineId,
+      pendingLevelMarkerPosByLineId,
+      preferredLevelPosByLineId,
+      step,
+    ],
+  );
+
+  const getDmlMarkerSvgPos = React.useCallback(
+    (lineId: string) =>
+      pendingDmlMarkerPosByLineId.get(lineId) ??
+      dmlMarkerPosByLineId.get(lineId) ??
+      preferredDmlPosByLineId.get(lineId) ??
+      null,
+    [
+      dmlMarkerPosByLineId,
+      pendingDmlMarkerPosByLineId,
+      preferredDmlPosByLineId,
+    ],
+  );
+
+  const getDoubleMarkerSvgPos = React.useCallback(
+    (lineId: string) => preferredDoublePosByLineId.get(lineId) ?? null,
+    [preferredDoublePosByLineId],
+  );
 
   // #region debug-point A:canvas-render-sample
   renderSampleRef.current += 1;
@@ -630,6 +661,8 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
   useEffect(() => {
     resetBrushState();
+    pendingAutoRegionTextNodeIdsRef.current = new Set();
+    pendingAutoDmlTextNodeIdsRef.current = new Set();
   }, [canvasEpoch, resetBrushState]);
 
   // Delete / Backspace 快捷键删除选中文本
@@ -753,186 +786,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
   }, [handleLineAction, markerLineIdByTextId, onTextPositionCommit, step]);
 
   useEffect(() => {
-    const wrap = canvasWrapRef.current;
-    if (!wrap) return;
-
-    const ids = Array.from(visibleMarkerById.keys());
-    if (ids.length === 0) {
-      setAnchorById((prev) => (prev.size === 0 ? prev : new Map()));
-      return;
-    }
-
-    const raf = window.requestAnimationFrame(() => {
-      const startedAt = performance.now();
-      const wrapRect = wrap.getBoundingClientRect();
-      const svgRoot = wrap.querySelector<SVGSVGElement>("svg");
-      const next = new Map<
-        string,
-        { x: number; y: number; perpX: number; perpY: number }
-      >();
-
-      for (const id of ids) {
-        const dmlPreferredPos =
-          pendingDmlMarkerPosByLineId.get(id) ??
-          dmlMarkerPosByLineId.get(id) ??
-          preferredDmlPosByLineId.get(id);
-        const marks = filteredMarkerById.get(id);
-        const preferredPos = marks?.dml
-          ? dmlPreferredPos
-          : step === "区域"
-            ? (draftMarkerPosByLineId.get(id) ?? preferredRegionPosByLineId.get(id))
-            : step === "档位"
-              ? (draftMarkerPosByLineId.get(id) ?? preferredLevelPosByLineId.get(id))
-              : step === "单双"
-                ? preferredDoublePosByLineId.get(id)
-                : typeof marks?.levelNo === "number"
-                  ? preferredLevelPosByLineId.get(id)
-                  : typeof marks?.regionNo === "number"
-                    ? (draftMarkerPosByLineId.get(id) ?? preferredRegionPosByLineId.get(id))
-                    : marks?.isDouble
-                      ? preferredDoublePosByLineId.get(id)
-                      : draftMarkerPosByLineId.get(id);
-        if (svgRoot && preferredPos) {
-          const wrapPos = svgToWrapPoint(svgRoot, wrapRect, preferredPos);
-          if (wrapPos) {
-            next.set(id, {
-              x: wrapPos.x,
-              y: wrapPos.y,
-              perpX: 0,
-              perpY: 1,
-            });
-            continue;
-          }
-        }
-
-        const el = wrap.querySelector<SVGGraphicsElement>(
-          `#${cssEscapeId(id)}`,
-        );
-        if (!el) continue;
-
-        // Use getPointAtLength midpoint for path/polyline/polygon/line so that
-        // arc-shaped elements get a marker that sits ON the curve, not at the
-        // bounding-box centre (which floats inside the arc).
-        const geom = el as unknown as SVGGeometryElement;
-        if (svgRoot && typeof geom.getTotalLength === "function") {
-          const total = geom.getTotalLength();
-          const t = total / 2;
-          const mid = geom.getPointAtLength(t);
-
-          // Compute tangent direction at midpoint using tiny forward/back step,
-          // then derive the perpendicular unit vector (for stagger offset).
-          const eps = Math.min(1, total * 0.01);
-          const pA = geom.getPointAtLength(Math.max(0, t - eps));
-          const pB = geom.getPointAtLength(Math.min(total, t + eps));
-          const tdx = pB.x - pA.x;
-          const tdy = pB.y - pA.y;
-          const tlen = Math.hypot(tdx, tdy);
-          // perpendicular in SVG local space (rotate tangent 90°)
-          const localPerpX = tlen > 1e-6 ? -tdy / tlen : 0;
-          const localPerpY = tlen > 1e-6 ? tdx / tlen : 1;
-
-          const ctm = (el as SVGGraphicsElement).getScreenCTM?.();
-          if (ctm) {
-            const pt = svgRoot.createSVGPoint();
-            pt.x = mid.x;
-            pt.y = mid.y;
-            const screenMid = pt.matrixTransform(ctm);
-
-            // Transform perp vector (direction only — subtract mapped origin)
-            pt.x = 0;
-            pt.y = 0;
-            const screenOrigin = pt.matrixTransform(ctm);
-            pt.x = localPerpX;
-            pt.y = localPerpY;
-            const screenPerpPt = pt.matrixTransform(ctm);
-            const spx = screenPerpPt.x - screenOrigin.x;
-            const spy = screenPerpPt.y - screenOrigin.y;
-            const splen = Math.hypot(spx, spy);
-
-            next.set(id, {
-              x: screenMid.x - wrapRect.left,
-              y: screenMid.y - wrapRect.top,
-              perpX: splen > 1e-6 ? spx / splen : 0,
-              perpY: splen > 1e-6 ? spy / splen : 1,
-            });
-            continue;
-          }
-        }
-
-        // Fallback: bounding-box centre for elements without path geometry
-        const rect = el.getBoundingClientRect();
-        next.set(id, {
-          x: rect.left - wrapRect.left + rect.width / 2,
-          y: rect.top - wrapRect.top + rect.height / 2,
-          perpX: 0,
-          perpY: 1,
-        });
-      }
-
-      const approxEqual = (a: number, b: number) => Math.abs(a - b) <= 0.25;
-      const isSameAnchorMap = (
-        prev: Map<
-          string,
-          { x: number; y: number; perpX: number; perpY: number }
-        >,
-        nextMap: Map<
-          string,
-          { x: number; y: number; perpX: number; perpY: number }
-        >,
-      ) => {
-        if (prev.size !== nextMap.size) return false;
-        for (const [key, v] of prev) {
-          const nv = nextMap.get(key);
-          if (!nv) return false;
-          if (!approxEqual(v.x, nv.x)) return false;
-          if (!approxEqual(v.y, nv.y)) return false;
-          if (!approxEqual(v.perpX, nv.perpX)) return false;
-          if (!approxEqual(v.perpY, nv.perpY)) return false;
-        }
-        return true;
-      };
-
-      setAnchorById((prev) => (isSameAnchorMap(prev, next) ? prev : next));
-
-      // #region debug-point B:anchor-recompute
-      const durationMs = performance.now() - startedAt;
-      if (durationMs >= 8 || ids.length >= 30) {
-        reportHighNeedleLagDebug(
-          "B",
-          "HighNeedleSvgAnnotatorCanvas:anchor-effect",
-          "anchor recompute sample",
-          {
-            step,
-            idCount: ids.length,
-            nextCount: next.size,
-            durationMs,
-          },
-        );
-      }
-      // #endregion
-    });
-
-    return () => window.cancelAnimationFrame(raf);
-  }, [
-    dmlMarkerPosByLineId,
-    draftMarkerPosByLineId,
-    filteredMarkerById,
-    pendingDmlMarkerPosByLineId,
-    preferredDmlPosByLineId,
-    preferredDoublePosByLineId,
-    preferredLevelPosByLineId,
-    preferredRegionPosByLineId,
-    scaledRenderSvg,
-    visibleMarkerById,
-  ]);
-
-  useEffect(() => {
     visibleMarkerById.forEach((marks, id) => {
       if (typeof marks.regionNo === "number" && marks.regionTextNodeId) {
         pendingAutoRegionTextNodeIdsRef.current.delete(id);
-      }
-      if (typeof marks.levelNo === "number" && marks.levelTextNodeId) {
-        pendingAutoLevelTextNodeIdsRef.current.delete(id);
       }
       if (marks.dml && marks.dmlTextNodeId) {
         pendingAutoDmlTextNodeIdsRef.current.delete(id);
@@ -941,109 +797,36 @@ export default function HighNeedleSvgAnnotatorCanvas({
   }, [visibleMarkerById]);
 
   useEffect(() => {
-    const wrap = canvasWrapRef.current;
-    const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
-    if (!wrap || !svgRoot) return;
-
-    const wrapRect = wrap.getBoundingClientRect();
     visibleMarkerById.forEach((marks, id) => {
       if (typeof marks.regionNo !== "number" || marks.regionTextNodeId) return;
       if (pendingAutoRegionTextNodeIdsRef.current.has(id)) return;
 
-      const anchor = anchorById.get(id);
-      const pos =
-        draftMarkerPosByLineId.get(id) ??
-        preferredRegionPosByLineId.get(id) ??
-        (anchor
-          ? clientToSvgPoint(
-              svgRoot,
-              wrapRect.left + anchor.x,
-              wrapRect.top + anchor.y,
-            )
-          : null);
+      const pos = getRegionMarkerSvgPos(id);
       if (!pos) return;
 
       pendingAutoRegionTextNodeIdsRef.current.add(id);
       ensureRegionMarkerTextNode(id, pos);
     });
   }, [
-    anchorById,
-    draftMarkerPosByLineId,
     ensureRegionMarkerTextNode,
-    preferredRegionPosByLineId,
+    getRegionMarkerSvgPos,
     visibleMarkerById,
   ]);
 
   useEffect(() => {
-    const wrap = canvasWrapRef.current;
-    const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
-    if (!wrap || !svgRoot) return;
-
-    const wrapRect = wrap.getBoundingClientRect();
-    visibleMarkerById.forEach((marks, id) => {
-      if (typeof marks.levelNo !== "number" || marks.levelTextNodeId) return;
-      if (pendingAutoLevelTextNodeIdsRef.current.has(id)) return;
-
-      const anchor = anchorById.get(id);
-      const pos =
-        (step === "档位" ? draftMarkerPosByLineId.get(id) : null) ??
-        pendingLevelMarkerPosByLineId.get(id) ??
-        preferredLevelPosByLineId.get(id) ??
-        (anchor
-          ? clientToSvgPoint(
-              svgRoot,
-              wrapRect.left + anchor.x,
-              wrapRect.top + anchor.y,
-            )
-          : null);
-      if (!pos) return;
-
-      pendingAutoLevelTextNodeIdsRef.current.add(id);
-      ensureLevelMarkerTextNode(id, pos);
-    });
-  }, [
-    anchorById,
-    draftMarkerPosByLineId,
-    ensureLevelMarkerTextNode,
-    pendingLevelMarkerPosByLineId,
-    preferredLevelPosByLineId,
-    step,
-    visibleMarkerById,
-  ]);
-
-  useEffect(() => {
-    const wrap = canvasWrapRef.current;
-    const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
-    if (!wrap || !svgRoot) return;
-
-    const wrapRect = wrap.getBoundingClientRect();
     visibleMarkerById.forEach((marks, id) => {
       if (!marks.dml || marks.dmlTextNodeId) return;
       if (pendingAutoDmlTextNodeIdsRef.current.has(id)) return;
 
-      const anchor = anchorById.get(id);
-      const pos =
-        pendingDmlMarkerPosByLineId.get(id) ??
-        dmlMarkerPosByLineId.get(id) ??
-        preferredDmlPosByLineId.get(id) ??
-        (anchor
-          ? clientToSvgPoint(
-              svgRoot,
-              wrapRect.left + anchor.x,
-              wrapRect.top + anchor.y,
-            )
-          : null);
+      const pos = getDmlMarkerSvgPos(id);
       if (!pos) return;
 
       pendingAutoDmlTextNodeIdsRef.current.add(id);
       ensureDmlMarkerTextNode(id, pos);
     });
   }, [
-    anchorById,
-    dmlMarkerPosByLineId,
     ensureDmlMarkerTextNode,
-    pendingDmlMarkerPosByLineId,
-    preferredDmlPosByLineId,
+    getDmlMarkerSvgPos,
     visibleMarkerById,
   ]);
 
@@ -1326,7 +1109,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
             </button>
           </div>
           <span className="text-xs text-slate-400">
-            拖拽批量勾选 / Ctrl+滚轮缩放
+            拖拽批量勾选 / Alt+滚轮缩放
           </span>
         </div>
       </div>
@@ -1335,7 +1118,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
         ref={viewportRef}
         className={`mt-3 min-h-0 flex-1 select-none overflow-auto rounded-xl border border-slate-100 bg-white p-3 ${wrapExtraClass}`}
         onWheel={(e) => {
-          if (!e.ctrlKey) return;
+          if (!e.altKey) return;
           const viewport = viewportRef.current;
           if (!viewport) return;
 
@@ -1639,37 +1422,28 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
               return Array.from(filteredMarkerById.entries()).flatMap(
                 ([id, marks]) => {
-                  const fallbackPos = anchorById.get(id) ?? null;
                   const regionPos =
                     typeof marks.regionNo === "number"
                       ? toWrapPos(
-                          draftMarkerPosByLineId.get(id) ??
-                            preferredRegionPosByLineId.get(id) ??
+                          getRegionMarkerSvgPos(id) ??
                             null,
-                        ) ?? fallbackPos
+                        )
                       : null;
                   const levelPos =
                     typeof marks.levelNo === "number"
                       ? toWrapPos(
-                          (step === "档位"
-                            ? draftMarkerPosByLineId.get(id)
-                            : null) ??
-                            pendingLevelMarkerPosByLineId.get(id) ??
-                            preferredLevelPosByLineId.get(id) ??
+                          getLevelMarkerSvgPos(id) ??
                             null,
-                        ) ?? fallbackPos
+                        )
                       : null;
                   const dmlPos = marks.dml
                     ? toWrapPos(
-                        pendingDmlMarkerPosByLineId.get(id) ??
-                          dmlMarkerPosByLineId.get(id) ??
-                          preferredDmlPosByLineId.get(id) ??
+                        getDmlMarkerSvgPos(id) ??
                           null,
-                      ) ?? fallbackPos
+                      )
                     : null;
                   const doublePos = marks.isDouble
-                    ? toWrapPos(preferredDoublePosByLineId.get(id) ?? null) ??
-                      fallbackPos
+                    ? toWrapPos(getDoubleMarkerSvgPos(id) ?? null)
                     : null;
 
                   return [

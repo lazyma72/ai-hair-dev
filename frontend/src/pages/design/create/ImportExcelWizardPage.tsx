@@ -6,7 +6,10 @@ import { emptyFile } from "../../admin/add-file/defaults";
 import { createEmpty手织图 } from "../../../modules/highNeedleAnnotator/types";
 import { callApi } from "../../../api/callApi";
 import FileEditorPage from "../../../modules/fileDraft/FileEditorPage";
-import { toDbPayload } from "../../../shared/fileDraft/adapters/toDbPayload";
+import {
+  toDbPayload,
+  toPreviewDbFile,
+} from "../../../shared/fileDraft/adapters/toDbPayload";
 import type { FileDraftViewModel } from "../../../shared/fileDraft/model";
 import DocumentTabs from "../../../modules/fileDraft/DocumentTabs";
 import FileDraftDataSections from "../../../modules/fileDraft/FileDraftDataSections";
@@ -414,11 +417,11 @@ export default function ImportExcelWizardPage() {
           ) : null}
 
           {previewTab === "高针指示单" ? (
-            <高针指示单View data={to高针指示单Frontend(toDbPayload(draft))} />
+            <高针指示单View data={to高针指示单Frontend(toPreviewDbFile(draft))} />
           ) : null}
 
           {previewTab === "手织指示单" ? (
-            <手织指示单View data={to手织指示单Frontend(toDbPayload(draft))} />
+            <手织指示单View data={to手织指示单Frontend(toPreviewDbFile(draft))} />
           ) : null}
         </div>
       ) : null}

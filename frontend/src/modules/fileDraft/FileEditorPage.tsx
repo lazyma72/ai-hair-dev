@@ -17,7 +17,10 @@ import HandWovenSection from "../../pages/admin/add-file/sections/HandWovenSecti
 import HighNeedleSection from "../../pages/admin/add-file/sections/HighNeedleSection";
 import FileDraftDataSections from "./FileDraftDataSections";
 import DocumentTabs from "./DocumentTabs";
-import { toDbPayload } from "../../shared/fileDraft/adapters/toDbPayload";
+import {
+  toDbPayload,
+  toPreviewDbFile,
+} from "../../shared/fileDraft/adapters/toDbPayload";
 
 const MAX_CUT_WEIGHT_ITEMS = 3;
 const EDITOR_TABS = [
@@ -159,11 +162,11 @@ export default function FileEditorPage({
   }, [form]);
 
   const 高针数据 = useMemo(
-    () => (form ? to高针指示单Frontend(toDbPayload(form)) : null),
+    () => (form ? to高针指示单Frontend(toPreviewDbFile(form)) : null),
     [form],
   );
   const 手织数据 = useMemo(
-    () => (form ? to手织指示单Frontend(toDbPayload(form)) : null),
+    () => (form ? to手织指示单Frontend(toPreviewDbFile(form)) : null),
     [form],
   );
 
