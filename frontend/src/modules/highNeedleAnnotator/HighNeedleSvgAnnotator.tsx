@@ -47,7 +47,10 @@ export default function HighNeedleSvgAnnotator(props: Props) {
           previewValue={state.previewValue}
           canvasEpoch={state.canvasEpoch}
           preferredDmlPosByLineId={state.preferredDmlPosByLineId}
-          preferredMarkerPosByLineId={state.preferredMarkerPosByLineId}
+          preferredRegionPosByLineId={state.preferredRegionPosByLineId}
+          preferredLevelPosByLineId={state.preferredLevelPosByLineId}
+          preferredDoublePosByLineId={state.preferredDoublePosByLineId}
+          pendingLevelMarkerPosByLineId={state.pendingLevelMarkerPosByLineId}
           draftMarkerPosByLineId={state.draftMarkerPosByLineId}
           dmlMarkerPosByLineId={state.dmlMarkerPosByLineId}
           pendingDmlMarkerPosByLineId={state.pendingDmlMarkerPosByLineId}
@@ -63,7 +66,6 @@ export default function HighNeedleSvgAnnotator(props: Props) {
           ensureRegionMarkerTextNode={state.ensureRegionMarkerTextNode}
           ensureLevelMarkerTextNode={state.ensureLevelMarkerTextNode}
           ensureDmlMarkerTextNode={state.ensureDmlMarkerTextNode}
-          ensureDoubleMarkerTextNode={state.ensureDoubleMarkerTextNode}
           layerToggles={state.layerToggles}
           setLayerToggles={state.setLayerToggles}
           activeTextNodeId={activeTextNodeId}

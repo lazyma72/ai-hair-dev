@@ -62,9 +62,13 @@ export default async function (call: ApiCall<ReqAdd, ResAdd>) {
   }
 
   const col = Global.getCollection("沐茵丝假发成品稿")
-  const existing = await col.findOne({ 样品编号: normalizedFile.样品编号 })
+  const existing = await col.findOne({
+    样品编号: normalizedFile.样品编号,
+    "制品规格书.胶丝比例id.颜色编号": normalizedFile.制品规格书.胶丝比例id.颜色编号,
+    "制品规格书.胶丝比例id.发丝种类": normalizedFile.制品规格书.胶丝比例id.发丝种类,
+  })
   if (existing) {
-    return call.error("该样品编号已存在", { code: "DUPLICATE_ID" })
+    return call.error("该样品编号 + 胶丝比例已存在", { code: "DUPLICATE_ID" })
   }
 
   const fileToInsert = {

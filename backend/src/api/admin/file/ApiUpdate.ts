@@ -73,10 +73,12 @@ export default async function (call: ApiCall<ReqUpdate, ResUpdate>) {
 
   const duplicated = await col.findOne({
     样品编号: normalizedFile.样品编号,
+    "制品规格书.胶丝比例id.颜色编号": normalizedFile.制品规格书.胶丝比例id.颜色编号,
+    "制品规格书.胶丝比例id.发丝种类": normalizedFile.制品规格书.胶丝比例id.发丝种类,
     _id: { $ne: objectId },
   } as any)
   if (duplicated) {
-    return call.error("该样品编号已存在", { code: "DUPLICATE_ID" })
+    return call.error("该样品编号 + 胶丝比例已存在", { code: "DUPLICATE_ID" })
   }
 
   await col.replaceOne(

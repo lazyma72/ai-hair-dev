@@ -12,10 +12,11 @@ const WEIGHT_KEYS = [
   "双针",
   "美容",
   "制帽",
-  "高针",
   "手织",
+  "高针",
   "剪驳",
   "发网",
+  "完成",
 ] as const;
 
 export default function EngineeringWeightSection({ value, onChange }: Props) {

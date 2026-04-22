@@ -445,6 +445,8 @@ export default function useHighNeedleSvgAnnotator({
     Map<string, { configId: string; slotIndex: number }>
   >(new Map());
   const draftMarkerPosByLineIdRef = useRef<Map<string, SvgPoint>>(new Map());
+  const [pendingLevelMarkerPosByLineId, setPendingLevelMarkerPosByLineId] =
+    useState<Map<string, SvgPoint>>(() => new Map());
   const [draftLevelTextNodeIdByLineId, setDraftLevelTextNodeIdByLineId] =
     useState<Map<string, string>>(() => new Map());
   const pendingDmlMarkerPosByLineIdRef = useRef<Map<string, SvgPoint>>(
@@ -814,6 +816,36 @@ export default function useHighNeedleSvgAnnotator({
     [doubleTextNodeIdByLineId, existingSvgTextIdSet],
   );
 
+  const preferredRegionPosByLineId = useMemo(() => {
+    const map = new Map<string, SvgPoint>();
+    actualRegionTextNodeIdByLineId.forEach((textNodeId, lineId) => {
+      const pos = getSvgTextNodePosition(value.底图.svg, textNodeId);
+      if (!pos) return;
+      map.set(lineId, pos);
+    });
+    return map;
+  }, [actualRegionTextNodeIdByLineId, value.底图.svg]);
+
+  const preferredLevelPosByLineId = useMemo(() => {
+    const map = new Map<string, SvgPoint>();
+    effectiveLevelTextNodeIdByLineId.forEach((textNodeId, lineId) => {
+      const pos = getSvgTextNodePosition(value.底图.svg, textNodeId);
+      if (!pos) return;
+      map.set(lineId, pos);
+    });
+    return map;
+  }, [effectiveLevelTextNodeIdByLineId, value.底图.svg]);
+
+  const preferredDoublePosByLineId = useMemo(() => {
+    const map = new Map<string, SvgPoint>();
+    actualDoubleTextNodeIdByLineId.forEach((textNodeId, lineId) => {
+      const pos = getSvgTextNodePosition(value.底图.svg, textNodeId);
+      if (!pos) return;
+      map.set(lineId, pos);
+    });
+    return map;
+  }, [actualDoubleTextNodeIdByLineId, value.底图.svg]);
+
   const preferredMarkerPosByLineId = useMemo(() => {
     const map = new Map<string, SvgPoint>();
 
@@ -847,6 +879,39 @@ export default function useHighNeedleSvgAnnotator({
     effectiveLevelTextNodeIdByLineId,
     value.底图.svg,
   ]);
+
+  useEffect(() => {
+    const draftMap = draftMarkerPosByLineIdRef.current;
+    if (draftMap.size === 0) return;
+
+    let changed = false;
+    actualRegionTextNodeIdByLineId.forEach((_, lineId) => {
+      if (!draftMap.has(lineId)) return;
+      if (!preferredRegionPosByLineId.has(lineId)) return;
+      draftMap.delete(lineId);
+      changed = true;
+    });
+
+    if (changed) {
+      draftMarkerPosByLineIdRef.current = new Map(draftMap);
+    }
+  }, [actualRegionTextNodeIdByLineId, preferredRegionPosByLineId]);
+
+  useEffect(() => {
+    if (pendingLevelMarkerPosByLineId.size === 0) return;
+
+    let changed = false;
+    const next = new Map(pendingLevelMarkerPosByLineId);
+    pendingLevelMarkerPosByLineId.forEach((_, lineId) => {
+      if (!preferredLevelPosByLineId.has(lineId)) return;
+      next.delete(lineId);
+      changed = true;
+    });
+
+    if (changed) {
+      setPendingLevelMarkerPosByLineId(next);
+    }
+  }, [pendingLevelMarkerPosByLineId, preferredLevelPosByLineId]);
 
   const markerTextIdSet = useMemo(() => {
     const ids = new Set<string>();
@@ -2183,56 +2248,6 @@ export default function useHighNeedleSvgAnnotator({
     }
   }
 
-  function ensureDoubleMarkerTextNode(lineNodeId: string, pos: SvgPoint) {
-    if (!lineNodeId) return;
-
-    let addedTextId = "";
-
-    setValue((cur) => {
-      const index = cur.自定义数据.单双标注.findIndex(
-        (item) => item.lineNodeId === lineNodeId,
-      );
-      if (index < 0) return cur;
-
-      const prev = cur.自定义数据.单双标注[index];
-      if (!prev?.双数) return cur;
-      if (String(prev.textNodeId ?? "").trim()) return cur;
-
-      const result = upsertMarkerTextNode(cur.底图.svg, {
-        textNodeId: "",
-        createNodeId: allocLocalId("double_text"),
-        createWhenMissing: true,
-        text: "双",
-        pos,
-        fontStyle: getMarkerTextFontStyle("double"),
-      });
-      if (!result.textNodeId) return cur;
-
-      addedTextId = result.textNodeId;
-      const nextItems = [...cur.自定义数据.单双标注];
-      nextItems[index] = {
-        ...prev,
-        textNodeId: result.textNodeId,
-      };
-
-      return {
-        ...cur,
-        底图: {
-          ...cur.底图,
-          svg: result.svg,
-        },
-        自定义数据: {
-          ...cur.自定义数据,
-          单双标注: nextItems,
-        },
-      };
-    });
-
-    if (addedTextId) {
-      setAllTextIds((prev) => mergeTextIdList(prev, [addedTextId], []));
-    }
-  }
-
   function ensureRegionMarkerTextNode(lineNodeId: string, pos: SvgPoint) {
     if (!lineNodeId) return;
 
@@ -2257,9 +2272,30 @@ export default function useHighNeedleSvgAnnotator({
         (prevItem as typeof prevItem & { textNodeIds?: string[] })
           .textNodeIds?.[lineIndex] ?? "",
       ).trim();
-      if (existingTextNodeId) return cur;
-
       const regionNo = String(itemIndex + 1);
+      if (existingTextNodeId) {
+        // Ensure persisted marker text content stays correct (avoid showing raw ids like `region_text_*`).
+        let nextSvg = updateSvgTextNode(
+          cur.底图.svg,
+          existingTextNodeId,
+          regionNo,
+        );
+        nextSvg = setSvgTextNodeStyle(
+          nextSvg,
+          existingTextNodeId,
+          getMarkerTextFontStyle("region"),
+        );
+        nextSvg = setSvgTextNodePosition(nextSvg, existingTextNodeId, pos);
+        if (nextSvg === cur.底图.svg) return cur;
+        return {
+          ...cur,
+          底图: {
+            ...cur.底图,
+            svg: nextSvg,
+          },
+        };
+      }
+
       const result = upsertMarkerTextNode(cur.底图.svg, {
         textNodeId: "",
         createNodeId: allocLocalId("region_text"),
@@ -2394,6 +2430,7 @@ export default function useHighNeedleSvgAnnotator({
     autoDmlSlotByLineIdRef.current = new Map();
     dmlMarkerPosByLineIdRef.current = new Map();
     draftMarkerPosByLineIdRef.current = new Map();
+    setPendingLevelMarkerPosByLineId(new Map());
     setDraftLevelTextNodeIdByLineId(new Map());
     pendingDmlMarkerPosByLineIdRef.current = new Map();
 
@@ -2445,6 +2482,7 @@ export default function useHighNeedleSvgAnnotator({
     autoDmlManagedIdsRef.current = new Set();
     autoDmlSlotByLineIdRef.current = new Map();
     draftMarkerPosByLineIdRef.current = new Map();
+    setPendingLevelMarkerPosByLineId(new Map());
     setDraftLevelTextNodeIdByLineId(new Map());
     pendingDmlMarkerPosByLineIdRef.current = new Map();
 
@@ -2483,6 +2521,7 @@ export default function useHighNeedleSvgAnnotator({
     setDirty(true);
     setLevelNo(1);
     setDraftSelected([]);
+    setPendingLevelMarkerPosByLineId(new Map());
     setDraftLevelTextNodeIdByLineId(new Map());
     draftMarkerPosByLineIdRef.current = new Map();
     pendingDmlMarkerPosByLineIdRef.current = new Map();
@@ -2981,7 +3020,7 @@ export default function useHighNeedleSvgAnnotator({
       const newLines = selected.map((lineId, i) => {
         const markerPos =
           draftMarkerPosByLineIdRef.current.get(lineId) ??
-          preferredMarkerPosByLineId.get(lineId);
+          preferredRegionPosByLineId.get(lineId);
         const regionNo = String(startNoInSetter + i + 1);
         const result = upsertMarkerTextNode(nextSvg, {
           textNodeId: "",
@@ -3021,8 +3060,6 @@ export default function useHighNeedleSvgAnnotator({
     if (addedRegionTextIds.length > 0) {
       setAllTextIds((prev) => mergeTextIdList(prev, addedRegionTextIds, []));
     }
-
-    selected.forEach((id) => draftMarkerPosByLineIdRef.current.delete(id));
 
     if (gotoNextStage) {
       requestCanvasReset();
@@ -3075,7 +3112,7 @@ export default function useHighNeedleSvgAnnotator({
       const textNodeIds = selected.map((lineNodeId) => {
         const markerPos =
           draftMarkerPosByLineIdRef.current.get(lineNodeId) ??
-          preferredMarkerPosByLineId.get(lineNodeId);
+          preferredLevelPosByLineId.get(lineNodeId);
         const result = upsertMarkerTextNode(nextSvg, {
           textNodeId: draftLevelTextIds.get(lineNodeId) ?? "",
           createNodeId: allocLocalId("level_text"),
@@ -3109,6 +3146,15 @@ export default function useHighNeedleSvgAnnotator({
     if (addedTextIds.length > 0) {
       setAllTextIds((prev) => mergeTextIdList(prev, addedTextIds, []));
     }
+    setPendingLevelMarkerPosByLineId((prev) => {
+      const next = new Map(prev);
+      selected.forEach((lineNodeId) => {
+        const pos = draftMarkerPosByLineIdRef.current.get(lineNodeId);
+        if (!pos) return;
+        next.set(lineNodeId, pos);
+      });
+      return next;
+    });
     setDraftLevelTextNodeIdByLineId(new Map());
     setDraftSelected([]);
     selected.forEach((id) => draftMarkerPosByLineIdRef.current.delete(id));
@@ -3291,19 +3337,15 @@ export default function useHighNeedleSvgAnnotator({
         return;
       }
 
-      // Exclude DML and 单双 marker text nodes — they are working annotations
-      // that should not appear in the final SVG output.
-      const dmlAndDoubleTextIds = new Set<string>();
-      actualDmlTextNodeIdByLineId.forEach((id) => dmlAndDoubleTextIds.add(id));
-      actualDoubleTextNodeIdByLineId.forEach((id) =>
-        dmlAndDoubleTextIds.add(id),
-      );
+      // Exclude DML marker text nodes from the final SVG output.
+      // Double marker text should be kept as-is to preserve the user's
+      // manually confirmed position.
+      const dmlTextIds = new Set<string>();
+      actualDmlTextNodeIdByLineId.forEach((id) => dmlTextIds.add(id));
 
       const keepTextNodeIds = uniquePreserveOrder([
         ...Object.values(value.底图.文本节点).map((d) => d.textNodeId),
-        ...Array.from(markerTextIdSet).filter(
-          (id) => !dmlAndDoubleTextIds.has(id),
-        ),
+        ...Array.from(markerTextIdSet).filter((id) => !dmlTextIds.has(id)),
         ...(slotTextNodeId ? [slotTextNodeId] : []),
       ]);
 
@@ -3323,10 +3365,9 @@ export default function useHighNeedleSvgAnnotator({
         message.info("未选择自定义文本：已跳过文本清理");
       }
 
-      setStep("完成");
-      setProgress(5);
       setDraftSelected([]);
       setActiveTextKey("");
+      return;
     }
   }
 
@@ -3617,6 +3658,10 @@ export default function useHighNeedleSvgAnnotator({
     previewValue,
     visibleMarkerById,
     preferredDmlPosByLineId,
+    preferredRegionPosByLineId,
+    preferredLevelPosByLineId,
+    preferredDoublePosByLineId,
+    pendingLevelMarkerPosByLineId,
     preferredMarkerPosByLineId,
     draftMarkerPosByLineId: draftMarkerPosByLineIdRef.current,
     dmlMarkerPosByLineId: dmlMarkerPosByLineIdRef.current,
@@ -3644,7 +3689,6 @@ export default function useHighNeedleSvgAnnotator({
     ensureRegionMarkerTextNode,
     ensureLevelMarkerTextNode,
     ensureDmlMarkerTextNode,
-    ensureDoubleMarkerTextNode,
     clearRegionStage,
     clearLevelStage,
     clearDmlStage,

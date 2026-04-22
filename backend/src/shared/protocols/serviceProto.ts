@@ -114,7 +114,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 24,
+    "version": 26,
     "services": [
         {
             "id": 9,
@@ -403,10 +403,20 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "file",
                     "type": {
                         "type": "Reference",
-                        "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿"
+                        "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿提交"
                     }
                 }
             ]
+        },
+        "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿提交": {
+            "target": {
+                "type": "Reference",
+                "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿"
+            },
+            "keys": [
+                "_id"
+            ],
+            "type": "Omit"
         },
         "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿": {
             "type": "Interface",
@@ -1466,6 +1476,23 @@ export const serviceProto: ServiceProto<ServiceType> = {
                             {
                                 "id": 8,
                                 "name": "发网",
+                                "type": {
+                                    "type": "Interface",
+                                    "properties": [
+                                        {
+                                            "id": 0,
+                                            "name": "加减",
+                                            "type": {
+                                                "type": "Number"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "optional": true
+                            },
+                            {
+                                "id": 9,
+                                "name": "完成",
                                 "type": {
                                     "type": "Interface",
                                     "properties": [
@@ -3439,6 +3466,22 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "type": {
                         "type": "String"
                     }
+                },
+                {
+                    "id": 8,
+                    "name": "颜色编号",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 9,
+                    "name": "发丝种类",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
                 }
             ]
         },
@@ -3466,7 +3509,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "file",
                     "type": {
                         "type": "Reference",
-                        "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿"
+                        "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿提交"
                     }
                 }
             ]
@@ -3846,6 +3889,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 1,
                     "name": "胶丝比例总数",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "客户总数",
                     "type": {
                         "type": "Number"
                     }

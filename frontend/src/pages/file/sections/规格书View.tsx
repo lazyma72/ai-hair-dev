@@ -200,28 +200,24 @@ export default function 规格书View({ data }: Props) {
             <span>重量</span>
           </div>
           {(
-            Object.entries(工程重量) as [
-              string,
-              { 加减: number; 数值: number } | string,
-            ][]
-          )
-            .filter(([k]) => k !== "重量")
-            .map(([k, v]) => {
-              if (typeof v === "string") return null;
-              return (
-                <div
-                  key={k}
-                  className="grid grid-cols-[7rem_6rem_1fr] gap-2 px-4 py-2 text-xs"
-                >
-                  <span className="text-slate-400">{k}</span>
-                  <span className="text-slate-900">
-                    {v.加减 >= 0 ? "+" : ""}
-                    {v.加减}
-                  </span>
-                  <span className="text-slate-900">{v.数值}g</span>
-                </div>
-              );
-            })}
+            ["整毛", "双针", "美容", "制帽", "手织", "高针", "剪驳", "发网"] as const
+          ).map((k) => {
+            const v = (工程重量 as any)[k];
+            if (!v || typeof v === "string") return null;
+            return (
+              <div
+                key={k}
+                className="grid grid-cols-[7rem_6rem_1fr] gap-2 px-4 py-2 text-xs"
+              >
+                <span className="text-slate-400">{k}</span>
+                <span className="text-slate-900">
+                  {v.加减 >= 0 ? "+" : ""}
+                  {v.加减}
+                </span>
+                <span className="text-slate-900">{v.数值}g</span>
+              </div>
+            );
+          })}
         </div>
         <div className="flex items-center justify-between bg-slate-900 px-5 py-2.5 text-xs text-white">
           <span className="text-slate-300">合计重量</span>

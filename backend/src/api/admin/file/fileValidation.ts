@@ -1,5 +1,8 @@
 import { z } from "zod"
-import { 假发类型, type 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿"
+import {
+  假发类型,
+  type 沐茵丝假发成品稿提交,
+} from "../../../shared/db/Db沐茵丝假发成品稿"
 
 const MAX_CUT_WEIGHT_ITEMS = 3
 const DML_DECIMAL_SCALE = 10
@@ -226,7 +229,7 @@ export const ErrorCodeByMessage: Record<string, string> = {
   DML比值最多1位小数: "INVALID_DML",
 }
 
-export function validateFileInput(file: 沐茵丝假发成品稿) {
+export function validateFileInput(file: 沐茵丝假发成品稿提交) {
   const parsed = FileSchema.safeParse(file)
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? "参数校验失败"
@@ -239,6 +242,6 @@ export function validateFileInput(file: 沐茵丝假发成品稿) {
 
   return {
     ok: true as const,
-    file: parsed.data as unknown as 沐茵丝假发成品稿,
+    file: parsed.data as unknown as 沐茵丝假发成品稿提交,
   }
 }

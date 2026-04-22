@@ -55,7 +55,16 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
     col.countDocuments(mongoFilter),
     col
       .find(mongoFilter, {
-        projection: { _id: 1, 样品编号: 1, 客户编号: 1, 品名: 1, 原材料: 1, 假发类型: 1, CAP: 1 },
+        projection: {
+          _id: 1,
+          样品编号: 1,
+          客户编号: 1,
+          品名: 1,
+          原材料: 1,
+          假发类型: 1,
+          CAP: 1,
+          "制品规格书.胶丝比例id": 1,
+        },
       })
       .sort(sort)
       .skip((pageNum - 1) * pageSize)
@@ -72,6 +81,8 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
       原材料: doc.原材料,
       假发类型: doc.假发类型,
       CAP: doc.CAP,
+      颜色编号: doc.制品规格书?.胶丝比例id?.颜色编号,
+      发丝种类: doc.制品规格书?.胶丝比例id?.发丝种类,
     })),
     total,
     pageNum,

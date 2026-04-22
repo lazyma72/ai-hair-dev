@@ -254,7 +254,9 @@ export default function ImportExcelWizardPage() {
           </>
         }
         onDraftChange={setDraft}
+        
         onSubmit={async (form) => {
+          
           const r = await callApi("admin/file/Add", {
             file: toDbPayload(form),
           });

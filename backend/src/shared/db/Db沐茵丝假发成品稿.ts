@@ -36,6 +36,8 @@ export interface 沐茵丝假发成品稿 {
   头型图片: string[]
 }
 
+export type 沐茵丝假发成品稿提交 = Omit<沐茵丝假发成品稿, "_id">
+
 export interface 手织指示单 {
   手织图: 手织图
   注意事项: string // 例如: "手织 :1.手织后帽子不能变形。"
@@ -148,6 +150,7 @@ export interface 制品规格书 {
     高针?: { 加减: number }
     剪驳?: { 加减: number }
     发网?: { 加减: number }
+    完成?: { 加减: number }
 
     // 完成和重量通过计算得到
     // 完成: { 损耗?: number; 数值?: number }

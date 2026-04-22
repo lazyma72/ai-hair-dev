@@ -16,6 +16,10 @@ export default function EditFilePage() {
   const { data, loading, error } = useApi(() =>
     callApi("admin/file/GetDetail", { id: id! }),
   );
+    console.log("route id =", id);
+  console.log("loading =", loading);
+  console.log("error =", error);
+  console.log("data =", data);
 
   useEffect(() => {
     const rawFile = (data as { rawFile?: 沐茵丝假发成品稿 } | undefined)?.rawFile;
@@ -32,7 +36,7 @@ export default function EditFilePage() {
       error={error}
       submitLabel="保存修改"
       submittingLabel="更新中…"
-      onBack={() => navigate(id ? `/file/${id}` : "/admin/files")}
+      onBack={() => navigate(id ? `/file/${id}` : "/designs")}
       onSubmit={async (nextForm) => {
         if (!id) {
           throw new Error("缺少稿件编号");

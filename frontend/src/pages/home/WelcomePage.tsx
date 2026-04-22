@@ -3,6 +3,9 @@ import { callApi } from "../../api/callApi";
 import { getAuthUserProfile, isLoggedIn } from "../../auth";
 import PageShell from "../../components/PageShell";
 import { useApi } from "../../hooks/useApi";
+import type { ResGetPreview } from "../../shared/protocols/admin/PtlGetPreview";
+
+type ResGetPreviewWithCustomerCount = ResGetPreview & { 客户总数: number };
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -45,7 +48,12 @@ export default function WelcomePage() {
     ? getAuthUserProfile()?.name || getAuthUserProfile()?.username || "已登录用户"
     : "访客";
 
-  const { data, loading, error } = useApi(() => callApi("admin/GetPreview", {}));
+  const { data, loading, error } = useApi<ResGetPreviewWithCustomerCount>(() =>
+    callApi("admin/GetPreview", {}) as Promise<
+      | { isSucc: true; res: ResGetPreviewWithCustomerCount }
+      | { isSucc: false; err: { message: string } }
+    >,
+  );
   const statValue = (n: number | undefined) =>
     loading ? "加载中…" : error ? "—" : String(n ?? 0);
 
@@ -62,10 +70,11 @@ export default function WelcomePage() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <StatCard label="设计稿总数" value={statValue(data?.设计稿总数)} />
         <StatCard label="制帽总数" value={statValue(data?.制帽总数)} />
         <StatCard label="胶丝比例总数" value={statValue(data?.胶丝比例总数)} />
+        <StatCard label="客户总数" value={statValue(data?.客户总数)} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
@@ -95,9 +104,9 @@ export default function WelcomePage() {
           to="/users"
         />
         <ActionCard
-          title="测试页面"
-          desc="原有页面集中入口，方便验收与复用组件"
-          to="/test"
+          title="高针标注 Demo"
+          desc="高针图标注工具演示入口"
+          to="/test/high-needle-annotator"
         />
       </div>
     </PageShell>

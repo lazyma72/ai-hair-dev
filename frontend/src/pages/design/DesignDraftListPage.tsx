@@ -30,7 +30,7 @@ export default function DesignDraftListPage() {
     return list.filter((x) =>
       !kw
         ? true
-        : `${x._id} ${x.客户编号} ${x.品名} ${x.CAP}`
+        : `${x.样品编号} ${x._id} ${x.客户编号} ${x.品名} ${x.CAP} ${x.颜色编号 ?? ""} ${x.发丝种类 ?? ""}`
             .toLowerCase()
             .includes(kw.toLowerCase()),
     );
@@ -123,12 +123,14 @@ export default function DesignDraftListPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold text-slate-900">
-                      样品编号：{item._id}
+                      样品编号：{item.样品编号}
                     </div>
                     <div className="mt-1 space-y-0.5 text-xs text-slate-500">
                       <div>假发类型：{item.假发类型}</div>
                       <div>品名：{item.品名}</div>
                       <div>原材料：{item.原材料 || "—"}</div>
+                      <div>颜色编号：{item.颜色编号 || "—"}</div>
+                      <div>发丝种类：{item.发丝种类 || "—"}</div>
                     </div>
                   </div>
                   <Badge>{item.客户编号}</Badge>

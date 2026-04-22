@@ -280,7 +280,17 @@ function getMachineActiveWeightKeys(
     if (splitFlags?.hasL) keys.push("L");
     return keys;
   }
-  return ["D"];
+  // 纯色只允许 D
+  if (type === 假发类型.纯色) return ["D"];
+  // 对于其他类型，根据实际数据判断是否有 M/L
+  const keys: DMLKey[] = ["D"];
+  const hasM =
+    row.双针.尺数.M != null || row.裁断与重量.some((item) => item.重量g?.M != null);
+  const hasL =
+    row.双针.尺数.L != null || row.裁断与重量.some((item) => item.重量g?.L != null);
+  if (hasM) keys.push("M");
+  if (hasL) keys.push("L");
+  return keys;
 }
 
 function getManualActiveWeightKeys(
@@ -295,11 +305,14 @@ function getManualActiveWeightKeys(
     if (splitFlags?.hasL) keys.push("L");
     return keys;
   }
+  // 纯色只允许 D
   if (type === 假发类型.纯色) return ["D"];
-
+  // 对于其他类型，根据实际数据判断是否有 M/L
   const keys: DMLKey[] = ["D"];
-  if (row.裁断与重量.some((item) => item.重量g?.M != null)) keys.push("M");
-  if (row.裁断与重量.some((item) => item.重量g?.L != null)) keys.push("L");
+  const hasM = row.裁断与重量.some((item) => item.重量g?.M != null);
+  const hasL = row.裁断与重量.some((item) => item.重量g?.L != null);
+  if (hasM) keys.push("M");
+  if (hasL) keys.push("L");
   return keys;
 }
 
@@ -412,8 +425,25 @@ function syncMachineWeights(
   };
 }
 
-export function ExcelStyleMachineTable({ rows }: { rows: MachineRow[] }) {
-  return <ExcelStyleMachineTableInner rows={rows} />;
+export function ExcelStyleMachineTable({
+  rows,
+  假发类型,
+  hasGlobalM,
+  hasGlobalL,
+}: {
+  rows: MachineRow[];
+  假发类型?: 假发类型;
+  hasGlobalM?: boolean;
+  hasGlobalL?: boolean;
+}) {
+  return (
+    <ExcelStyleMachineTableInner
+      rows={rows}
+      假发类型={假发类型}
+      hasGlobalM={hasGlobalM}
+      hasGlobalL={hasGlobalL}
+    />
+  );
 }
 
 function ExcelStyleMachineTableInner({
@@ -439,13 +469,23 @@ function ExcelStyleMachineTableInner({
   const showWeightM =
     type === 假发类型.上下分
       ? hasGlobalM
-      : rows.some((row) => getMachineActiveWeightKeys(row, type).includes("M"));
+      : rows.some((row) =>
+          getMachineActiveWeightKeys(row, type, { hasM: true, hasL: true }).includes("M"),
+        );
   const showWeightL =
     type === 假发类型.上下分
       ? hasGlobalL
-      : rows.some((row) => getMachineActiveWeightKeys(row, type).includes("L"));
-  const show尺数M = type === 假发类型.上下分 && hasGlobalM;
-  const show尺数L = type === 假发类型.上下分 && hasGlobalL;
+      : rows.some((row) =>
+          getMachineActiveWeightKeys(row, type, { hasM: true, hasL: true }).includes("L"),
+        );
+  const show尺数M =
+    type === 假发类型.上下分
+      ? (hasGlobalM ?? rows.some((row) => row.双针.尺数.M != null))
+      : rows.some((row) => row.双针.尺数.M != null);
+  const show尺数L =
+    type === 假发类型.上下分
+      ? (hasGlobalL ?? rows.some((row) => row.双针.尺数.L != null))
+      : rows.some((row) => row.双针.尺数.L != null);
   const hasAny对裁 = rows.some((row) => row.整毛.对裁 != null);
   const show对裁 = editable || hasAny对裁;
   const show间色比例列 = editable && type === 假发类型.间色;
@@ -1141,8 +1181,25 @@ function ExcelStyleMachineTableInner({
   );
 }
 
-export function ExcelStyleManualTable({ rows }: { rows: ManualRow[] }) {
-  return <ExcelStyleManualTableInner rows={rows} />;
+export function ExcelStyleManualTable({
+  rows,
+  假发类型,
+  hasGlobalM,
+  hasGlobalL,
+}: {
+  rows: ManualRow[];
+  假发类型?: 假发类型;
+  hasGlobalM?: boolean;
+  hasGlobalL?: boolean;
+}) {
+  return (
+    <ExcelStyleManualTableInner
+      rows={rows}
+      假发类型={假发类型}
+      hasGlobalM={hasGlobalM}
+      hasGlobalL={hasGlobalL}
+    />
+  );
 }
 
 type 可编辑人工档位 = ManualRow & {
@@ -1167,18 +1224,18 @@ function ExcelStyleManualTableInner({
   hasGlobalL?: boolean;
 }) {
   const editableRows = rows as 可编辑人工档位[];
-  const showWeightM = editableRows.some((row) =>
-    getManualActiveWeightKeys(row, type, {
-      hasM: hasGlobalM,
-      hasL: hasGlobalL,
-    }).includes("M"),
-  );
-  const showWeightL = editableRows.some((row) =>
-    getManualActiveWeightKeys(row, type, {
-      hasM: hasGlobalM,
-      hasL: hasGlobalL,
-    }).includes("L"),
-  );
+  const showWeightM =
+    type === 假发类型.上下分
+      ? hasGlobalM
+      : editableRows.some((row) =>
+          getManualActiveWeightKeys(row, type, { hasM: true, hasL: true }).includes("M"),
+        );
+  const showWeightL =
+    type === 假发类型.上下分
+      ? hasGlobalL
+      : editableRows.some((row) =>
+          getManualActiveWeightKeys(row, type, { hasM: true, hasL: true }).includes("L"),
+        );
   const hasAny对裁 = rows.some((row) => row.整毛.对裁 != null);
   const show对裁 = editable || hasAny对裁;
   const hasAny磅发 = rows.some((row) => row.双针.磅发 != null);

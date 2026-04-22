@@ -4,8 +4,6 @@ type Props = {
   step: StepKey;
   enableDml?: boolean;
   enableDouble?: boolean;
-  /** 是否可进入完成态（用于禁用“完成”tab） */
-  canEnterDone?: boolean;
   onSelect: (step: StepKey) => void;
 };
 
@@ -15,14 +13,12 @@ const STEP_TAB_LIST: Array<{ key: StepKey; label: string }> = [
   { key: "DML", label: "3 DML" },
   { key: "单双", label: "4 单双" },
   { key: "自定义文本", label: "5 文本" },
-  { key: "完成", label: "完成" },
 ];
 
 export default function HighNeedleStepTabs({
   step,
   enableDml,
   enableDouble,
-  canEnterDone,
   onSelect,
 }: Props) {
   return (
@@ -31,8 +27,7 @@ export default function HighNeedleStepTabs({
         const active = step === s.key;
         const disabled =
           (s.key === "DML" && !enableDml) ||
-          (s.key === "单双" && !enableDouble) ||
-          (s.key === "完成" && canEnterDone === false);
+          (s.key === "单双" && !enableDouble);
 
         return (
           <button

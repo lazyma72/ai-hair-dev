@@ -9,7 +9,13 @@ import {
   type 染色档位,
   type 沐茵丝假发成品稿,
 } from "../../../shared/db/Db沐茵丝假发成品稿"
-import type { DML规则命令, DML规则命令列表 } from "../../../shared/models/DML规则"
+import type {
+  DML按档位标记命令,
+  DML区域百分比命令,
+  DML值,
+  DML规则命令,
+  DML规则命令列表,
+} from "../../../shared/models/DML规则"
 import {
   recalc人工规格清单D重量,
   recalc人工规格清单上下分重量,
@@ -20,6 +26,7 @@ import {
 } from "../../../shared/models/重量计算"
 import { Logger } from "tsrpc"
 import { ObjectId } from "mongodb"
+import type { 高针图 } from "../../../shared/models/高针图"
 type GraphLike = {
   底图: {
     区域名: string[]
@@ -222,6 +229,230 @@ function normalizeLevelName(name: string): string {
     .trim()
     .replace(/档$/u, "")
     .trim()
+}
+
+function normalizePattern(raw: string): string {
+  return String(raw ?? "")
+    .toUpperCase()
+    .split("")
+    .filter(ch => ch === "D" || ch === "M" || ch === "L")
+    .join("")
+}
+
+function clampRatio(value: unknown): number {
+  const num = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(num)) return 0
+  return Math.min(1, Math.max(0, num))
+}
+
+function isDmlBoundaryIncluded(value: number, start: number, end: number): boolean {
+  const rangeStart = Math.min(start, end)
+  const rangeEnd = Math.max(start, end)
+  if (rangeEnd >= 1) {
+    return value >= rangeStart && value <= rangeEnd
+  }
+  return value >= rangeStart && value < rangeEnd
+}
+
+function isValidDmlValue(v: unknown): v is DML值 {
+  return v === "D" || v === "M" || v === "L"
+}
+
+type OrderedRegionLine = {
+  lineNodeId: string
+  区域名: string
+  区域内位置占比: number
+  sourceIndex: number
+  subIndex: number
+}
+
+function collectOrderedRegionLines(data: GraphLike): Map<string, OrderedRegionLine[]> {
+  const byRegion = new Map<string, OrderedRegionLine[]>()
+  ;(data.底图.区域线条 ?? []).forEach((item, itemIndex) => {
+    ;(item.lineNodeIds ?? []).forEach((lineNodeId, subIndex) => {
+      if (!lineNodeId) return
+      const list = byRegion.get(item.区域名) ?? []
+      list.push({
+        lineNodeId,
+        区域名: item.区域名,
+        区域内位置占比: clampRatio(item.区域内位置占比),
+        sourceIndex: itemIndex,
+        subIndex,
+      })
+      byRegion.set(item.区域名, list)
+    })
+  })
+
+  byRegion.forEach(list => {
+    list.sort((a, b) => {
+      const ratioDiff = a.区域内位置占比 - b.区域内位置占比
+      if (ratioDiff !== 0) return ratioDiff
+      const sourceDiff = a.sourceIndex - b.sourceIndex
+      if (sourceDiff !== 0) return sourceDiff
+      return a.subIndex - b.subIndex
+    })
+  })
+
+  return byRegion
+}
+
+function collectLevelLineIds(data: GraphLike): Map<string, string[]> {
+  return new Map(
+    (data.底图.档位标注 ?? []).map(item => [
+      normalizeLevelName(item.区域名),
+      (item.lineNodeIds ?? []).map(x => String(x ?? "").trim()).filter(Boolean),
+    ])
+  )
+}
+
+function collectRegionCommandTargets(
+  command: DML区域百分比命令,
+  byRegion: Map<string, OrderedRegionLine[]>
+): string[] {
+  if ((command.lineNodeIds ?? []).length > 0) {
+    return (command.lineNodeIds ?? []).filter(Boolean)
+  }
+  return (command.区域百分比 ?? []).flatMap(segment => {
+    const start = clampRatio(segment.开始位置)
+    const end = clampRatio(segment.结束位置)
+    const list = byRegion.get(segment.区域) ?? []
+    return list
+      .filter(item => isDmlBoundaryIncluded(item.区域内位置占比, start, end))
+      .map(item => item.lineNodeId)
+  })
+}
+
+function collectLevelCommandTargets(
+  command: DML按档位标记命令,
+  byLevel: Map<string, string[]>
+): string[] {
+  if ((command.lineNodeIds ?? []).length > 0) {
+    return (command.lineNodeIds ?? []).filter(Boolean)
+  }
+  return (command.档位 ?? []).flatMap(segment => {
+    const list = byLevel.get(normalizeLevelName(segment.档位名称)) ?? []
+    if (list.length === 0) return []
+    const start = clampRatio(segment.开始位置)
+    const end = clampRatio(segment.结束位置)
+    return list.filter((_, index) => {
+      const ratio = list.length <= 1 ? 0 : index / (list.length - 1)
+      return isDmlBoundaryIncluded(ratio, start, end)
+    })
+  })
+}
+
+function compileDmlAssignments(data: GraphLike): Map<string, DML值> {
+  const assignments = new Map<string, DML值>()
+  const rules = (data as any)?.自定义数据?.DML规则命令列表 ?? []
+  const byRegion = collectOrderedRegionLines(data)
+  const byLevel = collectLevelLineIds(data)
+
+  for (const command of rules as DML规则命令[]) {
+    if (!command) continue
+    if (command.type === "区域百分比") {
+      const pattern = normalizePattern((command as any).规律)
+      if (!pattern) continue
+      const targets = collectRegionCommandTargets(command as DML区域百分比命令, byRegion)
+      targets.forEach((lineNodeId: string, slotIndex: number) => {
+        const v = pattern[slotIndex % pattern.length] as DML值
+        assignments.set(lineNodeId, v)
+      })
+      continue
+    }
+    if (command.type === "按档位标记") {
+      const pattern = normalizePattern((command as any).规律)
+      if (!pattern) continue
+      const targets = collectLevelCommandTargets(command as DML按档位标记命令, byLevel)
+      targets.forEach((lineNodeId: string, slotIndex: number) => {
+        const v = pattern[slotIndex % pattern.length] as DML值
+        assignments.set(lineNodeId, v)
+      })
+      continue
+    }
+    if ((command as any).type === "特殊标记") {
+      if (!isValidDmlValue((command as any).规律)) continue
+      const v = (command as any).规律 as DML值
+      ;(((command as any).lineNodeIds ?? []) as string[]).forEach(id => {
+        const nid = String(id ?? "").trim()
+        if (nid) assignments.set(nid, v)
+      })
+    }
+  }
+  return assignments
+}
+
+type LineMeta = { lineKey: number; lineLength: number; nodeIds: string[] }
+
+function buildLineMetaMaps(graph: 高针图): {
+  nodeIdToMeta: Map<string, LineMeta>
+} {
+  const nodeIdToMeta = new Map<string, LineMeta>()
+  ;(graph.底图.区域线条 ?? []).forEach((line, idx) => {
+    const nodeIds = (line.lineNodeIds ?? []).map(x => String(x ?? "").trim()).filter(Boolean)
+    const meta: LineMeta = {
+      lineKey: idx,
+      lineLength: typeof line.lineLength === "number" ? line.lineLength : 0,
+      nodeIds,
+    }
+    nodeIds.forEach(id => nodeIdToMeta.set(id, meta))
+  })
+  return { nodeIdToMeta }
+}
+
+function buildDoubleLineKeySet(graph: 高针图, nodeIdToMeta: Map<string, LineMeta>): Set<number> {
+  const out = new Set<number>()
+  ;(graph.自定义数据?.单双标注 ?? []).forEach(item => {
+    if (!item?.双数) return
+    const meta = nodeIdToMeta.get(String(item.lineNodeId ?? "").trim())
+    if (meta) out.add(meta.lineKey)
+  })
+  return out
+}
+
+function computeSlot尺数ByDmlFromHighNeedleGraph(
+  graph: 高针图,
+  slotName: string
+): { D: number; M?: number; L?: number } {
+  const slot = normalizeLevelName(slotName)
+  const dmlMap = compileDmlAssignments(graph as unknown as GraphLike)
+  const { nodeIdToMeta } = buildLineMetaMaps(graph)
+  const doubleLineKeySet = buildDoubleLineKeySet(graph, nodeIdToMeta)
+
+  const selectedNodeIds = (graph.底图.档位标注 ?? [])
+    .filter(d => normalizeLevelName(d.区域名) === slot)
+    .flatMap(d => d.lineNodeIds ?? [])
+    .map(x => String(x ?? "").trim())
+    .filter(Boolean)
+
+  const usedLineKeys = new Set<number>()
+  const sum = { D: 0, M: 0, L: 0 }
+  for (const nodeId of selectedNodeIds) {
+    const meta = nodeIdToMeta.get(nodeId)
+    if (!meta) continue
+    if (usedLineKeys.has(meta.lineKey)) continue
+    usedLineKeys.add(meta.lineKey)
+
+    // same physical line can have multiple svg node ids; use the first assigned dml value, default D
+    let v: DML值 = "D"
+    for (const nid of meta.nodeIds) {
+      const hit = dmlMap.get(nid)
+      if (hit) {
+        v = hit
+        break
+      }
+    }
+
+    const multiplier = doubleLineKeySet.has(meta.lineKey) ? 2 : 1
+    const len = meta.lineLength * multiplier
+    if (v === "M") sum.M += len
+    else if (v === "L") sum.L += len
+    else sum.D += len
+  }
+
+  const out: { D: number; M?: number; L?: number } = { D: sum.D }
+  if (sum.M > 0) out.M = sum.M
+  if (sum.L > 0) out.L = sum.L
+  return out
 }
 
 /**
@@ -466,12 +697,42 @@ function buildBaseFileC(
   // 通用规则：基础沿用 A，胶丝比例沿用 B
   return {
     ...fileA,
+    假发类型: fileB.假发类型,
     染色档位列表: mapDyeLevelsFromBToA(fileA, fileB, logger),
     制品规格书: {
       ...fileA.制品规格书,
       胶丝比例id: fileB.制品规格书.胶丝比例id,
     },
   }
+}
+
+/**
+ * 将机器规格清单规范化为“只保留 D 尺数”的形态。
+ *
+ * 用途：
+ * - 在 GenerateByAB 中，C 的底稿来自 A，但 C 的类型会跟随 B 变化。
+ * - 当目标类型为「纯色/间色」时，需要先清掉 A 里可能残留的 M/L 尺数与 DML比值，
+ *   否则会导致后续计算/展示误判存在 M/L。
+ *
+ * 处理规则：
+ * - 删除每个档位行的 `DML比值`
+ * - 将 `双针.尺数` 收敛为 `{ D }`（丢弃 `M/L`）
+ */
+function strip机器规格清单到单D尺数(
+  rows: 沐茵丝假发成品稿["制品规格书"]["机器规格清单"]
+): 沐茵丝假发成品稿["制品规格书"]["机器规格清单"] {
+  return rows.map(row => {
+    const { DML比值: _omit, ...rest } = row
+    return {
+      ...rest,
+      双针: {
+        ...rest.双针,
+        尺数: {
+          D: rest.双针.尺数.D,
+        },
+      },
+    }
+  })
 }
 
 /**
@@ -484,11 +745,12 @@ function applyRulesByBColor(
   logger: Logger
 ): 沐茵丝假发成品稿 {
   const fileC = buildBaseFileC(fileA, fileB, logger)
+  const normalized机器规格清单 = strip机器规格清单到单D尺数(fileC.制品规格书.机器规格清单)
   return {
     ...fileC,
     制品规格书: {
       ...fileC.制品规格书,
-      机器规格清单: recalc机器规格清单D重量(fileC.制品规格书.机器规格清单),
+      机器规格清单: recalc机器规格清单D重量(normalized机器规格清单),
       人工规格清单: recalc人工规格清单D重量(fileC.制品规格书.人工规格清单),
     },
   }
@@ -512,18 +774,30 @@ function pickB间色比值(fileB: 沐茵丝假发成品稿): { D: number; M?: nu
 }
 
 /**
- * 提取 B 的“上下分标记”。
- * - 通过机器规格清单是否存在 M/L 尺数来判断 C 是否需要计算 M/L 重量
+ * 获取 B 的“间色比例”（按档位行）。
+ *
+ * 业务约定：
+ * - 间色比例是“每个档位一份”，存放在 `制品规格书.机器规格清单[i].DML比值`
+ * - M/L 是否存在，以该档位的比例字段是否存在为准（M/L 缺失则该档位不计算对应重量）
+ *
+ * 兜底策略：
+ * - 若 B 没有对应行或对应行未填写 DML比值，则回退到 pickB间色比值() 的全局兜底值
  */
-function pickB上下分标记(fileB: 沐茵丝假发成品稿): { hasM: boolean; hasL: boolean } {
-  const hasM = fileB.制品规格书.机器规格清单.some(row => row.双针.尺数.M != null)
-  const hasL = fileB.制品规格书.机器规格清单.some(row => row.双针.尺数.L != null)
-  return { hasM, hasL }
+function pickB间色比值ByIndex(
+  fileB: 沐茵丝假发成品稿,
+  index: number
+): { D: number; M?: number; L?: number } {
+  const rows = fileB.制品规格书.机器规格清单
+  const dml = rows?.[index]?.DML比值
+  if (dml) return { D: dml.D, M: dml.M, L: dml.L }
+  return pickB间色比值(fileB)
 }
 
 /**
- * B=间色：C 以 A 为基础，按 B 的 D/M/L 比值重算 DML 重量（机器/人工）。
- * - DML 比值写入机器规格清单的 DML比值 字段
+ * B=间色：C 以 A 为基础，按 B 的“每档位 D/M/L 比值”分别重算 DML 重量（机器/人工）。
+ * - 每个档位使用 B 对应档位的 DML比值
+ * - M/L 是否存在，以该档位比例是否存在为准
+ * - 机器规格清单会写入对应档位的 DML比值 字段
  */
 function applyRulesByBHighlight(
   fileA: 沐茵丝假发成品稿,
@@ -531,13 +805,19 @@ function applyRulesByBHighlight(
   logger: Logger
 ): 沐茵丝假发成品稿 {
   const fileC = buildBaseFileC(fileA, fileB, logger)
-  const ratio = pickB间色比值(fileB)
+  const normalized机器规格清单 = strip机器规格清单到单D尺数(fileC.制品规格书.机器规格清单)
+  const next机器规格清单 = normalized机器规格清单.map(
+    (row, idx) => recalc机器规格清单按比例DML重量([row], pickB间色比值ByIndex(fileB, idx))[0]
+  )
+  const next人工规格清单 = fileC.制品规格书.人工规格清单.map(
+    (row, idx) => recalc人工规格清单按比例DML重量([row], pickB间色比值ByIndex(fileB, idx))[0]
+  )
   return {
     ...fileC,
     制品规格书: {
       ...fileC.制品规格书,
-      机器规格清单: recalc机器规格清单按比例DML重量(fileC.制品规格书.机器规格清单, ratio),
-      人工规格清单: recalc人工规格清单按比例DML重量(fileC.制品规格书.人工规格清单, ratio),
+      机器规格清单: next机器规格清单,
+      人工规格清单: next人工规格清单,
     },
   }
 }
@@ -554,44 +834,64 @@ function applyRulesByBSplit(
   logger: Logger
 ): 沐茵丝假发成品稿 {
   const fileC = buildBaseFileC(fileA, fileB, logger)
-  const splitFlags = pickB上下分标记(fileB)
   // 上下分：图纸以 A 为底，但把 B 的（非特殊）DML 规律迁移到 A 的图上。
-  // 规则：
   // - 迁移只处理重规律（区域百分比/按档位标记等），跳过 "特殊标记"
   // - 如果区域名称不重叠，则该条规律跳过（不替换不修改）
   // - A 原有的 "特殊标记" 保留并作为最终覆盖项
+  const mappedDmlRules = mapDMLRuleFromBToA(
+    fileC.高针指示单.高针图 as unknown as GraphLike,
+    fileB.高针指示单.高针图 as unknown as GraphLike
+  )
+  const next高针图 = {
+    ...fileC.高针指示单.高针图,
+    自定义数据: {
+      ...fileC.高针指示单.高针图.自定义数据,
+      DML规则命令列表: mappedDmlRules,
+    },
+  }
+  const next手织图 = {
+    ...fileC.手织指示单.手织图,
+    自定义数据: {
+      ...fileC.手织指示单.手织图.自定义数据,
+      DML规则命令列表: mapDMLRuleFromBToA(
+        fileC.手织指示单.手织图 as unknown as GraphLike,
+        fileB.手织指示单.手织图 as unknown as GraphLike
+      ),
+    },
+  }
+
+  // B=上下分：C 的机器规格清单每个档位的 D/M/L 尺数由“高针图档位标注 + DML + 单双标注”计算：
+  // - 取该档位标注的线条集合
+  // - 每条线按其 D/M/L 归属汇总 lineLength
+  // - 双数线条长度 * 2
+  const highNeedleGraph = next高针图 as unknown as 高针图
+  const next机器规格清单 = strip机器规格清单到单D尺数(fileC.制品规格书.机器规格清单).map(row => ({
+    ...row,
+    双针: {
+      ...row.双针,
+      尺数: computeSlot尺数ByDmlFromHighNeedleGraph(highNeedleGraph, row.档位),
+    },
+  }))
+  const splitFlags = {
+    hasM: next机器规格清单.some(row => row.双针.尺数.M != null),
+    hasL: next机器规格清单.some(row => row.双针.尺数.L != null),
+  }
+  // TODO: 当前数据模型不允许在“上下分”类型上持久化 DML比值，
+  // 后续如果要给上下分补固定 DML 配置，需要先调整校验与数据结构。
   return {
     ...fileC,
     制品规格书: {
       ...fileC.制品规格书,
-      机器规格清单: recalc机器规格清单上下分重量(fileC.制品规格书.机器规格清单, splitFlags),
+      机器规格清单: recalc机器规格清单上下分重量(next机器规格清单, splitFlags),
       人工规格清单: recalc人工规格清单上下分重量(fileC.制品规格书.人工规格清单, splitFlags),
     },
     高针指示单: {
       ...fileC.高针指示单,
-      高针图: {
-        ...fileC.高针指示单.高针图,
-        自定义数据: {
-          ...fileC.高针指示单.高针图.自定义数据,
-          DML规则命令列表: mapDMLRuleFromBToA(
-            fileC.高针指示单.高针图 as unknown as GraphLike,
-            fileB.高针指示单.高针图 as unknown as GraphLike
-          ),
-        },
-      },
+      高针图: next高针图,
     },
     手织指示单: {
       ...fileC.手织指示单,
-      手织图: {
-        ...fileC.手织指示单.手织图,
-        自定义数据: {
-          ...fileC.手织指示单.手织图.自定义数据,
-          DML规则命令列表: mapDMLRuleFromBToA(
-            fileC.手织指示单.手织图 as unknown as GraphLike,
-            fileB.手织指示单.手织图 as unknown as GraphLike
-          ),
-        },
-      },
+      手织图: next手织图,
     },
   }
 }

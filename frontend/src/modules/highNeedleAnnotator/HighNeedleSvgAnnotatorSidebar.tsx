@@ -30,7 +30,6 @@ type Props = {
   canEditRegion?: boolean;
   canEditDml?: boolean;
   canEditDouble?: boolean;
-  canEnterDone?: boolean;
 
   regionPresetValue: string;
   setRegionPresetValue: (v: string) => void;
@@ -124,7 +123,6 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     canEditRegion,
     canEditDml,
     canEditDouble,
-    canEnterDone,
     confirmExit,
     setStep,
     setDraftSelected,
@@ -326,17 +324,16 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
         step={step}
         enableDml={enableDml}
         enableDouble={enableDouble}
-        canEnterDone={canEnterDone}
         onSelect={(next) => {
           setStep(next);
           setDraftSelected([]);
         }}
       />
 
-      {step !== "档位" && (missingLevelLineIds?.length ?? 0) > 0 ? (
+      {step !== "区域" && (missingLevelLineIds?.length ?? 0) > 0 ? (
         <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           档位未补齐：还有 {missingLevelLineIds?.length ?? 0}{" "}
-          条区域线未标注档位。 DML/单双/完成会被阻止写入。
+          条区域线未标注档位。DML/单双/文本清理会被阻止写入。
         </div>
       ) : null}
 

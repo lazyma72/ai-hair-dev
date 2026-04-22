@@ -269,13 +269,23 @@ function FileDraftReadonlySections({
         ["双针", 工程重量.双针],
         ["美容", 工程重量.美容],
         ["制帽", 工程重量.制帽],
-        ["高针", 工程重量.高针],
         ["手织", 工程重量.手织],
+        ["高针", 工程重量.高针],
         ["剪驳", 工程重量.剪驳],
         ["发网", 工程重量.发网],
         ["完成", 工程重量.完成],
       ] as const)
     : [];
+
+  // 判断是否有 M/L 数据
+  const hasGlobalM =
+    value.制品规格书.机器规格清单.some(
+      (row) => row.双针.尺数.M != null || row.裁断与重量.some((item) => item.重量g?.M != null),
+    );
+  const hasGlobalL =
+    value.制品规格书.机器规格清单.some(
+      (row) => row.双针.尺数.L != null || row.裁断与重量.some((item) => item.重量g?.L != null),
+    );
 
   return (
     <div className="space-y-3">
@@ -403,8 +413,8 @@ function FileDraftReadonlySections({
                   "双针",
                   "美容",
                   "制帽",
-                  "高针",
                   "手织",
+                  "高针",
                   "剪驳",
                   "发网",
                 ] as const
@@ -422,13 +432,23 @@ function FileDraftReadonlySections({
 
       <Section title="机器规格清单" compact>
         <div className="p-3">
-          <ExcelStyleMachineTable rows={value.制品规格书.机器规格清单} />
+          <ExcelStyleMachineTable
+            rows={value.制品规格书.机器规格清单}
+            假发类型={value.假发类型}
+            hasGlobalM={hasGlobalM}
+            hasGlobalL={hasGlobalL}
+          />
         </div>
       </Section>
 
       <Section title="人工规格清单" compact>
         <div className="p-3">
-          <ExcelStyleManualTable rows={value.制品规格书.人工规格清单} />
+          <ExcelStyleManualTable
+            rows={value.制品规格书.人工规格清单}
+            假发类型={value.假发类型}
+            hasGlobalM={hasGlobalM}
+            hasGlobalL={hasGlobalL}
+          />
         </div>
       </Section>
 
@@ -839,10 +859,11 @@ function FileDraftEditSections({
                 "双针",
                 "美容",
                 "制帽",
-                "高针",
                 "手织",
+                "高针",
                 "剪驳",
                 "发网",
+                "完成",
               ] as const
             ).map((k) => (
               <EditableRow key={k} label={k}>

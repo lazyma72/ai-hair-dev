@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import DownloadSvgButton from "../../components/DownloadSvgButton";
 import Row from "../../components/Row";
 import Section from "../../components/Section";
 import { ExcelStyleHighNeedleImageTable } from "./ExcelStyleSpecTables";
@@ -35,6 +36,10 @@ export default function HighNeedleBlock({
 
   if (!isEdit) {
     const preview = previewData?.高针图数据 ?? value.高针图;
+    const downloadSvg = previewData?.高针图svg || preview?.底图?.svg || "";
+    const downloadFilename = `${
+      previewData?.title?.样品编号 || "high-needle"
+    }-high-needle.svg`;
     return (
       <div className="space-y-5">
         {previewData?.title ? (
@@ -72,8 +77,14 @@ export default function HighNeedleBlock({
 
             {preview?.底图?.svg?.trim() ? (
               <div>
-                <div className="mb-1 text-xs font-medium text-slate-700">
-                  高针图
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <div className="text-xs font-medium text-slate-700">
+                    高针图
+                  </div>
+                  <DownloadSvgButton
+                    svg={downloadSvg}
+                    filename={downloadFilename}
+                  />
                 </div>
                 <div className="overflow-hidden rounded border border-slate-100 bg-white">
                   <HighNeedlePreviewViewer
@@ -132,15 +143,17 @@ export default function HighNeedleBlock({
             </div>
           </div>
 
-          <HighNeedleImportStep
-            embed
-            title="高针图标注"
-            value={value.高针图}
-            onChange={(v) => onChange?.({ ...value, 高针图: v })}
-            showJsonActions
-            showUploader={showUploader}
-            fileName={fileName}
-          />
+          {!expanded ? (
+            <HighNeedleImportStep
+              embed
+              title="高针图标注"
+              value={value.高针图}
+              onChange={(v) => onChange?.({ ...value, 高针图: v })}
+              showJsonActions
+              showUploader={showUploader}
+              fileName={fileName}
+            />
+          ) : null}
         </div>
       </Section>
 

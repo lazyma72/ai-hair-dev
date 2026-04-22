@@ -52,7 +52,7 @@ export default function HighNeedleAnnotatorDemoPage() {
   const header = useMemo(
     () => (
       <div className="text-xs text-slate-500">
-        入口：导航栏「高针标注」或直接访问 /admin/high-needle-annotator。JSON
+        入口：直接访问 /test/high-needle-annotator。JSON
         导入/导出已拆到「高针预览」。
       </div>
     ),

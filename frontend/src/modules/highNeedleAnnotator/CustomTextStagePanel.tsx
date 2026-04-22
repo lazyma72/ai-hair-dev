@@ -163,7 +163,7 @@ export default function CustomTextStagePanel({
             className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
             onClick={completeTextStage}
           >
-            完成标注
+            保存并清理文本
           </button>
         </div>
       </div>

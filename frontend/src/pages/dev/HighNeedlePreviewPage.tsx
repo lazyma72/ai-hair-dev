@@ -274,7 +274,7 @@ export default function HighNeedlePreviewPage() {
   const header = useMemo(
     () => (
       <div className="text-xs text-slate-500">
-        入口：导航栏「高针预览」或直接访问 /admin/high-needle-preview。
+        入口：直接访问 /test/high-needle-preview。
       </div>
     ),
     [],

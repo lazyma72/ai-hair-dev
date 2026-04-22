@@ -188,7 +188,6 @@ function buildPreviewLabels(
   existingSvgTextIdSet: ReadonlySet<string>,
   regionColorByName: ReadonlyMap<string, string>,
 ): PreviewLabelItem[] {
-  const dmlById = makeDmlMap(data);
   const doubleSet = makeDoubleSet(data.自定义数据.单双标注);
 
   const out: PreviewLabelItem[] = [];
@@ -243,16 +242,6 @@ function buildPreviewLabels(
     });
   });
 
-  dmlById.forEach((v, lineId) => {
-    if (!toggles.dml) return;
-    out.push({
-      lineId,
-      text: v,
-      ratio: 0.5,
-      fill: "#f59e0b",
-    });
-  });
-
   data.自定义数据.单双标注.forEach((item) => {
     if (!toggles.double) return;
     const textNodeId = String(item.textNodeId ?? "").trim();
@@ -292,6 +281,9 @@ export default function HighNeedlePreviewViewer({
     if (!data?.底图?.svg) return "";
     const allTextIds = collectSvgTextNodes(data.底图.svg).map((item) => item.id);
     const existingSvgTextIdSet = new Set(allTextIds);
+    const dmlTextIds = allTextIds.filter((id) =>
+      String(id ?? "").trim().startsWith("dml_text_"),
+    );
     const levelTextIds = data.底图.档位标注.flatMap(({ textNodeIds = [] }) => {
       return textNodeIds.filter((textNodeId) =>
         existingSvgTextIdSet.has(String(textNodeId ?? "").trim()),
@@ -301,7 +293,7 @@ export default function HighNeedlePreviewViewer({
       String(item.textNodeId ?? "").trim(),
     );
     const markerTextIds = new Set(
-      [...levelTextIds, ...doubleTextIds]
+      [...levelTextIds, ...doubleTextIds, ...dmlTextIds]
         .map((id) => String(id ?? "").trim())
         .filter(Boolean),
     );
@@ -316,6 +308,12 @@ export default function HighNeedlePreviewViewer({
     }
     if (toggles.level) {
       levelTextIds.forEach((id) => {
+        const nextId = String(id ?? "").trim();
+        if (nextId) visibleTextIds.add(nextId);
+      });
+    }
+    if (toggles.dml) {
+      dmlTextIds.forEach((id) => {
         const nextId = String(id ?? "").trim();
         if (nextId) visibleTextIds.add(nextId);
       });

@@ -99,10 +99,13 @@ type Props = {
   canvasEpoch: number;
   showPreview?: boolean;
   preferredDmlPosByLineId: Map<string, { x: number; y: number }>;
-  preferredMarkerPosByLineId: Map<string, { x: number; y: number }>;
+  preferredRegionPosByLineId: Map<string, { x: number; y: number }>;
+  preferredLevelPosByLineId: Map<string, { x: number; y: number }>;
+  preferredDoublePosByLineId: Map<string, { x: number; y: number }>;
+  pendingLevelMarkerPosByLineId: Map<string, { x: number; y: number }>;
+  pendingDmlMarkerPosByLineId: Map<string, { x: number; y: number }>;
   draftMarkerPosByLineId: Map<string, { x: number; y: number }>;
   dmlMarkerPosByLineId: Map<string, { x: number; y: number }>;
-  pendingDmlMarkerPosByLineId: Map<string, { x: number; y: number }>;
 
   visibleMarkerById: Map<
     string,
@@ -150,10 +153,6 @@ type Props = {
     pos: { x: number; y: number },
   ) => void;
   ensureDmlMarkerTextNode: (
-    lineNodeId: string,
-    pos: { x: number; y: number },
-  ) => void;
-  ensureDoubleMarkerTextNode: (
     lineNodeId: string,
     pos: { x: number; y: number },
   ) => void;
@@ -386,12 +385,15 @@ export default function HighNeedleSvgAnnotatorCanvas({
   renderSvg,
   previewValue,
   canvasEpoch,
-  showPreview,
   preferredDmlPosByLineId,
-  preferredMarkerPosByLineId,
+  showPreview,
+  preferredRegionPosByLineId,
+  preferredLevelPosByLineId,
+  preferredDoublePosByLineId,
+  pendingLevelMarkerPosByLineId,
+  pendingDmlMarkerPosByLineId,
   draftMarkerPosByLineId,
   dmlMarkerPosByLineId,
-  pendingDmlMarkerPosByLineId,
   visibleMarkerById,
   markerTextIdSet,
   draggableMarkerTextIdSet,
@@ -404,7 +406,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
   ensureRegionMarkerTextNode,
   ensureLevelMarkerTextNode,
   ensureDmlMarkerTextNode,
-  ensureDoubleMarkerTextNode,
   layerToggles,
   setLayerToggles,
   activeTextNodeId,
@@ -497,7 +498,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
   const pendingAutoRegionTextNodeIdsRef = useRef<Set<string>>(new Set());
   const pendingAutoLevelTextNodeIdsRef = useRef<Set<string>>(new Set());
   const pendingAutoDmlTextNodeIdsRef = useRef<Set<string>>(new Set());
-  const pendingAutoDoubleTextNodeIdsRef = useRef<Set<string>>(new Set());
 
   // --- 文本缩放拖拽手柄 ---
   const resizeRef = useRef<{
@@ -776,10 +776,22 @@ export default function HighNeedleSvgAnnotatorCanvas({
           pendingDmlMarkerPosByLineId.get(id) ??
           dmlMarkerPosByLineId.get(id) ??
           preferredDmlPosByLineId.get(id);
-        const preferredPos = filteredMarkerById.get(id)?.dml
+        const marks = filteredMarkerById.get(id);
+        const preferredPos = marks?.dml
           ? dmlPreferredPos
-          : (draftMarkerPosByLineId.get(id) ??
-            preferredMarkerPosByLineId.get(id));
+          : step === "区域"
+            ? (draftMarkerPosByLineId.get(id) ?? preferredRegionPosByLineId.get(id))
+            : step === "档位"
+              ? (draftMarkerPosByLineId.get(id) ?? preferredLevelPosByLineId.get(id))
+              : step === "单双"
+                ? preferredDoublePosByLineId.get(id)
+                : typeof marks?.levelNo === "number"
+                  ? preferredLevelPosByLineId.get(id)
+                  : typeof marks?.regionNo === "number"
+                    ? (draftMarkerPosByLineId.get(id) ?? preferredRegionPosByLineId.get(id))
+                    : marks?.isDouble
+                      ? preferredDoublePosByLineId.get(id)
+                      : draftMarkerPosByLineId.get(id);
         if (svgRoot && preferredPos) {
           const wrapPos = svgToWrapPoint(svgRoot, wrapRect, preferredPos);
           if (wrapPos) {
@@ -907,7 +919,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
     filteredMarkerById,
     pendingDmlMarkerPosByLineId,
     preferredDmlPosByLineId,
-    preferredMarkerPosByLineId,
+    preferredDoublePosByLineId,
+    preferredLevelPosByLineId,
+    preferredRegionPosByLineId,
     scaledRenderSvg,
     visibleMarkerById,
   ]);
@@ -922,9 +936,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
       }
       if (marks.dml && marks.dmlTextNodeId) {
         pendingAutoDmlTextNodeIdsRef.current.delete(id);
-      }
-      if (marks.isDouble && marks.doubleTextNodeId) {
-        pendingAutoDoubleTextNodeIdsRef.current.delete(id);
       }
     });
   }, [visibleMarkerById]);
@@ -942,7 +953,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
       const anchor = anchorById.get(id);
       const pos =
         draftMarkerPosByLineId.get(id) ??
-        preferredMarkerPosByLineId.get(id) ??
+        preferredRegionPosByLineId.get(id) ??
         (anchor
           ? clientToSvgPoint(
               svgRoot,
@@ -959,7 +970,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
     anchorById,
     draftMarkerPosByLineId,
     ensureRegionMarkerTextNode,
-    preferredMarkerPosByLineId,
+    preferredRegionPosByLineId,
     visibleMarkerById,
   ]);
 
@@ -975,8 +986,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
       const anchor = anchorById.get(id);
       const pos =
-        draftMarkerPosByLineId.get(id) ??
-        preferredMarkerPosByLineId.get(id) ??
+        (step === "档位" ? draftMarkerPosByLineId.get(id) : null) ??
+        pendingLevelMarkerPosByLineId.get(id) ??
+        preferredLevelPosByLineId.get(id) ??
         (anchor
           ? clientToSvgPoint(
               svgRoot,
@@ -993,7 +1005,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
     anchorById,
     draftMarkerPosByLineId,
     ensureLevelMarkerTextNode,
-    preferredMarkerPosByLineId,
+    pendingLevelMarkerPosByLineId,
+    preferredLevelPosByLineId,
+    step,
     visibleMarkerById,
   ]);
 
@@ -1030,38 +1044,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
     ensureDmlMarkerTextNode,
     pendingDmlMarkerPosByLineId,
     preferredDmlPosByLineId,
-    visibleMarkerById,
-  ]);
-
-  useEffect(() => {
-    const wrap = canvasWrapRef.current;
-    const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
-    if (!wrap || !svgRoot) return;
-
-    const wrapRect = wrap.getBoundingClientRect();
-    visibleMarkerById.forEach((marks, id) => {
-      if (!marks.isDouble || marks.doubleTextNodeId) return;
-      if (pendingAutoDoubleTextNodeIdsRef.current.has(id)) return;
-
-      const anchor = anchorById.get(id);
-      const pos =
-        preferredMarkerPosByLineId.get(id) ??
-        (anchor
-          ? clientToSvgPoint(
-              svgRoot,
-              wrapRect.left + anchor.x,
-              wrapRect.top + anchor.y,
-            )
-          : null);
-      if (!pos) return;
-
-      pendingAutoDoubleTextNodeIdsRef.current.add(id);
-      ensureDoubleMarkerTextNode(id, pos);
-    });
-  }, [
-    anchorById,
-    ensureDoubleMarkerTextNode,
-    preferredMarkerPosByLineId,
     visibleMarkerById,
   ]);
 
@@ -1282,56 +1264,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
     }
     // #endregion
   }
-
-  // Stagger ±18 px perpendicular to each line's tangent direction so that
-  // badges for adjacent/parallel lines land on alternating sides.
-  //
-  // Region/level markers: alternate by their sequence number (odd ↔ even).
-  // DML/double markers:   no sequence number → sort spatially by anchor.x
-  //                       then alternate by that sorted index, which keeps
-  //                       neighbouring strands on opposite sides.
-  const staggerOffsetById = useMemo(() => {
-    const DIST = 18;
-    const m = new Map<string, { dx: number; dy: number }>();
-
-    // Separate markers that have a sequence number from those that don't.
-    const numbered: Array<{ id: string; no: number }> = [];
-    const unnumbered: Array<{ id: string }> = [];
-
-    filteredMarkerById.forEach((marks, id) => {
-      const no = marks.regionNo ?? marks.levelNo;
-      if (typeof no === "number") {
-        numbered.push({ id, no });
-      } else {
-        unnumbered.push({ id });
-      }
-    });
-
-    // Both region and level align with the clicked/brush intersection position
-    // and should not be staggered away (stagger would shift the badge to a
-    // neighbouring line, causing a visual mismatch).
-    numbered.forEach(({ id }) => {
-      m.set(id, { dx: 0, dy: 0 });
-    });
-
-    // Unnumbered (DML, double): sort by anchor.x then alternate by index.
-    unnumbered
-      .sort((a, b) => {
-        const ax = anchorById.get(a.id)?.x ?? 0;
-        const bx = anchorById.get(b.id)?.x ?? 0;
-        return ax - bx;
-      })
-      .forEach(({ id }, idx) => {
-        const anchor = anchorById.get(id);
-        const sign = idx % 2 === 0 ? -DIST : DIST;
-        m.set(id, {
-          dx: (anchor?.perpX ?? 0) * sign,
-          dy: (anchor?.perpY ?? 1) * sign,
-        });
-      });
-
-    return m;
-  }, [anchorById, filteredMarkerById]);
 
   const wrapExtraClass = "";
 
@@ -1695,45 +1627,96 @@ export default function HighNeedleSvgAnnotatorCanvas({
                 })
               : null}
 
-            {Array.from(filteredMarkerById.entries()).map(([id, marks]) => {
-              const pos = anchorById.get(id);
-              if (!pos) return null;
-              const stagger = staggerOffsetById.get(id) ?? { dx: 0, dy: 0 };
+            {(() => {
+              const wrap = canvasWrapRef.current;
+              const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+              const wrapRect = wrap?.getBoundingClientRect();
+              const toWrapPos = (svgPos?: { x: number; y: number } | null) => {
+                if (!svgPos) return null;
+                if (!svgRoot || !wrapRect) return null;
+                return svgToWrapPoint(svgRoot, wrapRect, svgPos);
+              };
 
-              return (
-                <div
-                  key={id}
-                  className="absolute -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: pos.x + stagger.dx, top: pos.y + stagger.dy }}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    {typeof marks.regionNo === "number" ? (
+              return Array.from(filteredMarkerById.entries()).flatMap(
+                ([id, marks]) => {
+                  const fallbackPos = anchorById.get(id) ?? null;
+                  const regionPos =
+                    typeof marks.regionNo === "number"
+                      ? toWrapPos(
+                          draftMarkerPosByLineId.get(id) ??
+                            preferredRegionPosByLineId.get(id) ??
+                            null,
+                        ) ?? fallbackPos
+                      : null;
+                  const levelPos =
+                    typeof marks.levelNo === "number"
+                      ? toWrapPos(
+                          (step === "档位"
+                            ? draftMarkerPosByLineId.get(id)
+                            : null) ??
+                            pendingLevelMarkerPosByLineId.get(id) ??
+                            preferredLevelPosByLineId.get(id) ??
+                            null,
+                        ) ?? fallbackPos
+                      : null;
+                  const dmlPos = marks.dml
+                    ? toWrapPos(
+                        pendingDmlMarkerPosByLineId.get(id) ??
+                          dmlMarkerPosByLineId.get(id) ??
+                          preferredDmlPosByLineId.get(id) ??
+                          null,
+                      ) ?? fallbackPos
+                    : null;
+                  const doublePos = marks.isDouble
+                    ? toWrapPos(preferredDoublePosByLineId.get(id) ?? null) ??
+                      fallbackPos
+                    : null;
+
+                  return [
+                    layerToggles.region && regionPos ? (
                       <div
-                        className="px-0.5 text-[11px] font-bold leading-none drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]"
-                        style={{ color: marks.regionColor ?? "#0284c7" }}
+                        key={`${id}_region_no`}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 px-0.5 text-[11px] font-bold leading-none drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]"
+                        style={{
+                          left: regionPos.x,
+                          top: regionPos.y,
+                          color: marks.regionColor ?? "#0284c7",
+                        }}
                       >
                         {marks.regionNo}
                       </div>
-                    ) : null}
-                    {typeof marks.levelNo === "number" ? (
-                      <div className="px-0.5 text-[13px] font-bold leading-none text-slate-900 drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]">
+                    ) : null,
+                    layerToggles.level && levelPos ? (
+                      <div
+                        key={`${id}_level_no`}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 px-0.5 text-[13px] font-bold leading-none text-slate-900 drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]"
+                        style={{ left: levelPos.x, top: levelPos.y }}
+                      >
                         {marks.levelNo}
                       </div>
-                    ) : null}
-                    {marks.dml ? (
-                      <div className="rounded bg-black px-1 py-px text-[8px] font-bold leading-none text-white shadow">
+                    ) : null,
+                    layerToggles.dml && dmlPos ? (
+                      <div
+                        key={`${id}_dml`}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 rounded bg-black px-1 py-px text-[8px] font-bold leading-none text-white shadow"
+                        style={{ left: dmlPos.x, top: dmlPos.y }}
+                      >
                         {marks.dml}
                       </div>
-                    ) : null}
-                    {marks.isDouble ? (
-                      <div className="rounded bg-amber-700 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
+                    ) : null,
+                    layerToggles.double && doublePos ? (
+                      <div
+                        key={`${id}_double`}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 px-0.5 text-[10px] font-semibold leading-none text-purple-700 drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]"
+                        style={{ left: doublePos.x, top: doublePos.y }}
+                      >
                         双
                       </div>
-                    ) : null}
-                  </div>
-                </div>
+                    ) : null,
+                  ];
+                },
               );
-            })}
+            })()}
           </div>
         </div>
       </div>
