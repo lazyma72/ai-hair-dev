@@ -29,7 +29,7 @@ import {
   uniquePreserveOrder,
   type RegionDraft,
 } from "./helpers";
-import { compileDmlRules } from "./dmlAuto";
+import { compileDmlRules, compileDmlRulesForLineIds } from "./dmlAuto";
 import { 高针图系统预置区域列表 } from "../../shared/models/高针图";
 import {
   空DML规则命令列表,
@@ -222,9 +222,57 @@ function deriveIndexRange(
     return { 开始位置: 0, 结束位置: 1 };
   }
 
-  const start = first / (lineCount - 1);
-  const end = last >= lineCount - 1 ? 1 : (last + 1) / (lineCount - 1);
+  const start = first / lineCount;
+  const end = Math.min(1, (last + 1) / lineCount);
   return { 开始位置: start, 结束位置: end };
+}
+
+function deriveIndexSegments(
+  lineCount: number,
+  selectedIndexes: number[],
+): Array<{
+  开始位置: number;
+  结束位置: number;
+  startIndex: number;
+  endIndex: number;
+}> {
+  if (lineCount <= 0 || selectedIndexes.length === 0) return [];
+
+  const sorted = [...new Set(selectedIndexes)]
+    .filter((index) => index >= 0 && index < lineCount)
+    .sort((a, b) => a - b);
+  if (sorted.length === 0) return [];
+
+  const segments: Array<{
+    开始位置: number;
+    结束位置: number;
+    startIndex: number;
+    endIndex: number;
+  }> = [];
+
+  let runStart = sorted[0];
+  let runEnd = sorted[0];
+
+  const pushRun = () => {
+    const range = deriveIndexRange(lineCount, [runStart, runEnd]);
+    if (!range) return;
+    segments.push({
+      ...range,
+      startIndex: runStart,
+      endIndex: runEnd,
+    });
+  };
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] - sorted[i - 1] > 1) {
+      pushRun();
+      runStart = sorted[i];
+    }
+    runEnd = sorted[i];
+  }
+
+  pushRun();
+  return segments;
 }
 
 function sameRange(
@@ -234,6 +282,16 @@ function sameRange(
   return (
     Math.abs(current.开始位置 - next.开始位置) < 1e-6 &&
     Math.abs(current.结束位置 - next.结束位置) < 1e-6
+  );
+}
+
+function sameRanges(
+  current: Array<{ 开始位置: number; 结束位置: number }>,
+  next: Array<{ 开始位置: number; 结束位置: number }>,
+): boolean {
+  return (
+    current.length === next.length &&
+    current.every((item, index) => sameRange(item, next[index]))
   );
 }
 
@@ -1575,21 +1633,21 @@ export default function useHighNeedleSvgAnnotator({
           };
         }
 
-        const firstIndex = selectedIndexes[0];
-        const lastIndex = selectedIndexes[selectedIndexes.length - 1];
-        const nextRange = {
-          开始位置: ordered[firstIndex]?.posRatio ?? first.开始位置,
-          结束位置:
-            lastIndex >= ordered.length - 1
-              ? 1
-              : (ordered[lastIndex + 1]?.posRatio ?? 1),
-        };
+        const nextSegments = deriveIndexSegments(ordered.length, selectedIndexes)
+          .map((segment) => ({
+            区域: targetRegion,
+            开始位置: segment.开始位置,
+            结束位置: segment.结束位置,
+          }));
+        const canonicalLineNodeIds = ordered
+          .map((entry) => entry.lineId)
+          .filter((lineId) => normalizedNextLineIds.includes(lineId));
         const prevLineNodeIds = item.lineNodeIds ?? [];
 
         if (
-          first.区域 === targetRegion &&
-          sameRange(first, nextRange) &&
-          sameStringArray(prevLineNodeIds, normalizedNextLineIds)
+          item.区域百分比.every((segment) => segment.区域 === targetRegion) &&
+          sameRanges(item.区域百分比, nextSegments) &&
+          sameStringArray(prevLineNodeIds, canonicalLineNodeIds)
         ) {
           return item;
         }
@@ -1597,14 +1655,8 @@ export default function useHighNeedleSvgAnnotator({
         changed = true;
         return {
           ...item,
-          lineNodeIds: normalizedNextLineIds,
-          区域百分比: [
-            {
-              区域: targetRegion,
-              开始位置: nextRange.开始位置,
-              结束位置: nextRange.结束位置,
-            },
-          ],
+          lineNodeIds: canonicalLineNodeIds,
+          区域百分比: nextSegments,
         };
       }
 
@@ -1624,8 +1676,13 @@ export default function useHighNeedleSvgAnnotator({
           normalizedNextLineIds.includes(lineId) ? index : -1,
         )
         .filter((index) => index >= 0);
-      const nextRange = deriveIndexRange(ordered.length, selectedIndexes);
-      if (!nextRange) {
+      const nextSegments = deriveIndexSegments(ordered.length, selectedIndexes)
+        .map((segment) => ({
+          档位名称: targetLevel,
+          开始位置: segment.开始位置,
+          结束位置: segment.结束位置,
+        }));
+      if (nextSegments.length === 0) {
         if (item.档位.length === 0 && !item.lineNodeIds?.length) return item;
         changed = true;
         return {
@@ -1635,12 +1692,15 @@ export default function useHighNeedleSvgAnnotator({
         };
       }
 
+      const canonicalLineNodeIds = ordered.filter((lineId) =>
+        normalizedNextLineIds.includes(lineId),
+      );
       const prevLineNodeIds = item.lineNodeIds ?? [];
 
       if (
-        first.档位名称 === targetLevel &&
-        sameRange(first, nextRange) &&
-        sameStringArray(prevLineNodeIds, normalizedNextLineIds)
+        item.档位.every((segment) => segment.档位名称 === targetLevel) &&
+        sameRanges(item.档位, nextSegments) &&
+        sameStringArray(prevLineNodeIds, canonicalLineNodeIds)
       ) {
         return item;
       }
@@ -1648,14 +1708,8 @@ export default function useHighNeedleSvgAnnotator({
       changed = true;
       return {
         ...item,
-        lineNodeIds: normalizedNextLineIds,
-        档位: [
-          {
-            档位名称: targetLevel,
-            开始位置: nextRange.开始位置,
-            结束位置: nextRange.结束位置,
-          },
-        ],
+        lineNodeIds: canonicalLineNodeIds,
+        档位: nextSegments,
       };
     });
 
@@ -1701,14 +1755,7 @@ export default function useHighNeedleSvgAnnotator({
         nextManual[lineId] = normalizedValue;
       });
 
-      const compiled = compileDmlRules({
-        ...value,
-        自定义数据: {
-          ...value.自定义数据,
-          DML规则命令列表: value.自定义数据.DML规则命令列表,
-        },
-      });
-      const merged = mergeManualDmlAssignments(compiled.assignments, nextManual);
+      const merged = mergeManualDmlAssignments(dmlCompiled.assignments, nextManual);
       const previewByLineId = new Map<string, DmlValue>();
       normalizedLineIds.forEach((lineId) => {
         const nextValue = merged.get(lineId);
@@ -1745,13 +1792,13 @@ export default function useHighNeedleSvgAnnotator({
       value.自定义数据.DML规则命令列表,
       nextLineIds,
     );
-    const compiled = compileDmlRules({
+    const compiled = compileDmlRulesForLineIds({
       ...value,
       自定义数据: {
         ...value.自定义数据,
         DML规则命令列表: nextCommands,
       },
-    });
+    }, affectedLineIds);
     const previewByLineId = new Map<string, DmlValue>();
     affectedLineIds.forEach((lineId) => {
       const nextValue = compiled.assignments.get(lineId);

@@ -228,55 +228,25 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     },
   );
 
-  // Build ordered line lists using SVG DOM order (allLineIds) — this is the
-  // visual spatial order the user sees when brushing, not the annotation-batch
-  // insertion order which resets per batch.
-  const lineIdSet = new Map<string, { region?: string; level?: string }>();
+  const regionOrderedLines = new Map<string, string[]>();
+  const levelOrderedLines = new Map<string, string[]>();
   (value.底图?.区域线条 ?? []).forEach(
     (item: { 区域名: string; lineNodeIds: string[] }) => {
+      const list = regionOrderedLines.get(item.区域名) ?? [];
       item.lineNodeIds.forEach((id) => {
-        const e = lineIdSet.get(id) ?? {};
-        e.region = item.区域名;
-        lineIdSet.set(id, e);
+        if (!id) return;
+        list.push(id);
       });
+      regionOrderedLines.set(item.区域名, list);
     },
   );
   (value.底图?.档位标注 ?? []).forEach(
     (item: { 区域名: string; lineNodeIds: string[] }) => {
-      item.lineNodeIds.forEach((id) => {
-        const e = lineIdSet.get(id) ?? {};
-        e.level = item.区域名;
-        lineIdSet.set(id, e);
-      });
+      levelOrderedLines.set(item.区域名, item.lineNodeIds.filter(Boolean));
     },
   );
 
-  // Walk allLineIds (SVG DOM order) to build per-region / per-level sorted lists
-  const regionOrderedLines = new Map<string, string[]>();
-  const levelOrderedLines = new Map<string, string[]>();
-  const svgOrderIds: string[] = allLineIds ?? [];
-  // Also include any ids not in allLineIds (fallback: append at end)
-  const seenInSvg = new Set(svgOrderIds);
-  const extraIds: string[] = [];
-  lineIdSet.forEach((_, id) => {
-    if (!seenInSvg.has(id)) extraIds.push(id);
-  });
-  [...svgOrderIds, ...extraIds].forEach((id) => {
-    const entry = lineIdSet.get(id);
-    if (!entry) return;
-    if (entry.region) {
-      const list = regionOrderedLines.get(entry.region) ?? [];
-      list.push(id);
-      regionOrderedLines.set(entry.region, list);
-    }
-    if (entry.level) {
-      const list = levelOrderedLines.get(entry.level) ?? [];
-      list.push(id);
-      levelOrderedLines.set(entry.level, list);
-    }
-  });
-
-  // Update globalIndex / total in lineToRegionInfo to match SVG order
+  // Update globalIndex / total to match persisted region order in 底图.区域线条.
   regionOrderedLines.forEach((ids, regionName) => {
     ids.forEach((id, idx) => {
       const info = lineToRegionInfo.get(id);

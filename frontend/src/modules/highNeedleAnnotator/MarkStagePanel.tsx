@@ -329,12 +329,12 @@ export default function MarkStagePanel({
                                           ? "100%"
                                           : `${
                                               Math.round(
-                                                (seg.开始 / (seg.total - 1)) *
+                                                (seg.开始 / seg.total) *
                                                   100,
                                               )
                                             }% – ${
                                               Math.round(
-                                                (seg.结束 / (seg.total - 1)) *
+                                                ((seg.结束 + 1) / seg.total) *
                                                   100,
                                               )
                                             }%`}
