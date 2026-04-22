@@ -166,24 +166,41 @@ function collectOrderedRegionLines(
     });
   });
 
-  byRegion.forEach((list) => {
-    list.sort((a, b) => {
-      const ratioDiff = a.区域内位置占比 - b.区域内位置占比;
-      if (ratioDiff !== 0) return ratioDiff;
-      const sourceDiff = a.sourceIndex - b.sourceIndex;
-      if (sourceDiff !== 0) return sourceDiff;
-      return a.subIndex - b.subIndex;
-    });
-  });
-
   return byRegion;
 }
 
 function collectLevelLineIds(data: DmlCompilableData): Map<string, string[]> {
-  return new Map(
-    data.底图.档位标注.map(
-      (item) => [item.区域名, item.lineNodeIds.filter(Boolean)] as const,
-    ),
+  const byLevel = new Map<string, string[]>();
+  data.底图.档位标注.forEach((item) => {
+    const list = byLevel.get(item.区域名) ?? [];
+    item.lineNodeIds.forEach((lineNodeId) => {
+      if (!lineNodeId) return;
+      list.push(lineNodeId);
+    });
+    byLevel.set(item.区域名, list);
+  });
+  return byLevel;
+}
+
+function collectSegmentRegionLineIds(
+  segment: DML区域百分比命令["区域百分比"][number],
+  list: OrderedRegionLine[],
+): string[] {
+  const start = clampRatio(segment.开始位置);
+  const end = clampRatio(segment.结束位置);
+  return list
+    .filter((_, index) => isDmlBucketSelected(index, list.length, start, end))
+    .map((item) => item.lineNodeId);
+}
+
+function collectSegmentLevelLineIds(
+  segment: DML按档位标记命令["档位"][number],
+  list: string[],
+): string[] {
+  const start = clampRatio(segment.开始位置);
+  const end = clampRatio(segment.结束位置);
+  return list.filter((_, index) =>
+    isDmlBucketSelected(index, list.length, start, end),
   );
 }
 
@@ -211,10 +228,10 @@ function sortExplicitRegionLineIds(
 
   command.区域百分比.forEach((segment) => {
     const list = byRegion.get(segment.区域) ?? [];
-    list.forEach((item) => {
-      if (!selectedSet.has(item.lineNodeId) || seen.has(item.lineNodeId)) return;
-      orderedTargets.push(item.lineNodeId);
-      seen.add(item.lineNodeId);
+    collectSegmentRegionLineIds(segment, list).forEach((lineNodeId) => {
+      if (!selectedSet.has(lineNodeId) || seen.has(lineNodeId)) return;
+      orderedTargets.push(lineNodeId);
+      seen.add(lineNodeId);
     });
   });
 
@@ -239,7 +256,7 @@ function sortExplicitLevelLineIds(
 
   command.档位.forEach((segment) => {
     const list = byLevel.get(segment.档位名称) ?? [];
-    list.forEach((lineNodeId) => {
+    collectSegmentLevelLineIds(segment, list).forEach((lineNodeId) => {
       if (!selectedSet.has(lineNodeId) || seen.has(lineNodeId)) return;
       orderedTargets.push(lineNodeId);
       seen.add(lineNodeId);
@@ -264,12 +281,8 @@ function collectRegionCommandTargets(
     return sortExplicitRegionLineIds(command, byRegion);
   }
   return command.区域百分比.flatMap((segment) => {
-    const start = clampRatio(segment.开始位置);
-    const end = clampRatio(segment.结束位置);
     const list = byRegion.get(segment.区域) ?? [];
-    return list
-      .filter((_, index) => isDmlBucketSelected(index, list.length, start, end))
-      .map((item) => item.lineNodeId);
+    return collectSegmentRegionLineIds(segment, list);
   });
 }
 
@@ -284,11 +297,7 @@ function collectLevelCommandTargets(
   return command.档位.flatMap((segment) => {
     const list = byLevel.get(segment.档位名称) ?? [];
     if (list.length === 0) return [];
-    const start = clampRatio(segment.开始位置);
-    const end = clampRatio(segment.结束位置);
-    return list.filter((_, index) =>
-      isDmlBucketSelected(index, list.length, start, end),
-    );
+    return collectSegmentLevelLineIds(segment, list);
   });
 }
 
