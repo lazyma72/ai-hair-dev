@@ -16,6 +16,8 @@ const BRUSH_HIT_OFFSETS = [
   { x: 3, y: 3 },
 ] as const;
 
+const MAX_SVG_SCALE = 5;
+
 function cssEscapeId(id: string): string {
   if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
     return CSS.escape(id);
@@ -117,8 +119,7 @@ type Props = {
     pos: { x: number; y: number },
   ) => void;
   ensureDmlMarkerTextNode: (
-    lineNodeId: string,
-    pos: { x: number; y: number },
+      entries: Array<{ lineNodeId: string; pos: { x: number; y: number } }>,
   ) => void;
 
   // 图层
@@ -475,7 +476,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
   const dragRef = useRef<DragState | null>(null);
   const pendingAutoRegionTextNodeIdsRef = useRef<Set<string>>(new Set());
-  const pendingAutoDmlTextNodeIdsRef = useRef<Set<string>>(new Set());
 
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const [regionLabelPosByName, setRegionLabelPosByName] = useState<
@@ -773,7 +773,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
   useEffect(() => {
     resetBrushState();
     pendingAutoRegionTextNodeIdsRef.current = new Set();
-    pendingAutoDmlTextNodeIdsRef.current = new Set();
   }, [canvasEpoch, resetBrushState]);
 
   // Delete / Backspace 快捷键删除选中文本
@@ -886,9 +885,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
       if (typeof marks.regionNo === "number" && marks.regionTextNodeId) {
         pendingAutoRegionTextNodeIdsRef.current.delete(id);
       }
-      if (marks.dml && marks.dmlTextNodeId) {
-        pendingAutoDmlTextNodeIdsRef.current.delete(id);
-      }
     });
   }, [visibleMarkerById]);
 
@@ -910,16 +906,18 @@ export default function HighNeedleSvgAnnotatorCanvas({
   ]);
 
   useEffect(() => {
+    const entries: Array<{ lineNodeId: string; pos: { x: number; y: number } }> = [];
     visibleMarkerById.forEach((marks, id) => {
       if (!marks.dml || marks.dmlTextNodeId) return;
-      if (pendingAutoDmlTextNodeIdsRef.current.has(id)) return;
 
       const pos = getDmlMarkerSvgPos(id);
       if (!pos) return;
 
-      pendingAutoDmlTextNodeIdsRef.current.add(id);
-      ensureDmlMarkerTextNode(id, pos);
+      entries.push({ lineNodeId: id, pos });
     });
+
+    if (entries.length === 0) return;
+    ensureDmlMarkerTextNode(entries);
   }, [
     ensureDmlMarkerTextNode,
     getDmlMarkerSvgPos,
@@ -1220,7 +1218,7 @@ export default function HighNeedleSvgAnnotatorCanvas({
               className="rounded px-1 font-semibold text-slate-700 hover:bg-slate-200"
               onClick={() => {
                 zoomAnchorRef.current = null;
-                setSvgScale((prev) => Math.min(3, prev + 0.25));
+                setSvgScale((prev) => Math.min(MAX_SVG_SCALE, prev + 0.25));
               }}
             >
               +
@@ -1258,7 +1256,10 @@ export default function HighNeedleSvgAnnotatorCanvas({
             clientY: e.clientY,
           };
           setSvgScale((prev) => {
-            const next = Math.min(3, Math.max(1, prev * zoomFactor));
+            const next = Math.min(
+              MAX_SVG_SCALE,
+              Math.max(1, prev * zoomFactor),
+            );
             if (Math.abs(next - prev) < 1e-6) {
               zoomAnchorRef.current = null;
             }

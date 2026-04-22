@@ -42,6 +42,67 @@ type Props = {
   clearActiveDmlRule?: () => void;
 };
 
+type NamedDisplaySegment = {
+  名称: string;
+  开始: number;
+  结束: number;
+  total: number;
+};
+
+function buildNamedDisplaySegments(
+  selectedSet: Set<string>,
+  touchedNames: Iterable<string>,
+  orderedLines: Map<string, string[]> | undefined,
+): NamedDisplaySegment[] {
+  const segments: NamedDisplaySegment[] = [];
+
+  Array.from(touchedNames).forEach((name) => {
+    const orderedIds = orderedLines?.get(name) ?? [];
+    const total = orderedIds.length;
+    const selectedIndices: number[] = [];
+
+    orderedIds.forEach((id, idx) => {
+      if (selectedSet.has(id)) selectedIndices.push(idx);
+    });
+    if (selectedIndices.length === 0) return;
+
+    let runStart = selectedIndices[0];
+    let runEnd = selectedIndices[0];
+    for (let i = 1; i < selectedIndices.length; i++) {
+      if (selectedIndices[i] - selectedIndices[i - 1] > 1) {
+        segments.push({
+          名称: name,
+          开始: runStart,
+          结束: runEnd,
+          total,
+        });
+        runStart = selectedIndices[i];
+      }
+      runEnd = selectedIndices[i];
+    }
+
+    segments.push({
+      名称: name,
+      开始: runStart,
+      结束: runEnd,
+      total,
+    });
+  });
+
+  return segments;
+}
+
+function formatSegmentSummary(segment: NamedDisplaySegment): string {
+  const lineCount = segment.结束 - segment.开始 + 1;
+  if (segment.total <= 1) {
+    return `100%（${lineCount}条）`;
+  }
+
+  return `${Math.round((segment.开始 / segment.total) * 100)}% – ${Math.round(
+    ((segment.结束 + 1) / segment.total) * 100,
+  )}%（${lineCount}条）`;
+}
+
 export default function MarkStagePanel({
   step,
   clearDmlStage,
@@ -224,61 +285,17 @@ export default function MarkStagePanel({
                     {rule.type === "区域百分比"
                       ? (() => {
                           const regionRule = rule as DML区域百分比命令;
-                          // Use global insertion-order index (not per-batch ratio).
-                          // Split a run only when two consecutive selected lines have
-                          // a gap > 1 in their global index (i.e. at least one unselected
-                          // line sits between them in the full region array).
                           const selectedSet = new Set(regionRule.lineNodeIds ?? []);
                           const touchedRegions = new Set<string>();
                           selectedSet.forEach((id) => {
                             const info = lineToRegionInfo?.get(id);
                             if (info) touchedRegions.add(info.区域名);
                           });
-                          const derivedSegments: {
-                            区域: string;
-                            开始: number;
-                            结束: number;
-                            total: number;
-                          }[] = [];
-                          touchedRegions.forEach((regionName) => {
-                            const orderedIds =
-                              regionOrderedLines?.get(regionName) ?? [];
-                            const total = orderedIds.length;
-                            // collect selected indices in order
-                            const selectedIndices: number[] = [];
-                            orderedIds.forEach((id, idx) => {
-                              if (selectedSet.has(id))
-                                selectedIndices.push(idx);
-                            });
-                            if (selectedIndices.length === 0) return;
-                            let runStart = selectedIndices[0];
-                            let runEnd = selectedIndices[0];
-                            for (
-                              let i = 1;
-                              i < selectedIndices.length;
-                              i++
-                            ) {
-                              if (
-                                selectedIndices[i] - selectedIndices[i - 1] >
-                                1
-                              ) {
-                                derivedSegments.push({
-                                  区域: regionName,
-                                  开始: runStart,
-                                  结束: runEnd,
-                                  total,
-                                });
-                                runStart = selectedIndices[i];
-                              }
-                              runEnd = selectedIndices[i];
-                            }
-                            derivedSegments.push({
-                              区域: regionName,
-                              开始: runStart,
-                              结束: runEnd,
-                              total,
-                            });
-                          });
+                          const derivedSegments = buildNamedDisplaySegments(
+                            selectedSet,
+                            touchedRegions,
+                            regionOrderedLines,
+                          );
                           return (
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
@@ -322,22 +339,10 @@ export default function MarkStagePanel({
                                       className="flex items-center gap-1 text-[11px] text-slate-600"
                                     >
                                       <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium">
-                                        {seg.区域}
+                                        {seg.名称}
                                       </span>
                                       <span className="text-slate-400">
-                                        {seg.total <= 1
-                                          ? "100%"
-                                          : `${
-                                              Math.round(
-                                                (seg.开始 / seg.total) *
-                                                  100,
-                                              )
-                                            }% – ${
-                                              Math.round(
-                                                ((seg.结束 + 1) / seg.total) *
-                                                  100,
-                                              )
-                                            }%`}
+                                        {formatSegmentSummary(seg)}
                                       </span>
                                     </div>
                                   ))}
@@ -357,8 +362,6 @@ export default function MarkStagePanel({
                       : rule.type === "按档位标记"
                         ? (() => {
                             const levelRule = rule as DML按档位标记命令;
-                            // Use ordered level lines for reliable contiguous-run detection.
-                            // Split a run only when index gap > 1.
                             const selectedSet = new Set(
                               levelRule.lineNodeIds ?? [],
                             );
@@ -367,39 +370,11 @@ export default function MarkStagePanel({
                               const info = lineToLevelInfo?.get(id);
                               if (info) touchedLevels.add(info.档位名称);
                             });
-                            const derivedLevels: {
-                              档位: string;
-                              count: number;
-                              runs: number;
-                            }[] = [];
-                            touchedLevels.forEach((levelName) => {
-                              const orderedIds =
-                                levelOrderedLines?.get(levelName) ?? [];
-                              const selectedIndices: number[] = [];
-                              orderedIds.forEach((id, idx) => {
-                                if (selectedSet.has(id))
-                                  selectedIndices.push(idx);
-                              });
-                              if (selectedIndices.length === 0) return;
-                              let runs = 1;
-                              for (
-                                let i = 1;
-                                i < selectedIndices.length;
-                                i++
-                              ) {
-                                if (
-                                  selectedIndices[i] -
-                                    selectedIndices[i - 1] >
-                                  1
-                                )
-                                  runs++;
-                              }
-                              derivedLevels.push({
-                                档位: levelName,
-                                count: selectedIndices.length,
-                                runs,
-                              });
-                            });
+                            const derivedSegments = buildNamedDisplaySegments(
+                              selectedSet,
+                              touchedLevels,
+                              levelOrderedLines,
+                            );
                             return (
                               <div className="space-y-2">
                                 <div className="flex items-center gap-2">
@@ -435,21 +410,18 @@ export default function MarkStagePanel({
                                     ))}
                                   </select>
                                 </div>
-                                {derivedLevels.length > 0 ? (
+                                  {derivedSegments.length > 0 ? (
                                   <div className="space-y-1">
-                                    {derivedLevels.map((seg, i) => (
+                                      {derivedSegments.map((seg, i) => (
                                       <div
                                         key={i}
                                         className="flex items-center gap-1 text-[11px] text-slate-600"
                                       >
                                         <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium">
-                                          {seg.档位}
+                                            {seg.名称}
                                         </span>
                                         <span className="text-slate-400">
-                                          {seg.count} 条
-                                          {seg.runs > 1
-                                            ? `（${seg.runs} 段）`
-                                            : ""}
+                                            {formatSegmentSummary(seg)}
                                         </span>
                                       </div>
                                     ))}

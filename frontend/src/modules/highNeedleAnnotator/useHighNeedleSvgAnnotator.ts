@@ -295,11 +295,113 @@ function sameRanges(
   );
 }
 
+function sameNamedRanges<T extends { 开始位置: number; 结束位置: number }>(
+  current: T[],
+  next: T[],
+  getName: (item: T) => string,
+): boolean {
+  return (
+    current.length === next.length &&
+    current.every(
+      (item, index) =>
+        getName(item) === getName(next[index]) && sameRange(item, next[index]),
+    )
+  );
+}
+
 function sameStringArray(left: string[], right: string[]): boolean {
   return (
     left.length === right.length &&
     left.every((item, index) => item === right[index])
   );
+}
+
+function buildRegionSegmentsFromLineIds(
+  orderedRegionLinesByName: Map<string, Array<{ lineId: string; posRatio: number }>>,
+  regionOrder: string[],
+  selectedLineIds: string[],
+): {
+  canonicalLineNodeIds: string[];
+  segments: Array<{ 区域: string; 开始位置: number; 结束位置: number }>;
+} {
+  const selectedSet = new Set(selectedLineIds);
+  const regionNames = uniquePreserveOrder([
+    ...regionOrder,
+    ...Array.from(orderedRegionLinesByName.keys()),
+  ]);
+
+  const canonicalLineNodeIds: string[] = [];
+  const segments: Array<{ 区域: string; 开始位置: number; 结束位置: number }> = [];
+
+  regionNames.forEach((regionName) => {
+    const ordered = orderedRegionLinesByName.get(regionName) ?? [];
+    if (ordered.length === 0) return;
+
+    const selectedIndexes = ordered
+      .map((entry, index) => (selectedSet.has(entry.lineId) ? index : -1))
+      .filter((index) => index >= 0);
+    if (selectedIndexes.length === 0) return;
+
+    ordered.forEach((entry) => {
+      if (selectedSet.has(entry.lineId)) {
+        canonicalLineNodeIds.push(entry.lineId);
+      }
+    });
+
+    deriveIndexSegments(ordered.length, selectedIndexes).forEach((segment) => {
+      segments.push({
+        区域: regionName,
+        开始位置: segment.开始位置,
+        结束位置: segment.结束位置,
+      });
+    });
+  });
+
+  return { canonicalLineNodeIds, segments };
+}
+
+function buildLevelSegmentsFromLineIds(
+  orderedLevelLinesByName: Map<string, string[]>,
+  levelOrder: string[],
+  selectedLineIds: string[],
+): {
+  canonicalLineNodeIds: string[];
+  segments: Array<{ 档位名称: string; 开始位置: number; 结束位置: number }>;
+} {
+  const selectedSet = new Set(selectedLineIds);
+  const levelNames = uniquePreserveOrder([
+    ...levelOrder,
+    ...Array.from(orderedLevelLinesByName.keys()),
+  ]);
+
+  const canonicalLineNodeIds: string[] = [];
+  const segments: Array<{ 档位名称: string; 开始位置: number; 结束位置: number }> = [];
+
+  levelNames.forEach((levelName) => {
+    const ordered = orderedLevelLinesByName.get(levelName) ?? [];
+    if (ordered.length === 0) return;
+
+    const selectedIndexes = ordered
+      .map((lineId, index) => (selectedSet.has(lineId) ? index : -1))
+      .filter((index) => index >= 0);
+    if (selectedIndexes.length === 0) return;
+
+    ordered.forEach((lineId) => {
+      if (selectedSet.has(lineId)) {
+        canonicalLineNodeIds.push(lineId);
+      }
+    });
+
+    deriveIndexSegments(ordered.length, selectedIndexes).forEach((segment) => {
+      segments.push({
+        档位名称: levelName,
+        开始位置: segment.开始位置,
+        结束位置: segment.结束位置,
+      });
+    });
+  });
+
+  return { canonicalLineNodeIds, segments };
 }
 
 function normalizeSingleDmlValue(value: string): DmlValue {
@@ -793,16 +895,6 @@ export default function useHighNeedleSvgAnnotator({
     [dmlTextNodeIdByLineId, existingSvgTextIdSet],
   );
 
-  const preferredDmlPosByLineId = useMemo(() => {
-    const map = new Map<string, SvgPoint>();
-    actualDmlTextNodeIdByLineId.forEach((textNodeId, lineId) => {
-      const pos = getSvgTextNodePosition(value.底图.svg, textNodeId);
-      if (!pos) return;
-      map.set(lineId, pos);
-    });
-    return map;
-  }, [actualDmlTextNodeIdByLineId, value.底图.svg]);
-
   const doubleTextNodeIdByLineId = useMemo(() => {
     const map = new Map<string, string>();
     value.自定义数据.单双标注.forEach((item) => {
@@ -838,6 +930,17 @@ export default function useHighNeedleSvgAnnotator({
     });
     return map;
   }, [effectiveLevelTextNodeIdByLineId, value.底图.svg]);
+
+  const preferredDmlPosByLineId = useMemo(() => {
+    const map = new Map<string, SvgPoint>();
+    actualDmlTextNodeIdByLineId.forEach((textNodeId, lineId) => {
+      const pos = getSvgTextNodePosition(value.底图.svg, textNodeId);
+      if (!pos) return;
+      map.set(lineId, pos);
+    });
+
+    return map;
+  }, [actualDmlTextNodeIdByLineId, value.底图.svg]);
 
   const preferredDoublePosByLineId = useMemo(() => {
     const map = new Map<string, SvgPoint>();
@@ -881,6 +984,23 @@ export default function useHighNeedleSvgAnnotator({
       setPendingLevelMarkerPosByLineId(next);
     }
   }, [pendingLevelMarkerPosByLineId, preferredLevelPosByLineId]);
+
+  useEffect(() => {
+    const pendingMap = pendingDmlMarkerPosByLineIdRef.current;
+    if (pendingMap.size === 0) return;
+
+    let changed = false;
+    const next = new Map(pendingMap);
+    pendingMap.forEach((_, lineId) => {
+      if (!preferredDmlPosByLineId.has(lineId)) return;
+      next.delete(lineId);
+      changed = true;
+    });
+
+    if (changed) {
+      pendingDmlMarkerPosByLineIdRef.current = next;
+    }
+  }, [preferredDmlPosByLineId]);
 
   const markerTextIdSet = useMemo(() => {
     const ids = new Set<string>();
@@ -1604,24 +1724,13 @@ export default function useHighNeedleSvgAnnotator({
       }
 
       if (item.type === "区域百分比") {
-        const first = item.区域百分比[0] ?? {
-          区域: "",
-          开始位置: 0,
-          结束位置: 1,
-        };
-        const targetRegion =
-          first.区域 ||
-          regionLineItemsById.get(normalizedNextLineIds[0])?.regionName ||
-          value.底图.区域名[0] ||
-          "";
-        const ordered = orderedRegionLinesByName.get(targetRegion) ?? [];
-        const selectedIndexes = ordered
-          .map((entry, index) =>
-            normalizedNextLineIds.includes(entry.lineId) ? index : -1,
-          )
-          .filter((index) => index >= 0);
+        const { canonicalLineNodeIds, segments } = buildRegionSegmentsFromLineIds(
+          orderedRegionLinesByName,
+          value.底图.区域名,
+          normalizedNextLineIds,
+        );
 
-        if (selectedIndexes.length === 0) {
+        if (segments.length === 0) {
           if (item.区域百分比.length === 0 && !item.lineNodeIds?.length) {
             return item;
           }
@@ -1632,21 +1741,10 @@ export default function useHighNeedleSvgAnnotator({
             区域百分比: [],
           };
         }
-
-        const nextSegments = deriveIndexSegments(ordered.length, selectedIndexes)
-          .map((segment) => ({
-            区域: targetRegion,
-            开始位置: segment.开始位置,
-            结束位置: segment.结束位置,
-          }));
-        const canonicalLineNodeIds = ordered
-          .map((entry) => entry.lineId)
-          .filter((lineId) => normalizedNextLineIds.includes(lineId));
         const prevLineNodeIds = item.lineNodeIds ?? [];
 
         if (
-          item.区域百分比.every((segment) => segment.区域 === targetRegion) &&
-          sameRanges(item.区域百分比, nextSegments) &&
+          sameNamedRanges(item.区域百分比, segments, (segment) => segment.区域) &&
           sameStringArray(prevLineNodeIds, canonicalLineNodeIds)
         ) {
           return item;
@@ -1656,33 +1754,16 @@ export default function useHighNeedleSvgAnnotator({
         return {
           ...item,
           lineNodeIds: canonicalLineNodeIds,
-          区域百分比: nextSegments,
+          区域百分比: segments,
         };
       }
 
-      const first = item.档位[0] ?? {
-        档位名称: "",
-        开始位置: 0,
-        结束位置: 1,
-      };
-      const targetLevel =
-        first.档位名称 ||
-        levelNameByLineId.get(normalizedNextLineIds[0]) ||
-        dmlLevelNames[0] ||
-        "";
-      const ordered = orderedLevelLinesByName.get(targetLevel) ?? [];
-      const selectedIndexes = ordered
-        .map((lineId, index) =>
-          normalizedNextLineIds.includes(lineId) ? index : -1,
-        )
-        .filter((index) => index >= 0);
-      const nextSegments = deriveIndexSegments(ordered.length, selectedIndexes)
-        .map((segment) => ({
-          档位名称: targetLevel,
-          开始位置: segment.开始位置,
-          结束位置: segment.结束位置,
-        }));
-      if (nextSegments.length === 0) {
+      const { canonicalLineNodeIds, segments } = buildLevelSegmentsFromLineIds(
+        orderedLevelLinesByName,
+        dmlLevelNames,
+        normalizedNextLineIds,
+      );
+      if (segments.length === 0) {
         if (item.档位.length === 0 && !item.lineNodeIds?.length) return item;
         changed = true;
         return {
@@ -1692,14 +1773,10 @@ export default function useHighNeedleSvgAnnotator({
         };
       }
 
-      const canonicalLineNodeIds = ordered.filter((lineId) =>
-        normalizedNextLineIds.includes(lineId),
-      );
       const prevLineNodeIds = item.lineNodeIds ?? [];
 
       if (
-        item.档位.every((segment) => segment.档位名称 === targetLevel) &&
-        sameRanges(item.档位, nextSegments) &&
+        sameNamedRanges(item.档位, segments, (segment) => segment.档位名称) &&
         sameStringArray(prevLineNodeIds, canonicalLineNodeIds)
       ) {
         return item;
@@ -1709,7 +1786,7 @@ export default function useHighNeedleSvgAnnotator({
       return {
         ...item,
         lineNodeIds: canonicalLineNodeIds,
-        档位: nextSegments,
+        档位: segments,
       };
     });
 
@@ -2181,51 +2258,74 @@ export default function useHighNeedleSvgAnnotator({
     syncActiveRangeRuleByLineIds(Array.from(nextLineIdSet));
   }
 
-  function ensureDmlMarkerTextNode(lineNodeId: string, pos: SvgPoint) {
-    if (!lineNodeId) return;
+  function ensureDmlMarkerTextNode(
+    entries: Array<{ lineNodeId: string; pos: SvgPoint }>,
+  ) {
+    if (entries.length === 0) return;
 
-    let addedTextId = "";
+    const uniqueEntries = uniquePreserveOrder(
+      entries
+        .map((entry) => String(entry.lineNodeId ?? "").trim())
+        .filter(Boolean),
+    )
+      .map((lineNodeId) => {
+        const matched = entries.find((entry) => entry.lineNodeId === lineNodeId);
+        return matched ? { lineNodeId, pos: matched.pos } : null;
+      })
+      .filter((entry): entry is { lineNodeId: string; pos: SvgPoint } => Boolean(entry));
+
+    if (uniqueEntries.length === 0) return;
+
+    const addedTextIds: string[] = [];
 
     setValue((cur) => {
-      const key = getDmlTextNodeKey(lineNodeId);
-      const prevTextNode = cur.底图.文本节点[key];
-      if (String(prevTextNode?.textNodeId ?? "").trim()) return cur;
+      let nextSvg = cur.底图.svg;
+      let changed = false;
+      const nextTextNodes = { ...cur.底图.文本节点 };
 
-      const text = String(dmlById.get(lineNodeId) ?? "").trim() as DmlValue;
-      if (text !== "D" && text !== "M" && text !== "L") return cur;
+      uniqueEntries.forEach(({ lineNodeId, pos }) => {
+        const key = getDmlTextNodeKey(lineNodeId);
+        const prevTextNode = nextTextNodes[key];
+        if (String(prevTextNode?.textNodeId ?? "").trim()) return;
 
-      const result = upsertMarkerTextNode(cur.底图.svg, {
-        textNodeId: "",
-        createNodeId: allocLocalId("dml_text"),
-        createWhenMissing: true,
-        text,
-        pos,
-        fontStyle: getMarkerTextFontStyle("dml"),
+        const text = String(dmlById.get(lineNodeId) ?? "").trim() as DmlValue;
+        if (text !== "D" && text !== "M" && text !== "L") return;
+
+        const result = upsertMarkerTextNode(nextSvg, {
+          textNodeId: "",
+          createNodeId: allocLocalId("dml_text"),
+          createWhenMissing: true,
+          text,
+          pos,
+          fontStyle: getMarkerTextFontStyle("dml"),
+        });
+        if (!result.textNodeId) return;
+
+        nextSvg = result.svg;
+        nextTextNodes[key] = {
+          textNodeId: result.textNodeId,
+          text,
+          created: true,
+          fontStyle: getMarkerTextFontStyle("dml"),
+        };
+        addedTextIds.push(result.textNodeId);
+        changed = true;
       });
-      if (!result.textNodeId) return cur;
 
-      addedTextId = result.textNodeId;
+      if (!changed) return cur;
 
       return {
         ...cur,
         底图: {
           ...cur.底图,
-          svg: result.svg,
-          文本节点: {
-            ...cur.底图.文本节点,
-            [key]: {
-              textNodeId: result.textNodeId,
-              text,
-              created: true,
-              fontStyle: getMarkerTextFontStyle("dml"),
-            },
-          },
+          svg: nextSvg,
+          文本节点: nextTextNodes,
         },
       };
     });
 
-    if (addedTextId) {
-      setAllTextIds((prev) => mergeTextIdList(prev, [addedTextId], []));
+    if (addedTextIds.length > 0) {
+      setAllTextIds((prev) => mergeTextIdList(prev, addedTextIds, []));
     }
   }
 
