@@ -12,40 +12,15 @@ type Props = {
 
   newTextDraft: {
     text: string;
-    fill: string;
-    fontWeight: string;
-    fontSize: number;
   };
   setNewTextDraft: (updater: any) => void;
 
   createTextNode: () => void;
   updateTextNodeText: (key: string, text: string) => void;
-  updateTextNodeStyle: (key: string, patch: Record<string, unknown>) => void;
   removeTextNode: (key: string) => void;
   clearCustomText: () => void;
   completeTextStage: () => void;
 };
-
-const COLOR_OPTIONS = [
-  { label: "黑色", value: "#111827" },
-  { label: "红色", value: "#ef4444" },
-  { label: "橙色", value: "#f59e0b" },
-  { label: "绿色", value: "#10b981" },
-  { label: "蓝色", value: "#3b82f6" },
-  { label: "灰色", value: "#64748b" },
-] as const;
-
-const WEIGHT_OPTIONS = [
-  { label: "常规 400", value: "400" },
-  { label: "加粗 700", value: "700" },
-  { label: "超粗 900", value: "900" },
-] as const;
-
-function readFontStyle(fontStyle: unknown, key: string): string {
-  if (!fontStyle || typeof fontStyle !== "object") return "";
-  const val = (fontStyle as Record<string, unknown>)[key];
-  return typeof val === "string" || typeof val === "number" ? String(val) : "";
-}
 
 export default function CustomTextStagePanel({
   textNodeEntries,
@@ -55,7 +30,6 @@ export default function CustomTextStagePanel({
   setNewTextDraft,
   createTextNode,
   updateTextNodeText,
-  updateTextNodeStyle,
   removeTextNode,
   clearCustomText,
   completeTextStage,
@@ -73,73 +47,19 @@ export default function CustomTextStagePanel({
           新增文本节点
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <label className="space-y-1">
-            <div className="text-[11px] text-slate-500">文本</div>
-            <input
-              className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
-              value={newTextDraft.text}
-              onChange={(e) =>
-                setNewTextDraft((d: any) => ({
-                  ...d,
-                  text: e.target.value,
-                }))
-              }
-            />
-          </label>
-
-          <label className="space-y-1">
-            <div className="text-[11px] text-slate-500">字号</div>
-            <input
-              className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
-              type="number"
-              value={newTextDraft.fontSize}
-              onChange={(e) =>
-                setNewTextDraft((d: any) => ({
-                  ...d,
-                  fontSize: Number(e.target.value) || 0,
-                }))
-              }
-            />
-          </label>
-
-          <label className="space-y-1">
-            <div className="text-[11px] text-slate-500">颜色</div>
-            <select
-              className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
-              value={newTextDraft.fill}
-              onChange={(e) =>
-                setNewTextDraft((d: any) => ({ ...d, fill: e.target.value }))
-              }
-            >
-              {COLOR_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="space-y-1">
-            <div className="text-[11px] text-slate-500">粗细</div>
-            <select
-              className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
-              value={newTextDraft.fontWeight}
-              onChange={(e) =>
-                setNewTextDraft((d: any) => ({
-                  ...d,
-                  fontWeight: e.target.value,
-                }))
-              }
-            >
-              {WEIGHT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <label className="space-y-1">
+          <div className="text-[11px] text-slate-500">文本</div>
+          <input
+            className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
+            value={newTextDraft.text}
+            onChange={(e) =>
+              setNewTextDraft((d: any) => ({
+                ...d,
+                text: e.target.value,
+              }))
+            }
+          />
+        </label>
 
         <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -239,7 +159,7 @@ export default function CustomTextStagePanel({
                   </div>
 
                   {active ? (
-                    <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="mt-3">
                       <label className="space-y-1">
                         <div className="text-[11px] text-slate-500">文本</div>
                         <input
@@ -249,60 +169,6 @@ export default function CustomTextStagePanel({
                             updateTextNodeText(k, e.target.value)
                           }
                         />
-                      </label>
-
-                      <label className="space-y-1">
-                        <div className="text-[11px] text-slate-500">字号</div>
-                        <input
-                          className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
-                          type="number"
-                          value={readFontStyle(v.fontStyle, "fontSize") || 14}
-                          onChange={(e) =>
-                            updateTextNodeStyle(k, {
-                              fontSize: Number(e.target.value) || 0,
-                            })
-                          }
-                        />
-                      </label>
-
-                      <label className="space-y-1">
-                        <div className="text-[11px] text-slate-500">颜色</div>
-                        <select
-                          className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
-                          value={
-                            readFontStyle(v.fontStyle, "fill") || "#111827"
-                          }
-                          onChange={(e) =>
-                            updateTextNodeStyle(k, { fill: e.target.value })
-                          }
-                        >
-                          {COLOR_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="space-y-1">
-                        <div className="text-[11px] text-slate-500">粗细</div>
-                        <select
-                          className="w-full rounded border border-slate-200 px-2 py-1 text-xs"
-                          value={
-                            readFontStyle(v.fontStyle, "fontWeight") || "700"
-                          }
-                          onChange={(e) =>
-                            updateTextNodeStyle(k, {
-                              fontWeight: e.target.value,
-                            })
-                          }
-                        >
-                          {WEIGHT_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
                       </label>
                     </div>
                   ) : null}

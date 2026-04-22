@@ -98,15 +98,11 @@ type Props = {
   setActiveTextKey: (v: string) => void;
   newTextDraft: {
     text: string;
-    fill: string;
-    fontWeight: string;
-    fontSize: number;
   };
   setNewTextDraft: (updater: any) => void;
 
   createTextNode: () => void;
   updateTextNodeText: (key: string, text: string) => void;
-  updateTextNodeStyle: (key: string, patch: Record<string, unknown>) => void;
   removeTextNode: (key: string) => void;
   clearCustomText: () => void;
 };
@@ -168,7 +164,6 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
     setNewTextDraft,
     createTextNode,
     updateTextNodeText,
-    updateTextNodeStyle,
     removeTextNode,
     clearCustomText,
     completeTextStage,
@@ -424,7 +419,6 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
           setNewTextDraft={setNewTextDraft}
           createTextNode={createTextNode}
           updateTextNodeText={updateTextNodeText}
-          updateTextNodeStyle={updateTextNodeStyle}
           removeTextNode={removeTextNode}
           clearCustomText={clearCustomText}
           completeTextStage={completeTextStage}

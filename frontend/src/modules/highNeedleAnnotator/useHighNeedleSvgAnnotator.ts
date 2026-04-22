@@ -55,50 +55,6 @@ const STEP_ORDER = [
 
 const AUTO_REMOVE_TEXT_SET = new Set(["D", "M", "L", "单", "双"]);
 
-function reportDoubleMarkDragDebug(
-  hypothesisId: "A" | "B" | "C" | "D",
-  location: string,
-  msg: string,
-  data: Record<string, unknown>,
-) {
-  // #region debug-point shared:report
-  fetch("http://127.0.0.1:7777/event", {
-    method: "POST",
-    body: JSON.stringify({
-      sessionId: "double-mark-drag",
-      runId: "pre-fix",
-      hypothesisId,
-      location,
-      msg: `[DEBUG] ${msg}`,
-      data,
-      ts: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-}
-
-function reportHighNeedleLagDebug(
-  hypothesisId: "A" | "B" | "C" | "D" | "E",
-  location: string,
-  msg: string,
-  data: Record<string, unknown>,
-) {
-  // #region debug-point shared:report-high-needle-lag
-  fetch("http://127.0.0.1:7777/event", {
-    method: "POST",
-    body: JSON.stringify({
-      sessionId: "high-needle-lag",
-      runId: "pre-fix",
-      hypothesisId,
-      location,
-      msg: `[DEBUG] ${msg}`,
-      data,
-      ts: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-}
-
 const REGION_COLOR_PALETTE = [
   "#ef4444",
   "#f59e0b",
@@ -124,11 +80,17 @@ function stepToIndex(step: 标注步骤): number {
 }
 
 type SvgPoint = { x: number; y: number };
+type ManualDmlOverride = DmlValue | "";
 
 type RegionLineItem = {
   lineId: string;
   regionName: string;
   posRatio: number;
+};
+
+type DmlBrushPreview = {
+  previewByLineId: Map<string, DmlValue>;
+  affectedLineIds: string[];
 };
 
 type MarkerTextKind = "region" | "level" | "dml" | "double";
@@ -289,6 +251,24 @@ function normalizeSingleDmlValue(value: string): DmlValue {
   return normalized === "M" || normalized === "L" ? normalized : "D";
 }
 
+function mergeManualDmlAssignments(
+  base: Map<string, DmlValue>,
+  manual: Record<string, ManualDmlOverride>,
+): Map<string, DmlValue> {
+  const merged = new Map<string, DmlValue>(base);
+  Object.entries(manual).forEach(([id, value]) => {
+    const normalized = String(value ?? "").trim() as ManualDmlOverride;
+    if (normalized === "") {
+      merged.delete(id);
+      return;
+    }
+    if (normalized === "D" || normalized === "M" || normalized === "L") {
+      merged.set(id, normalized);
+    }
+  });
+  return merged;
+}
+
 function getLevelMarkerText(levelNo: number): string {
   return String(levelNo);
 }
@@ -391,6 +371,12 @@ export default function useHighNeedleSvgAnnotator({
   enableDouble,
   onChange,
 }: UseHighNeedleSvgAnnotatorParams) {
+  const onChangeRef = useRef<typeof onChange>(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   const startFromDone = Boolean(initialValue) && startAt === "done";
 
   const [step, setStep] = useState<标注步骤>(startFromDone ? "完成" : "区域");
@@ -438,12 +424,7 @@ export default function useHighNeedleSvgAnnotator({
   const [activeDmlRuleLineIds, setActiveDmlRuleLineIds] = useState<string[]>(
     [],
   );
-  const manualDmlOverridesRef = useRef<Record<string, DmlValue>>({});
-  const autoDmlAssignmentsRef = useRef<Map<string, DmlValue>>(new Map());
-  const autoDmlManagedIdsRef = useRef<Set<string>>(new Set());
-  const autoDmlSlotByLineIdRef = useRef<
-    Map<string, { configId: string; slotIndex: number }>
-  >(new Map());
+  const manualDmlOverridesRef = useRef<Record<string, ManualDmlOverride>>({});
   const draftMarkerPosByLineIdRef = useRef<Map<string, SvgPoint>>(new Map());
   const [pendingLevelMarkerPosByLineId, setPendingLevelMarkerPosByLineId] =
     useState<Map<string, SvgPoint>>(() => new Map());
@@ -455,14 +436,8 @@ export default function useHighNeedleSvgAnnotator({
   const [activeTextKey, setActiveTextKey] = useState<string>("");
   const [newTextDraft, setNewTextDraft] = useState<{
     text: string;
-    fill: string;
-    fontWeight: string;
-    fontSize: number;
   }>({
     text: "文本",
-    fill: "#111827",
-    fontWeight: "700",
-    fontSize: 14,
   });
 
   const autoTextPreparedRef = useRef(false);
@@ -495,9 +470,6 @@ export default function useHighNeedleSvgAnnotator({
       autoTextPreparedRef.current = false;
       setTextStageHiddenTextIds([]);
       manualDmlOverridesRef.current = {};
-      autoDmlAssignmentsRef.current = new Map();
-      autoDmlManagedIdsRef.current = new Set();
-      autoDmlSlotByLineIdRef.current = new Map();
       dmlMarkerPosByLineIdRef.current = new Map();
 
       setStep("区域");
@@ -542,9 +514,6 @@ export default function useHighNeedleSvgAnnotator({
         manualDmlOverridesRef.current[id] = 规律;
       });
     });
-    autoDmlAssignmentsRef.current = new Map();
-    autoDmlManagedIdsRef.current = new Set();
-    autoDmlSlotByLineIdRef.current = new Map();
     dmlMarkerPosByLineIdRef.current = new Map();
 
     setAllLineIds(ensuredLine.lineIds);
@@ -562,8 +531,8 @@ export default function useHighNeedleSvgAnnotator({
   }, [initialValue, lineSelector, presets, startFromDone]);
 
   useEffect(() => {
-    onChange?.(value);
-  }, [onChange, value]);
+    onChangeRef.current?.(value);
+  }, [value]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -1408,26 +1377,6 @@ export default function useHighNeedleSvgAnnotator({
         layerToggles.double && step !== "完成" ? doubleById : undefined,
       selectedStroke,
     });
-
-    // #region debug-point E:render-svg-recompute
-    const durationMs = performance.now() - startedAt;
-    if (durationMs >= 8 || selectedLineIds.length >= 10) {
-      reportHighNeedleLagDebug(
-        "E",
-        "useHighNeedleSvgAnnotator:renderSvg",
-        "renderSvg recompute sample",
-        {
-          step,
-          durationMs,
-          lineCount: allLineIds.length,
-          textCount: allTextIds.length,
-          draftSelectedCount: selectedLineIds.length,
-          visibleMarkerTextCount: markerTextIdSet.size,
-        },
-      );
-    }
-    // #endregion
-
     return nextSvg;
   }, [
     allLineIds,
@@ -1457,9 +1406,6 @@ export default function useHighNeedleSvgAnnotator({
   function commitMergedDml() {
     const manual = manualDmlOverridesRef.current;
 
-    const addedTextIds: string[] = [];
-    const removedTextIds: string[] = [];
-
     setValue((cur) => {
       const nonSpecialCommands = cur.自定义数据.DML规则命令列表.filter(
         (item) => item.type !== "特殊标记",
@@ -1471,64 +1417,10 @@ export default function useHighNeedleSvgAnnotator({
           DML规则命令列表: nonSpecialCommands,
         },
       });
-
-      autoDmlAssignmentsRef.current = compiledBase.assignments;
-      autoDmlManagedIdsRef.current = compiledBase.managedLineIds;
-
-      const merged = new Map<string, DmlValue>(compiledBase.assignments);
-      Object.entries(manual).forEach(([id, v]) => {
-        const vv = String(v).trim() as DmlValue;
-        if (vv === "D" || vv === "M" || vv === "L") {
-          merged.set(id, vv);
-        }
-      });
-
-      const prevTextNodeIdByLineId = new Map<string, string>();
-      Object.entries(cur.底图.文本节点 ?? {}).forEach(([key, item]) => {
-        if (!key.startsWith("dml:")) return;
-        const lineNodeId = key.slice(4).trim();
-        const textNodeId = String(item?.textNodeId ?? "").trim();
-        if (!lineNodeId || !textNodeId) return;
-        prevTextNodeIdByLineId.set(lineNodeId, textNodeId);
-      });
-      let nextSvg = cur.底图.svg;
-      const nextTextNodes = { ...cur.底图.文本节点 };
-
-      Array.from(merged.entries()).forEach(([lineNodeId, 标注DML]) => {
-        const prevTextNodeId = prevTextNodeIdByLineId.get(lineNodeId) ?? "";
-        const dmlPos =
-          pendingDmlMarkerPosByLineIdRef.current.get(lineNodeId) ??
-          dmlMarkerPosByLineIdRef.current.get(lineNodeId) ??
-          preferredDmlPosByLineId.get(lineNodeId);
-        const result = upsertMarkerTextNode(nextSvg, {
-          textNodeId: prevTextNodeId,
-          createNodeId: allocLocalId("dml_text"),
-          createWhenMissing: Boolean(prevTextNodeId || dmlPos),
-          text: 标注DML,
-          pos: dmlPos,
-          fontStyle: getMarkerTextFontStyle("dml"),
-        });
-        nextSvg = result.svg;
-        if (result.created && result.textNodeId) {
-          addedTextIds.push(result.textNodeId);
-        }
-        nextTextNodes[getDmlTextNodeKey(lineNodeId)] = {
-          textNodeId: result.textNodeId,
-          text: 标注DML,
-          created: true,
-          fontStyle: getMarkerTextFontStyle("dml"),
-        };
-      });
-
-      prevTextNodeIdByLineId.forEach((prevTextNodeId, lineNodeId) => {
-        if (merged.has(lineNodeId)) return;
-        if (prevTextNodeId) {
-          nextSvg = removeSvgTextNodes(nextSvg, [prevTextNodeId]);
-          removedTextIds.push(prevTextNodeId);
-        }
-        delete nextTextNodes[getDmlTextNodeKey(lineNodeId)];
-        dmlMarkerPosByLineIdRef.current.delete(lineNodeId);
-      });
+      const merged = mergeManualDmlAssignments(
+        compiledBase.assignments,
+        manual,
+      );
 
       // Group manual overrides by DML value and create one special command per value
       const linesByValue = new Map<DML值, string[]>();
@@ -1560,11 +1452,6 @@ export default function useHighNeedleSvgAnnotator({
 
       return {
         ...cur,
-        底图: {
-          ...cur.底图,
-          svg: nextSvg,
-          文本节点: nextTextNodes,
-        },
         自定义数据: {
           ...cur.自定义数据,
           DML规则命令列表: [...nonSpecialCommands, ...specialCommands],
@@ -1573,11 +1460,6 @@ export default function useHighNeedleSvgAnnotator({
     });
 
     pendingDmlMarkerPosByLineIdRef.current = new Map();
-    if (addedTextIds.length > 0 || removedTextIds.length > 0) {
-      setAllTextIds((prev) =>
-        mergeTextIdList(prev, addedTextIds, removedTextIds),
-      );
-    }
   }
 
   const dmlOrderRankByLineId = useMemo(() => {
@@ -1648,6 +1530,241 @@ export default function useHighNeedleSvgAnnotator({
     return uniquePreserveOrder(compiled.items.map((item) => item.lineNodeId));
   }
 
+  function patchActiveRangeRuleCommands(
+    commands: DML规则命令[],
+    nextLineIds: string[],
+  ) {
+    let changed = false;
+    const normalizedNextLineIds = uniquePreserveOrder(nextLineIds.filter(Boolean));
+    const nextCommands = commands.map((item) => {
+      if (item.id !== activeDmlRuleId || item.type !== activeDmlRuleType) {
+        return item;
+      }
+
+      if (item.type !== "区域百分比" && item.type !== "按档位标记") {
+        return item;
+      }
+
+      if (item.type === "区域百分比") {
+        const first = item.区域百分比[0] ?? {
+          区域: "",
+          开始位置: 0,
+          结束位置: 1,
+        };
+        const targetRegion =
+          first.区域 ||
+          regionLineItemsById.get(normalizedNextLineIds[0])?.regionName ||
+          value.底图.区域名[0] ||
+          "";
+        const ordered = orderedRegionLinesByName.get(targetRegion) ?? [];
+        const selectedIndexes = ordered
+          .map((entry, index) =>
+            normalizedNextLineIds.includes(entry.lineId) ? index : -1,
+          )
+          .filter((index) => index >= 0);
+
+        if (selectedIndexes.length === 0) {
+          if (item.区域百分比.length === 0 && !item.lineNodeIds?.length) {
+            return item;
+          }
+          changed = true;
+          return {
+            ...item,
+            lineNodeIds: [],
+            区域百分比: [],
+          };
+        }
+
+        const firstIndex = selectedIndexes[0];
+        const lastIndex = selectedIndexes[selectedIndexes.length - 1];
+        const nextRange = {
+          开始位置: ordered[firstIndex]?.posRatio ?? first.开始位置,
+          结束位置:
+            lastIndex >= ordered.length - 1
+              ? 1
+              : (ordered[lastIndex + 1]?.posRatio ?? 1),
+        };
+        const prevLineNodeIds = item.lineNodeIds ?? [];
+
+        if (
+          first.区域 === targetRegion &&
+          sameRange(first, nextRange) &&
+          sameStringArray(prevLineNodeIds, normalizedNextLineIds)
+        ) {
+          return item;
+        }
+
+        changed = true;
+        return {
+          ...item,
+          lineNodeIds: normalizedNextLineIds,
+          区域百分比: [
+            {
+              区域: targetRegion,
+              开始位置: nextRange.开始位置,
+              结束位置: nextRange.结束位置,
+            },
+          ],
+        };
+      }
+
+      const first = item.档位[0] ?? {
+        档位名称: "",
+        开始位置: 0,
+        结束位置: 1,
+      };
+      const targetLevel =
+        first.档位名称 ||
+        levelNameByLineId.get(normalizedNextLineIds[0]) ||
+        dmlLevelNames[0] ||
+        "";
+      const ordered = orderedLevelLinesByName.get(targetLevel) ?? [];
+      const selectedIndexes = ordered
+        .map((lineId, index) =>
+          normalizedNextLineIds.includes(lineId) ? index : -1,
+        )
+        .filter((index) => index >= 0);
+      const nextRange = deriveIndexRange(ordered.length, selectedIndexes);
+      if (!nextRange) {
+        if (item.档位.length === 0 && !item.lineNodeIds?.length) return item;
+        changed = true;
+        return {
+          ...item,
+          lineNodeIds: [],
+          档位: [],
+        };
+      }
+
+      const prevLineNodeIds = item.lineNodeIds ?? [];
+
+      if (
+        first.档位名称 === targetLevel &&
+        sameRange(first, nextRange) &&
+        sameStringArray(prevLineNodeIds, normalizedNextLineIds)
+      ) {
+        return item;
+      }
+
+      changed = true;
+      return {
+        ...item,
+        lineNodeIds: normalizedNextLineIds,
+        档位: [
+          {
+            档位名称: targetLevel,
+            开始位置: nextRange.开始位置,
+            结束位置: nextRange.结束位置,
+          },
+        ],
+      };
+    });
+
+    return {
+      changed,
+      nextCommands,
+      normalizedNextLineIds,
+    };
+  }
+
+  function getDmlBrushPreview(
+    lineIds: string[],
+    mode: "add" | "remove" | "toggle",
+  ): DmlBrushPreview {
+    if (step !== "DML" || !activeDmlRuleId || !activeDmlRuleType) {
+      return {
+        previewByLineId: new Map(),
+        affectedLineIds: [],
+      };
+    }
+
+    const normalizedLineIds = uniquePreserveOrder(
+      lineIds
+        .map((lineId) => String(lineId ?? "").trim())
+        .filter((lineId) => availableForStep.has(lineId)),
+    );
+    if (normalizedLineIds.length === 0) {
+      return {
+        previewByLineId: new Map(),
+        affectedLineIds: [],
+      };
+    }
+
+    if (activeDmlRuleType === "特殊标记") {
+      const normalizedValue = normalizeSingleDmlValue(activeSpecialDmlValue);
+      const nextManual = { ...manualDmlOverridesRef.current };
+      normalizedLineIds.forEach((lineId) => {
+        const existedSameValue = nextManual[lineId] === normalizedValue;
+        if (mode === "remove" || (mode === "toggle" && existedSameValue)) {
+          delete nextManual[lineId];
+          return;
+        }
+        nextManual[lineId] = normalizedValue;
+      });
+
+      const compiled = compileDmlRules({
+        ...value,
+        自定义数据: {
+          ...value.自定义数据,
+          DML规则命令列表: value.自定义数据.DML规则命令列表,
+        },
+      });
+      const merged = mergeManualDmlAssignments(compiled.assignments, nextManual);
+      const previewByLineId = new Map<string, DmlValue>();
+      normalizedLineIds.forEach((lineId) => {
+        const nextValue = merged.get(lineId);
+        if (nextValue) {
+          previewByLineId.set(lineId, nextValue);
+        }
+      });
+      return {
+        previewByLineId,
+        affectedLineIds: normalizedLineIds,
+      };
+    }
+
+    const nextLineIdSet = new Set(activeDmlRuleLineIds);
+    normalizedLineIds.forEach((lineId) => {
+      const existed = nextLineIdSet.has(lineId);
+      if (mode === "remove") {
+        nextLineIdSet.delete(lineId);
+        return;
+      }
+      if (mode === "toggle" && existed) {
+        nextLineIdSet.delete(lineId);
+        return;
+      }
+      nextLineIdSet.add(lineId);
+    });
+
+    const nextLineIds = Array.from(nextLineIdSet);
+    const affectedLineIds = uniquePreserveOrder([
+      ...activeDmlRuleLineIds,
+      ...nextLineIds,
+    ]);
+    const { nextCommands } = patchActiveRangeRuleCommands(
+      value.自定义数据.DML规则命令列表,
+      nextLineIds,
+    );
+    const compiled = compileDmlRules({
+      ...value,
+      自定义数据: {
+        ...value.自定义数据,
+        DML规则命令列表: nextCommands,
+      },
+    });
+    const previewByLineId = new Map<string, DmlValue>();
+    affectedLineIds.forEach((lineId) => {
+      const nextValue = compiled.assignments.get(lineId);
+      if (nextValue) {
+        previewByLineId.set(lineId, nextValue);
+      }
+    });
+    return {
+      previewByLineId,
+      affectedLineIds,
+    };
+  }
+
   function syncActiveRangeRuleByLineIds(nextLineIds: string[]) {
     setActiveDmlRuleLineIdsIfChanged(nextLineIds);
 
@@ -1661,131 +1778,10 @@ export default function useHighNeedleSvgAnnotator({
     }
 
     setValue((cur) => {
-      let changed = false;
-      const nextCommands = cur.自定义数据.DML规则命令列表.map((item) => {
-        if (item.id !== activeDmlRuleId || item.type !== activeDmlRuleType) {
-          return item;
-        }
-
-        if (item.type === "区域百分比") {
-          const first = item.区域百分比[0] ?? {
-            区域: "",
-            开始位置: 0,
-            结束位置: 1,
-          };
-          const targetRegion =
-            first.区域 ||
-            regionLineItemsById.get(nextLineIds[0])?.regionName ||
-            value.底图.区域名[0] ||
-            "";
-          const ordered = orderedRegionLinesByName.get(targetRegion) ?? [];
-          const selectedIndexes = ordered
-            .map((entry, index) =>
-              nextLineIds.includes(entry.lineId) ? index : -1,
-            )
-            .filter((index) => index >= 0);
-
-          if (selectedIndexes.length === 0) {
-            if (item.区域百分比.length === 0 && !item.lineNodeIds?.length)
-              return item;
-            changed = true;
-            return {
-              ...item,
-              lineNodeIds: [],
-              区域百分比: [],
-            };
-          }
-
-          const firstIndex = selectedIndexes[0];
-          const lastIndex = selectedIndexes[selectedIndexes.length - 1];
-          const nextRange = {
-            开始位置: ordered[firstIndex]?.posRatio ?? first.开始位置,
-            结束位置:
-              lastIndex >= ordered.length - 1
-                ? 1
-                : (ordered[lastIndex + 1]?.posRatio ?? 1),
-          };
-
-          // 以标记为主：将显式选中的线条 ID 存入命令，位置仅作辅助参考
-          const nextLineNodeIds = uniquePreserveOrder(
-            nextLineIds.filter(Boolean),
-          );
-          const prevLineNodeIds = item.lineNodeIds ?? [];
-
-          if (
-            first.区域 === targetRegion &&
-            sameRange(first, nextRange) &&
-            sameStringArray(prevLineNodeIds, nextLineNodeIds)
-          ) {
-            return item;
-          }
-
-          changed = true;
-          return {
-            ...item,
-            lineNodeIds: nextLineNodeIds,
-            区域百分比: [
-              {
-                区域: targetRegion,
-                开始位置: nextRange.开始位置,
-                结束位置: nextRange.结束位置,
-              },
-            ],
-          };
-        }
-
-        const first = item.档位[0] ?? {
-          档位名称: "",
-          开始位置: 0,
-          结束位置: 1,
-        };
-        const targetLevel =
-          first.档位名称 ||
-          levelNameByLineId.get(nextLineIds[0]) ||
-          dmlLevelNames[0] ||
-          "";
-        const ordered = orderedLevelLinesByName.get(targetLevel) ?? [];
-        const selectedIndexes = ordered
-          .map((lineId, index) => (nextLineIds.includes(lineId) ? index : -1))
-          .filter((index) => index >= 0);
-        const nextRange = deriveIndexRange(ordered.length, selectedIndexes);
-        if (!nextRange) {
-          if (item.档位.length === 0 && !item.lineNodeIds?.length) return item;
-          changed = true;
-          return {
-            ...item,
-            lineNodeIds: [],
-            档位: [],
-          };
-        }
-
-        // 以标记为主：将显式选中的线条 ID 存入命令，位置仅作辅助参考
-        const nextLineNodeIds = uniquePreserveOrder(
-          nextLineIds.filter(Boolean),
-        );
-        const prevLineNodeIds = item.lineNodeIds ?? [];
-
-        if (
-          first.档位名称 === targetLevel &&
-          sameRange(first, nextRange) &&
-          sameStringArray(prevLineNodeIds, nextLineNodeIds)
-        ) {
-          return item;
-        }
-
-        changed = true;
-        return {
-          ...item,
-          lineNodeIds: nextLineNodeIds,
-          档位: [
-            {
-              档位名称: targetLevel,
-              开始位置: nextRange.开始位置,
-              结束位置: nextRange.结束位置,
-            },
-          ],
-        };
-      });
+      const { changed, nextCommands } = patchActiveRangeRuleCommands(
+        cur.自定义数据.DML规则命令列表,
+        nextLineIds,
+      );
 
       if (!changed) return cur;
 
@@ -1982,20 +1978,6 @@ export default function useHighNeedleSvgAnnotator({
         let nextItems = v.自定义数据.单双标注.filter(
           (item) => item.lineNodeId !== id,
         );
-        // #region debug-point A:double-handle
-        reportDoubleMarkDragDebug(
-          "A",
-          "useHighNeedleSvgAnnotator:handleLineAction",
-          "toggle double line action",
-          {
-            step,
-            lineId: id,
-            existed: Boolean(existed),
-            hasMarkerPos: Boolean(options?.markerPos),
-            prevDoubleCount: v.自定义数据.单双标注.length,
-          },
-        );
-        // #endregion
 
         if (!existed) {
           const result = upsertMarkerTextNode(nextSvg, {
@@ -2010,19 +1992,6 @@ export default function useHighNeedleSvgAnnotator({
           if (result.created && result.textNodeId) {
             addedTextIds.push(result.textNodeId);
           }
-          // #region debug-point B:double-create
-          reportDoubleMarkDragDebug(
-            "B",
-            "useHighNeedleSvgAnnotator:handleLineAction",
-            "create double text result",
-            {
-              lineId: id,
-              created: result.created,
-              textNodeId: result.textNodeId,
-              hasMarkerPos: Boolean(options?.markerPos),
-            },
-          );
-          // #endregion
           nextItems = [
             ...nextItems,
             { lineNodeId: id, textNodeId: result.textNodeId, 双数: true },
@@ -2033,17 +2002,6 @@ export default function useHighNeedleSvgAnnotator({
             nextSvg = removeSvgTextNodes(nextSvg, [textNodeId]);
             removedTextIds.push(textNodeId);
           }
-          // #region debug-point A:double-remove
-          reportDoubleMarkDragDebug(
-            "A",
-            "useHighNeedleSvgAnnotator:handleLineAction",
-            "remove double text result",
-            {
-              lineId: id,
-              textNodeId,
-            },
-          );
-          // #endregion
         }
 
         return {
@@ -2088,11 +2046,8 @@ export default function useHighNeedleSvgAnnotator({
     const next: DmlValue =
       current === "" ? "D" : current === "D" ? "M" : current === "M" ? "L" : "";
 
-    // Store "" explicitly so the selection effect skips auto-assigning this line
-    manualDmlOverridesRef.current[lineId] = next;
-
     if (next === "") {
-      delete manualDmlOverridesRef.current[lineId];
+      manualDmlOverridesRef.current[lineId] = "";
       dmlMarkerPosByLineIdRef.current.delete(lineId);
     } else {
       manualDmlOverridesRef.current[lineId] = next;
@@ -2103,6 +2058,80 @@ export default function useHighNeedleSvgAnnotator({
     }
 
     commitMergedDml();
+  }
+
+  function applyDmlBrushSelection(
+    lineIds: string[],
+    mode: "add" | "remove" | "toggle",
+    markerPosByLineId?: Map<string, SvgPoint>,
+  ) {
+    if (step !== "DML") return;
+    if (!activeDmlRuleId || !activeDmlRuleType) return;
+
+    const normalizedLineIds = uniquePreserveOrder(
+      lineIds
+        .map((lineId) => String(lineId ?? "").trim())
+        .filter((lineId) => availableForStep.has(lineId)),
+    );
+    if (normalizedLineIds.length === 0) return;
+
+    setDirty(true);
+
+    if (activeDmlRuleType === "特殊标记") {
+      const normalizedValue = normalizeSingleDmlValue(activeSpecialDmlValue);
+      normalizedLineIds.forEach((lineId) => {
+        const existedSameValue =
+          manualDmlOverridesRef.current[lineId] === normalizedValue;
+
+        if (mode === "remove" || (mode === "toggle" && existedSameValue)) {
+          delete manualDmlOverridesRef.current[lineId];
+          dmlMarkerPosByLineIdRef.current.delete(lineId);
+          return;
+        }
+
+        manualDmlOverridesRef.current[lineId] = normalizedValue;
+        const markerPos = markerPosByLineId?.get(lineId);
+        if (markerPos) {
+          dmlMarkerPosByLineIdRef.current.set(lineId, markerPos);
+        }
+      });
+
+      setActiveDmlRuleLineIdsIfChanged(
+        uniquePreserveOrder(
+          Object.entries(manualDmlOverridesRef.current)
+            .filter(([, value]) => value === normalizedValue)
+            .map(([lineId]) => lineId),
+        ),
+      );
+
+      commitMergedDml();
+      return;
+    }
+
+    const nextLineIdSet = new Set(activeDmlRuleLineIds);
+    normalizedLineIds.forEach((lineId) => {
+      const existed = nextLineIdSet.has(lineId);
+      if (mode === "remove") {
+        nextLineIdSet.delete(lineId);
+        dmlMarkerPosByLineIdRef.current.delete(lineId);
+        return;
+      }
+      if (mode === "toggle") {
+        if (existed) {
+          nextLineIdSet.delete(lineId);
+          dmlMarkerPosByLineIdRef.current.delete(lineId);
+          return;
+        }
+      }
+
+      nextLineIdSet.add(lineId);
+      const markerPos = markerPosByLineId?.get(lineId);
+      if (markerPos) {
+        dmlMarkerPosByLineIdRef.current.set(lineId, markerPos);
+      }
+    });
+
+    syncActiveRangeRuleByLineIds(Array.from(nextLineIdSet));
   }
 
   function ensureDmlMarkerTextNode(lineNodeId: string, pos: SvgPoint) {
@@ -2243,9 +2272,6 @@ export default function useHighNeedleSvgAnnotator({
     autoTextPreparedRef.current = false;
     setTextStageHiddenTextIds([]);
     manualDmlOverridesRef.current = {};
-    autoDmlAssignmentsRef.current = new Map();
-    autoDmlManagedIdsRef.current = new Set();
-    autoDmlSlotByLineIdRef.current = new Map();
     dmlMarkerPosByLineIdRef.current = new Map();
     draftMarkerPosByLineIdRef.current = new Map();
     setPendingLevelMarkerPosByLineId(new Map());
@@ -2295,9 +2321,6 @@ export default function useHighNeedleSvgAnnotator({
     autoTextPreparedRef.current = false;
     setTextStageHiddenTextIds([]);
     manualDmlOverridesRef.current = {};
-    autoDmlAssignmentsRef.current = new Map();
-    autoDmlManagedIdsRef.current = new Set();
-    autoDmlSlotByLineIdRef.current = new Map();
     draftMarkerPosByLineIdRef.current = new Map();
     setPendingLevelMarkerPosByLineId(new Map());
     pendingDmlMarkerPosByLineIdRef.current = new Map();
@@ -2375,9 +2398,6 @@ export default function useHighNeedleSvgAnnotator({
 
     setDirty(true);
     manualDmlOverridesRef.current = {};
-    autoDmlAssignmentsRef.current = new Map();
-    autoDmlManagedIdsRef.current = new Set();
-    autoDmlSlotByLineIdRef.current = new Map();
     dmlMarkerPosByLineIdRef.current = new Map();
     pendingDmlMarkerPosByLineIdRef.current = new Map();
     setActiveDmlRuleId("");
@@ -3216,9 +3236,9 @@ export default function useHighNeedleSvgAnnotator({
 
   function getDefaultTextFontStyle() {
     return {
-      fill: newTextDraft.fill,
-      fontWeight: newTextDraft.fontWeight,
-      fontSize: newTextDraft.fontSize,
+      fill: "#111827",
+      fontWeight: "700",
+      fontSize: 14,
     };
   }
 
@@ -3332,6 +3352,41 @@ export default function useHighNeedleSvgAnnotator({
     }));
   }
 
+  function updateTextNodeFontSize(key: string, fontSize: number) {
+    const nextFontSize = Math.max(4, Math.min(200, Math.round(fontSize)));
+
+    setDirty(true);
+    setValue((cur) => {
+      const prev = cur.底图.文本节点[key];
+      if (!prev) return cur;
+
+      const mergedFontStyle = {
+        ...getDefaultTextFontStyle(),
+        ...(prev.fontStyle ?? {}),
+        fontSize: nextFontSize,
+      };
+
+      return {
+        ...cur,
+        底图: {
+          ...cur.底图,
+          svg: setSvgTextNodeStyle(
+            cur.底图.svg,
+            prev.textNodeId,
+            mergedFontStyle,
+          ),
+          文本节点: {
+            ...cur.底图.文本节点,
+            [key]: {
+              ...prev,
+              fontStyle: mergedFontStyle,
+            },
+          },
+        },
+      };
+    });
+  }
+
   function removeTextNode(key: string) {
     const removedId = value.底图.文本节点[key]?.textNodeId;
     const nextActiveKey =
@@ -3364,34 +3419,6 @@ export default function useHighNeedleSvgAnnotator({
     }
 
     setActiveTextKey(nextActiveKey);
-  }
-
-  function updateTextNodeStyle(key: string, patch: Record<string, unknown>) {
-    setDirty(true);
-    setValue((cur) => {
-      const prev = cur.底图.文本节点[key];
-      if (!prev) return cur;
-
-      const merged = {
-        ...(prev.fontStyle ?? {}),
-        ...patch,
-      };
-
-      return {
-        ...cur,
-        底图: {
-          ...cur.底图,
-          svg: setSvgTextNodeStyle(cur.底图.svg, prev.textNodeId, merged),
-          文本节点: {
-            ...cur.底图.文本节点,
-            [key]: {
-              ...prev,
-              fontStyle: merged,
-            },
-          },
-        },
-      };
-    });
   }
 
   function clearCustomText() {
@@ -3493,6 +3520,8 @@ export default function useHighNeedleSvgAnnotator({
     requestCanvasReset,
     toggleSelect,
     handleLineAction,
+    applyDmlBrushSelection,
+    getDmlBrushPreview,
     handleLineDmlCycleOverride,
     ensureRegionMarkerTextNode,
     ensureDmlMarkerTextNode,
@@ -3518,9 +3547,9 @@ export default function useHighNeedleSvgAnnotator({
     ensureTextNodeKept,
     createTextNode,
     updateTextNodeText,
+    updateTextNodeFontSize,
     commitTextNodePosition,
     removeTextNode,
-    updateTextNodeStyle,
     clearCustomText,
   };
 }

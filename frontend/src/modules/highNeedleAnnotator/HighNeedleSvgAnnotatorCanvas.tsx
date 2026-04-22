@@ -16,50 +16,6 @@ const BRUSH_HIT_OFFSETS = [
   { x: 3, y: 3 },
 ] as const;
 
-function reportDoubleMarkDragDebug(
-  hypothesisId: "A" | "B" | "C" | "D",
-  location: string,
-  msg: string,
-  data: Record<string, unknown>,
-) {
-  // #region debug-point shared:report
-  fetch("http://127.0.0.1:7777/event", {
-    method: "POST",
-    body: JSON.stringify({
-      sessionId: "double-mark-drag",
-      runId: "pre-fix",
-      hypothesisId,
-      location,
-      msg: `[DEBUG] ${msg}`,
-      data,
-      ts: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-}
-
-function reportHighNeedleLagDebug(
-  hypothesisId: "A" | "B" | "C" | "D" | "E",
-  location: string,
-  msg: string,
-  data: Record<string, unknown>,
-) {
-  // #region debug-point shared:report-high-needle-lag
-  fetch("http://127.0.0.1:7777/event", {
-    method: "POST",
-    body: JSON.stringify({
-      sessionId: "high-needle-lag",
-      runId: "pre-fix",
-      hypothesisId,
-      location,
-      msg: `[DEBUG] ${msg}`,
-      data,
-      ts: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-}
-
 function cssEscapeId(id: string): string {
   if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
     return CSS.escape(id);
@@ -138,6 +94,18 @@ type Props = {
       dmlSelectionMode?: "add" | "remove" | "toggle";
     },
   ) => void;
+  applyDmlBrushSelection: (
+    lineIds: string[],
+    mode: "add" | "remove" | "toggle",
+    markerPosByLineId?: Map<string, { x: number; y: number }>,
+  ) => void;
+  getDmlBrushPreview: (
+    lineIds: string[],
+    mode: "add" | "remove" | "toggle",
+  ) => {
+    previewByLineId: Map<string, DmlValue>;
+    affectedLineIds: string[];
+  };
   hasActiveDmlRuleSelection: boolean;
   activeDmlRuleLineIdSet: Set<string>;
   handleLineDmlCycleOverride: (
@@ -162,31 +130,23 @@ type Props = {
   activeTextKey: string;
   setActiveTextKey: (key: string) => void;
   onTextActivate: (textNodeId: string) => void;
+  onTextFontSizeChange: (key: string, fontSize: number) => void;
   onTextPositionCommit: (
     textNodeId: string,
     pos: { x: number; y: number },
   ) => void;
   onTextRemove: (key: string) => void;
-  onTextStyleChange: (key: string, patch: Record<string, unknown>) => void;
-  textNodeMap: Record<
-    string,
-    { textNodeId: string; text?: string; fontStyle?: Record<string, unknown> }
-  >;
 };
 
 type DragState = {
   textNodeId: string;
   textEl: SVGTextElement;
   svgRoot: SVGSVGElement;
-  /** 鼠标按下时的客户端坐标（用于计算 screen delta） */
   startClientX: number;
   startClientY: number;
-  /** 拖拽开始时文本锚点在父元素坐标系中的位置（x/y attrs + transform 全部考虑在内） */
   initialParentX: number;
   initialParentY: number;
-  /** 父元素的屏幕 CTM（用于将 screen delta 转换为父坐标系 delta） */
   parentCTM: DOMMatrix;
-  /** 文本元素原始 transform 属性值（拖拽预览时与偏移量组合） */
   originalTransform: string | null;
 };
 
@@ -196,15 +156,6 @@ function readNumberAttr(value: string | null | undefined): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
-/**
- * 返回文本元素锚点在父元素坐标系中的位置，通过 getScreenCTM() 精确计算。
- *
- * 锚点取优先级：text[x/y] > 第一个 tspan[x/y] > (0,0)
- * 这样可以正确处理：
- *   A. transform="translate" 定位（x/y=0）
- *   B. text[x/y] 定位
- *   C. tspan[x/y] 绝对定位（text 本身无 x/y）
- */
 function getAnchorInParentSpace(
   el: SVGTextElement,
   svgRoot: SVGSVGElement,
@@ -220,8 +171,6 @@ function getAnchorInParentSpace(
     (parentEl as any)?.getScreenCTM?.() ?? svgRoot.getScreenCTM?.() ?? null;
   if (!parentCTM) return null;
 
-  // tspan[0] 的绝对 x/y 在 SVG 中优先级高于 text 本身的 x/y
-  // 必须与 setSvgTextNodePosition 的锚点计算逻辑保持一致
   const firstTspan = el.querySelector("tspan");
   const xAttr =
     readNumberAttr(firstTspan?.getAttribute("x")) ??
@@ -232,23 +181,17 @@ function getAnchorInParentSpace(
     readNumberAttr(el.getAttribute("y")) ??
     0;
 
-  // Transform the anchor point (x, y) from element local space → screen
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pt: any = svgRoot.createSVGPoint?.();
   if (!pt) return null;
   pt.x = xAttr;
   pt.y = yAttr;
   const screenAnchor = pt.matrixTransform(elCTM);
-
-  // Convert screen → parent local space
   const parentAnchor = screenAnchor.matrixTransform(parentCTM.inverse());
 
   return { pos: { x: parentAnchor.x, y: parentAnchor.y }, parentCTM };
 }
 
-/**
- * 将 screen 坐标增量转换为父元素坐标系中的增量（处理父元素含 scale/rotate 的情况）。
- */
 function screenDeltaToParent(
   svgRoot: SVGSVGElement,
   parentCTM: DOMMatrix,
@@ -260,17 +203,60 @@ function screenDeltaToParent(
   if (!pt) return { dx: screenDx, dy: screenDy };
 
   const inv = parentCTM.inverse();
-  // Transform origin (to get the translation component)
   pt.x = 0;
   pt.y = 0;
   const origin = pt.matrixTransform(inv);
-  // Transform the delta point
   pt.x = screenDx;
   pt.y = screenDy;
   const moved = pt.matrixTransform(inv);
 
-  // Subtract origin to get pure vector delta (cancel out translation)
   return { dx: moved.x - origin.x, dy: moved.y - origin.y };
+}
+
+function getSvgViewportMetrics(svgRoot: SVGSVGElement): {
+  rect: DOMRect;
+  viewBoxX: number;
+  viewBoxY: number;
+  viewBoxWidth: number;
+  viewBoxHeight: number;
+} | null {
+  const rect = svgRoot.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+
+  const viewBox = (svgRoot.getAttribute("viewBox") ?? "").trim();
+  const parts = viewBox
+    .split(/[ ,]+/)
+    .map((part) => Number(part))
+    .filter((part) => Number.isFinite(part));
+
+  if (parts.length === 4) {
+    return {
+      rect,
+      viewBoxX: parts[0],
+      viewBoxY: parts[1],
+      viewBoxWidth: parts[2],
+      viewBoxHeight: parts[3],
+    };
+  }
+
+  const width = Number(svgRoot.getAttribute("width"));
+  const height = Number(svgRoot.getAttribute("height"));
+  if (
+    Number.isFinite(width) &&
+    Number.isFinite(height) &&
+    width > 0 &&
+    height > 0
+  ) {
+    return {
+      rect,
+      viewBoxX: 0,
+      viewBoxY: 0,
+      viewBoxWidth: width,
+      viewBoxHeight: height,
+    };
+  }
+
+  return null;
 }
 
 function clientToSvgPoint(
@@ -279,15 +265,32 @@ function clientToSvgPoint(
   clientY: number,
 ): { x: number; y: number } | null {
   const ctm = svgRoot.getScreenCTM?.();
-  if (!ctm) return null;
+  if (ctm) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pt: any = svgRoot.createSVGPoint?.();
+    if (pt) {
+      pt.x = clientX;
+      pt.y = clientY;
+      const result = pt.matrixTransform(ctm.inverse());
+      if (Number.isFinite(result.x) && Number.isFinite(result.y)) {
+        return { x: result.x, y: result.y };
+      }
+    }
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pt: any = svgRoot.createSVGPoint?.();
-  if (!pt) return null;
-  pt.x = clientX;
-  pt.y = clientY;
-  const result = pt.matrixTransform(ctm.inverse());
-  return { x: result.x, y: result.y };
+  const metrics = getSvgViewportMetrics(svgRoot);
+  if (!metrics) return null;
+
+  return {
+    x:
+      metrics.viewBoxX +
+      ((clientX - metrics.rect.left) / metrics.rect.width) *
+        metrics.viewBoxWidth,
+    y:
+      metrics.viewBoxY +
+      ((clientY - metrics.rect.top) / metrics.rect.height) *
+        metrics.viewBoxHeight,
+  };
 }
 
 function svgToWrapPoint(
@@ -296,15 +299,34 @@ function svgToWrapPoint(
   pos: { x: number; y: number },
 ): { x: number; y: number } | null {
   const ctm = svgRoot.getScreenCTM?.();
-  if (!ctm) return null;
+  if (ctm) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pt: any = svgRoot.createSVGPoint?.();
+    if (pt) {
+      pt.x = pos.x;
+      pt.y = pos.y;
+      const result = pt.matrixTransform(ctm);
+      if (Number.isFinite(result.x) && Number.isFinite(result.y)) {
+        return { x: result.x - wrapRect.left, y: result.y - wrapRect.top };
+      }
+    }
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pt: any = svgRoot.createSVGPoint?.();
-  if (!pt) return null;
-  pt.x = pos.x;
-  pt.y = pos.y;
-  const result = pt.matrixTransform(ctm);
-  return { x: result.x - wrapRect.left, y: result.y - wrapRect.top };
+  const metrics = getSvgViewportMetrics(svgRoot);
+  if (!metrics || metrics.viewBoxWidth <= 0 || metrics.viewBoxHeight <= 0) {
+    return null;
+  }
+
+  return {
+    x:
+      ((pos.x - metrics.viewBoxX) / metrics.viewBoxWidth) *
+        metrics.rect.width +
+      (metrics.rect.left - wrapRect.left),
+    y:
+      ((pos.y - metrics.viewBoxY) / metrics.viewBoxHeight) *
+        metrics.rect.height +
+      (metrics.rect.top - wrapRect.top),
+  };
 }
 
 function scaleSvgViewport(svg: string, scale: number): string {
@@ -396,6 +418,8 @@ export default function HighNeedleSvgAnnotatorCanvas({
   regionLabels,
   toggleSelect,
   handleLineAction,
+  applyDmlBrushSelection,
+  getDmlBrushPreview,
   hasActiveDmlRuleSelection,
   activeDmlRuleLineIdSet,
   handleLineDmlCycleOverride,
@@ -407,10 +431,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
   activeTextKey,
   setActiveTextKey,
   onTextActivate,
+  onTextFontSizeChange,
   onTextPositionCommit,
   onTextRemove,
-  onTextStyleChange,
-  textNodeMap,
 }: Props) {
   const [svgScale, setSvgScale] = useState(1);
   const scaledRenderSvg = useMemo(
@@ -418,12 +441,131 @@ export default function HighNeedleSvgAnnotatorCanvas({
     [renderSvg, svgScale],
   );
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [brushDmlPreviewVersion, setBrushDmlPreviewVersion] = useState(0);
   const zoomAnchorRef = useRef<{
     contentX: number;
     contentY: number;
     clientX: number;
     clientY: number;
   } | null>(null);
+
+  const allTextIdSet = useMemo(() => new Set(allTextIds), [allTextIds]);
+
+  const brushRef = useRef(false);
+  const brushVisitedRef = useRef<Set<string>>(new Set());
+  const brushLastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const brushDmlSelectionModeRef = useRef<"add" | "remove" | "toggle">(
+    "toggle",
+  );
+  const brushDmlLineIdsRef = useRef<string[]>([]);
+  const brushDmlMarkerPosByLineIdRef = useRef<Map<string, { x: number; y: number }>>(
+    new Map(),
+  );
+  const previewHiddenDmlTextOpacityRef = useRef<Map<string, string>>(new Map());
+
+  /** 刷选描边叠加层 canvas。 */
+  const brushCanvasRef = useRef<HTMLCanvasElement>(null);
+  const resizeRef = useRef<{
+    startY: number;
+    startFontSize: number;
+    latestFontSize: number;
+    key: string;
+    textEl: SVGTextElement;
+  } | null>(null);
+
+  const dragRef = useRef<DragState | null>(null);
+  const pendingAutoRegionTextNodeIdsRef = useRef<Set<string>>(new Set());
+  const pendingAutoDmlTextNodeIdsRef = useRef<Set<string>>(new Set());
+
+  const canvasWrapRef = useRef<HTMLDivElement | null>(null);
+  const [regionLabelPosByName, setRegionLabelPosByName] = useState<
+    Map<string, { x: number; y: number }>
+  >(() => new Map());
+
+  const [textHitBoxes, setTextHitBoxes] = useState<
+    Array<{
+      textNodeId: string;
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+    }>
+  >([]);
+
+  const [activeTextBox, setActiveTextBox] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const bumpBrushDmlPreview = React.useCallback(() => {
+    setBrushDmlPreviewVersion((prev) => prev + 1);
+  }, []);
+
+  const dmlBrushPreview = useMemo(
+    () =>
+      step === "DML"
+        ? getDmlBrushPreview(
+            brushDmlLineIdsRef.current,
+            brushDmlSelectionModeRef.current,
+          )
+        : { previewByLineId: new Map<string, DmlValue>(), affectedLineIds: [] },
+    [brushDmlPreviewVersion, getDmlBrushPreview, step],
+  );
+
+  const hiddenDmlPreviewTextNodeIds = useMemo(() => {
+    if (step !== "DML") return [] as string[];
+    return dmlBrushPreview.affectedLineIds.flatMap((lineId) => {
+      const marks = visibleMarkerById.get(lineId);
+      const textNodeId = String(marks?.dmlTextNodeId ?? "").trim();
+      if (!textNodeId) return [];
+      const previewValue = dmlBrushPreview.previewByLineId.get(lineId);
+      if (previewValue === marks?.dml) return [];
+      return [textNodeId];
+    });
+  }, [dmlBrushPreview, step, visibleMarkerById]);
+
+  const getRegionMarkerSvgPos = React.useCallback(
+    (lineId: string) =>
+      draftMarkerPosByLineId.get(lineId) ??
+      preferredRegionPosByLineId.get(lineId) ??
+      null,
+    [draftMarkerPosByLineId, preferredRegionPosByLineId],
+  );
+
+  const getLevelMarkerSvgPos = React.useCallback(
+    (lineId: string) =>
+      (step === "档位" ? draftMarkerPosByLineId.get(lineId) : null) ??
+      pendingLevelMarkerPosByLineId.get(lineId) ??
+      preferredLevelPosByLineId.get(lineId) ??
+      null,
+    [
+      draftMarkerPosByLineId,
+      pendingLevelMarkerPosByLineId,
+      preferredLevelPosByLineId,
+      step,
+    ],
+  );
+
+  const getDmlMarkerSvgPos = React.useCallback(
+    (lineId: string) =>
+      brushDmlMarkerPosByLineIdRef.current.get(lineId) ??
+      pendingDmlMarkerPosByLineId.get(lineId) ??
+      dmlMarkerPosByLineId.get(lineId) ??
+      preferredDmlPosByLineId.get(lineId) ??
+      null,
+    [
+      dmlMarkerPosByLineId,
+      pendingDmlMarkerPosByLineId,
+      preferredDmlPosByLineId,
+    ],
+  );
+
+  const getDoubleMarkerSvgPos = React.useCallback(
+    (lineId: string) => preferredDoublePosByLineId.get(lineId) ?? null,
+    [preferredDoublePosByLineId],
+  );
 
   // 根据图层开关过滤标记
   const filteredMarkerById = useMemo(() => {
@@ -456,8 +598,9 @@ export default function HighNeedleSvgAnnotatorCanvas({
         layerToggles.level &&
         typeof marks.levelNo === "number" &&
         !marks.levelTextNodeId
-      )
+      ) {
         filtered.levelNo = marks.levelNo;
+      }
       if (
         layerToggles.dml &&
         marks.dml &&
@@ -471,140 +614,104 @@ export default function HighNeedleSvgAnnotatorCanvas({
       }
       if (Object.keys(filtered).length > 0) out.set(id, filtered);
     });
+
+    if (layerToggles.dml && step === "DML") {
+      dmlBrushPreview.previewByLineId.forEach((dml, id) => {
+        const prev = out.get(id) ?? {};
+        out.set(id, {
+          ...prev,
+          dml,
+          dmlTextNodeId: undefined,
+        });
+      });
+    }
+
     return out;
-  }, [layerToggles, step, visibleMarkerById]);
+  }, [dmlBrushPreview.previewByLineId, layerToggles, step, visibleMarkerById]);
+  const flushDmlBrushSelection = React.useCallback(() => {
+    if (step !== "DML") return;
+    if (brushDmlLineIdsRef.current.length === 0) return;
 
-  const allTextIdSet = useMemo(() => new Set(allTextIds), [allTextIds]);
-
-  const brushRef = useRef(false);
-  const brushVisitedRef = useRef<Set<string>>(new Set());
-  const brushLastPointRef = useRef<{ x: number; y: number } | null>(null);
-  const brushDmlSelectionModeRef = useRef<"add" | "remove" | "toggle">(
-    "toggle",
-  );
-
-  /** 刷选描边叠加层 canvas。 */
-  const brushCanvasRef = useRef<HTMLCanvasElement>(null);
-
-  const dragRef = useRef<DragState | null>(null);
-  const renderSampleRef = useRef(0);
-  const dragMoveSampleRef = useRef(0);
-  const brushMoveSampleRef = useRef(0);
-  const pendingAutoRegionTextNodeIdsRef = useRef<Set<string>>(new Set());
-  const pendingAutoDmlTextNodeIdsRef = useRef<Set<string>>(new Set());
-
-  // --- 文本缩放拖拽手柄 ---
-  const resizeRef = useRef<{
-    startY: number;
-    startFontSize: number;
-    key: string;
-  } | null>(null);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      const rs = resizeRef.current;
-      if (!rs) return;
-      const deltaY = rs.startY - e.clientY; // 向上拖 → 放大
-      const scaleFactor = 1 + deltaY / 80;
-      const nextSize = Math.round(
-        Math.max(4, Math.min(200, rs.startFontSize * scaleFactor)),
-      );
-      onTextStyleChange(rs.key, { fontSize: nextSize });
-    };
-    const onUp = () => {
-      resizeRef.current = null;
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [onTextStyleChange]);
-
-  const canvasWrapRef = useRef<HTMLDivElement | null>(null);
-  const [regionLabelPosByName, setRegionLabelPosByName] = useState<
-    Map<string, { x: number; y: number }>
-  >(() => new Map());
-
-  const [activeTextBox, setActiveTextBox] = useState<{
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-  } | null>(null);
-
-  const getRegionMarkerSvgPos = React.useCallback(
-    (lineId: string) =>
-      draftMarkerPosByLineId.get(lineId) ??
-      preferredRegionPosByLineId.get(lineId) ??
-      null,
-    [draftMarkerPosByLineId, preferredRegionPosByLineId],
-  );
-
-  const getLevelMarkerSvgPos = React.useCallback(
-    (lineId: string) =>
-      (step === "档位" ? draftMarkerPosByLineId.get(lineId) : null) ??
-      pendingLevelMarkerPosByLineId.get(lineId) ??
-      preferredLevelPosByLineId.get(lineId) ??
-      null,
-    [
-      draftMarkerPosByLineId,
-      pendingLevelMarkerPosByLineId,
-      preferredLevelPosByLineId,
-      step,
-    ],
-  );
-
-  const getDmlMarkerSvgPos = React.useCallback(
-    (lineId: string) =>
-      pendingDmlMarkerPosByLineId.get(lineId) ??
-      dmlMarkerPosByLineId.get(lineId) ??
-      preferredDmlPosByLineId.get(lineId) ??
-      null,
-    [
-      dmlMarkerPosByLineId,
-      pendingDmlMarkerPosByLineId,
-      preferredDmlPosByLineId,
-    ],
-  );
-
-  const getDoubleMarkerSvgPos = React.useCallback(
-    (lineId: string) => preferredDoublePosByLineId.get(lineId) ?? null,
-    [preferredDoublePosByLineId],
-  );
-
-  // #region debug-point A:canvas-render-sample
-  renderSampleRef.current += 1;
-  useEffect(() => {
-    if (renderSampleRef.current % 20 !== 0) return;
-    reportHighNeedleLagDebug(
-      "A",
-      "HighNeedleSvgAnnotatorCanvas:render",
-      "canvas render sample",
-      {
-        step,
-        renderCount: renderSampleRef.current,
-        markerCount: visibleMarkerById.size,
-        filteredMarkerCount: filteredMarkerById.size,
-        activeTextNodeId,
-      },
+    applyDmlBrushSelection(
+      brushDmlLineIdsRef.current,
+      brushDmlSelectionModeRef.current,
+      brushDmlMarkerPosByLineIdRef.current,
     );
-  });
-  // #endregion
+    brushDmlLineIdsRef.current = [];
+    brushDmlMarkerPosByLineIdRef.current = new Map();
+    bumpBrushDmlPreview();
+  }, [applyDmlBrushSelection, bumpBrushDmlPreview, step]);
 
   const resetBrushState = React.useCallback(() => {
     brushRef.current = false;
     brushVisitedRef.current = new Set();
     brushLastPointRef.current = null;
     brushDmlSelectionModeRef.current = "toggle";
+    brushDmlLineIdsRef.current = [];
+    brushDmlMarkerPosByLineIdRef.current = new Map();
+    bumpBrushDmlPreview();
 
     // 清空刷选描边叠加层
     const canvas = brushCanvasRef.current;
     if (canvas) {
       canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
     }
-  }, []);
+  }, [bumpBrushDmlPreview]);
+
+  useEffect(() => {
+    const wrap = canvasWrapRef.current;
+    const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+    if (!svgRoot) return;
+
+    const nextHiddenIdSet = new Set(hiddenDmlPreviewTextNodeIds);
+    const prevOpacityById = previewHiddenDmlTextOpacityRef.current;
+    const allIds = new Set<string>([
+      ...prevOpacityById.keys(),
+      ...nextHiddenIdSet,
+    ]);
+
+    allIds.forEach((textNodeId) => {
+      const textEl = svgRoot.querySelector<SVGElement>(
+        `#${cssEscapeId(textNodeId)}`,
+      );
+      if (!textEl) {
+        prevOpacityById.delete(textNodeId);
+        return;
+      }
+
+      if (nextHiddenIdSet.has(textNodeId)) {
+        if (!prevOpacityById.has(textNodeId)) {
+          prevOpacityById.set(textNodeId, textEl.style.opacity);
+        }
+        textEl.style.opacity = "0";
+        return;
+      }
+
+      if (!prevOpacityById.has(textNodeId)) return;
+      const prevOpacity = prevOpacityById.get(textNodeId) ?? "";
+      if (prevOpacity) {
+        textEl.style.opacity = prevOpacity;
+      } else {
+        textEl.style.removeProperty("opacity");
+      }
+      prevOpacityById.delete(textNodeId);
+    });
+
+    return () => {
+      prevOpacityById.forEach((prevOpacity, textNodeId) => {
+        const textEl = svgRoot.querySelector<SVGElement>(
+          `#${cssEscapeId(textNodeId)}`,
+        );
+        if (!textEl) return;
+        if (prevOpacity) {
+          textEl.style.opacity = prevOpacity;
+        } else {
+          textEl.style.removeProperty("opacity");
+        }
+      });
+      prevOpacityById.clear();
+    };
+  }, [hiddenDmlPreviewTextNodeIds]);
 
   const markerLineIdByTextId = useMemo(() => {
     const map = new Map<string, string>();
@@ -647,9 +754,13 @@ export default function HighNeedleSvgAnnotatorCanvas({
   }, []);
 
   useEffect(() => {
-    window.addEventListener("mouseup", resetBrushState);
-    return () => window.removeEventListener("mouseup", resetBrushState);
-  }, [resetBrushState]);
+    const handleWindowMouseUp = () => {
+      flushDmlBrushSelection();
+      resetBrushState();
+    };
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => window.removeEventListener("mouseup", handleWindowMouseUp);
+  }, [flushDmlBrushSelection, resetBrushState]);
 
   useEffect(() => {
     const handleWindowMouseMove = (e: MouseEvent) => {
@@ -685,27 +796,32 @@ export default function HighNeedleSvgAnnotatorCanvas({
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      const resize = resizeRef.current;
+      if (resize) {
+        const deltaY = resize.startY - e.clientY;
+        const scaleFactor = 1 + deltaY / 80;
+        const nextFontSize = Math.max(
+          4,
+          Math.min(200, Math.round(resize.startFontSize * scaleFactor)),
+        );
+        resize.latestFontSize = nextFontSize;
+        resize.textEl.style.setProperty(
+          "font-size",
+          `${nextFontSize}px`,
+          "important",
+        );
+        resize.textEl.setAttribute("font-size", String(nextFontSize));
+        return;
+      }
+
       const drag = dragRef.current;
       if (!drag) return;
-      const startedAt = performance.now();
       const moveDistance = Math.hypot(
         e.clientX - drag.startClientX,
         e.clientY - drag.startClientY,
       );
       if (moveDistance < 3) return;
       dragHasMovedRef.current = true;
-      // #region debug-point D:drag-move
-      reportDoubleMarkDragDebug(
-        "D",
-        "HighNeedleSvgAnnotatorCanvas:onMove",
-        "marker drag move",
-        {
-          step,
-          textNodeId: drag.textNodeId,
-          moveDistance,
-        },
-      );
-      // #endregion
 
       const { dx, dy } = screenDeltaToParent(
         drag.svgRoot,
@@ -714,31 +830,20 @@ export default function HighNeedleSvgAnnotatorCanvas({
         e.clientY - drag.startClientY,
       );
 
-      // 组合原始 transform + 偏移量进行预览，不修改 x/y/tspan 结构
       const origT = drag.originalTransform ? ` ${drag.originalTransform}` : "";
       drag.textEl.setAttribute("transform", `translate(${dx},${dy})${origT}`);
-
-      // #region debug-point C:drag-move-perf
-      dragMoveSampleRef.current += 1;
-      const durationMs = performance.now() - startedAt;
-      if (durationMs >= 4 || dragMoveSampleRef.current % 10 === 0) {
-        reportHighNeedleLagDebug(
-          "C",
-          "HighNeedleSvgAnnotatorCanvas:onMove",
-          "drag move sample",
-          {
-            step,
-            textNodeId: drag.textNodeId,
-            moveDistance,
-            durationMs,
-            sampleCount: dragMoveSampleRef.current,
-          },
-        );
-      }
-      // #endregion
     };
 
     const onUp = (e: MouseEvent) => {
+      if (resizeRef.current) {
+        onTextFontSizeChange(
+          resizeRef.current.key,
+          resizeRef.current.latestFontSize,
+        );
+        resizeRef.current = null;
+        return;
+      }
+
       const drag = dragRef.current;
       if (!drag) return;
 
@@ -750,28 +855,13 @@ export default function HighNeedleSvgAnnotatorCanvas({
           e.clientY - drag.startClientY,
         );
 
-        // 提交：初始锚点位置 + 父坐标系 delta
         onTextPositionCommit(drag.textNodeId, {
           x: drag.initialParentX + dx,
           y: drag.initialParentY + dy,
         });
         drag.textEl.removeAttribute("transform");
       } else {
-        // 点击标记文本（未拖动）不触发 handleLineAction，避免误删 DML/单双标注
-        // 用户应直接点击线条本身来切换 DML/单双
-        const lineId = markerLineIdByTextId.get(drag.textNodeId);
-        // #region debug-point C:text-click
-        reportDoubleMarkDragDebug(
-          "C",
-          "HighNeedleSvgAnnotatorCanvas:onUp",
-          "marker text click without drag",
-          {
-            step,
-            textNodeId: drag.textNodeId,
-            lineId,
-          },
-        );
-        // #endregion
+        markerLineIdByTextId.get(drag.textNodeId);
       }
       dragHasMovedRef.current = false;
       dragRef.current = null;
@@ -783,7 +873,13 @@ export default function HighNeedleSvgAnnotatorCanvas({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [handleLineAction, markerLineIdByTextId, onTextPositionCommit, step]);
+  }, [
+    handleLineAction,
+    markerLineIdByTextId,
+    onTextFontSizeChange,
+    onTextPositionCommit,
+    step,
+  ]);
 
   useEffect(() => {
     visibleMarkerById.forEach((marks, id) => {
@@ -873,31 +969,54 @@ export default function HighNeedleSvgAnnotatorCanvas({
     const wrap = canvasWrapRef.current;
     if (!wrap) return;
 
-    if (!activeTextNodeId || step !== "自定义文本") {
+    if (step !== "自定义文本") {
+      setTextHitBoxes([]);
       setActiveTextBox(null);
       return;
     }
 
     const raf = window.requestAnimationFrame(() => {
       const wrapRect = wrap.getBoundingClientRect();
-      const el = wrap.querySelector<SVGGraphicsElement>(
-        `#${cssEscapeId(activeTextNodeId)}`,
-      );
-      if (!el) {
+      const nextBoxes = Array.from(
+        wrap.querySelectorAll<SVGGraphicsElement>("text[id]"),
+      )
+        .map((el) => {
+          const textNodeId = (el.getAttribute("id") ?? "").trim();
+          if (!textNodeId || markerTextIdSet.has(textNodeId)) return null;
+          const rect = el.getBoundingClientRect();
+          return {
+            textNodeId,
+            left: rect.left - wrapRect.left,
+            top: rect.top - wrapRect.top,
+            width: rect.width,
+            height: rect.height,
+          };
+        })
+        .filter(Boolean) as Array<{
+        textNodeId: string;
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+      }>;
+
+      setTextHitBoxes(nextBoxes);
+
+      const active = nextBoxes.find((item) => item.textNodeId === activeTextNodeId);
+      if (!active) {
         setActiveTextBox(null);
         return;
       }
-      const rect = el.getBoundingClientRect();
       setActiveTextBox({
-        left: rect.left - wrapRect.left,
-        top: rect.top - wrapRect.top,
-        width: rect.width,
-        height: rect.height,
+        left: active.left,
+        top: active.top,
+        width: active.width,
+        height: active.height,
       });
     });
 
     return () => window.cancelAnimationFrame(raf);
-  }, [activeTextNodeId, scaledRenderSvg, step]);
+  }, [activeTextNodeId, markerTextIdSet, scaledRenderSvg, step]);
 
   useEffect(() => {
     const wrap = canvasWrapRef.current;
@@ -950,6 +1069,33 @@ export default function HighNeedleSvgAnnotatorCanvas({
     return "";
   }
 
+  function beginTextDrag(textNodeId: string, clientX: number, clientY: number) {
+    if (!textNodeId) return false;
+
+    const wrap = canvasWrapRef.current;
+    const svgRoot = wrap?.querySelector<SVGSVGElement>("svg");
+    const textEl = wrap?.querySelector<SVGTextElement>(
+      `#${cssEscapeId(textNodeId)}`,
+    );
+    if (!svgRoot || !textEl) return false;
+    const anchorResult = getAnchorInParentSpace(textEl, svgRoot);
+    if (!anchorResult) return false;
+
+    dragRef.current = {
+      textNodeId,
+      textEl,
+      svgRoot,
+      startClientX: clientX,
+      startClientY: clientY,
+      initialParentX: anchorResult.pos.x,
+      initialParentY: anchorResult.pos.y,
+      parentCTM: anchorResult.parentCTM,
+      originalTransform: textEl.getAttribute("transform"),
+    };
+    dragHasMovedRef.current = false;
+    return true;
+  }
+
   function processBrushMove(clientX: number, clientY: number, buttons = 1) {
     if (!brushRef.current) return;
     if (step === "自定义文本") return;
@@ -1000,25 +1146,15 @@ export default function HighNeedleSvgAnnotatorCanvas({
         const markerPos = svgRoot
           ? (clientToSvgPoint(svgRoot, sampleX, sampleY) ?? undefined)
           : undefined;
-        // #region debug-point A:brush-hit
-        reportDoubleMarkDragDebug(
-          "A",
-          "HighNeedleSvgAnnotatorCanvas:processBrushMove",
-          "brush hit line",
-          {
-            step,
-            lineId: id,
-            sampleX,
-            sampleY,
-            hasMarkerPos: Boolean(markerPos),
-          },
-        );
-        // #endregion
-        if (step === "DML" || step === "单双") {
+        if (step === "DML") {
+          brushDmlLineIdsRef.current.push(id);
+          if (markerPos) {
+            brushDmlMarkerPosByLineIdRef.current.set(id, markerPos);
+          }
+          bumpBrushDmlPreview();
+        } else if (step === "单双") {
           handleLineAction(id, {
             markerPos,
-            dmlSelectionMode:
-              step === "DML" ? brushDmlSelectionModeRef.current : undefined,
           });
         } else {
           toggleSelect(id, {
@@ -1028,24 +1164,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
         }
       }
     }
-
-    // #region debug-point D:brush-move-perf
-    brushMoveSampleRef.current += 1;
-    const durationMs = performance.now() - startedAt;
-    if (durationMs >= 4 || brushMoveSampleRef.current % 10 === 0) {
-      reportHighNeedleLagDebug(
-        "D",
-        "HighNeedleSvgAnnotatorCanvas:processBrushMove",
-        "brush move sample",
-        {
-          step,
-          durationMs,
-          steps,
-          sampleCount: brushMoveSampleRef.current,
-        },
-      );
-    }
-    // #endregion
   }
 
   const wrapExtraClass = "";
@@ -1166,50 +1284,16 @@ export default function HighNeedleSvgAnnotatorCanvas({
             textId &&
             (canDragMarkerText || (step === "自定义文本" && !isMarkerText))
           ) {
-            // #region debug-point D:drag-start
-            reportDoubleMarkDragDebug(
-              "D",
-              "HighNeedleSvgAnnotatorCanvas:onMouseDown",
-              "start marker text drag candidate",
-              {
-                step,
-                textId,
-                isMarkerText,
-                isDraggableMarkerText: canDragMarkerText,
-              },
-            );
-            // #endregion
             const id = textId;
             if (!id) return;
 
             if (step === "自定义文本" && !isMarkerText) {
+              beginTextDrag(id, e.clientX, e.clientY);
               onTextActivate(id);
+              return;
             }
 
-            const textEl = wrap?.querySelector<SVGTextElement>(
-              `#${cssEscapeId(id)}`,
-            );
-            if (!svgRoot || !textEl) return;
-
-            const anchorResult = getAnchorInParentSpace(textEl, svgRoot);
-            if (!anchorResult) return;
-
-            const nextDragState: DragState = {
-              textNodeId: id,
-              textEl,
-              svgRoot,
-              startClientX: e.clientX,
-              startClientY: e.clientY,
-              initialParentX: anchorResult.pos.x,
-              initialParentY: anchorResult.pos.y,
-              parentCTM: anchorResult.parentCTM,
-              originalTransform: textEl.getAttribute("transform"),
-            };
-
-            dragRef.current = nextDragState;
-            dragHasMovedRef.current = false;
-
-            return;
+            if (beginTextDrag(id, e.clientX, e.clientY)) return;
           }
 
           // 区域/档位/DML/单双阶段都支持按住鼠标沿线刷过；
@@ -1240,23 +1324,16 @@ export default function HighNeedleSvgAnnotatorCanvas({
             const markerPos = svgRoot
               ? (clientToSvgPoint(svgRoot, e.clientX, e.clientY) ?? undefined)
               : undefined;
-            // #region debug-point A:brush-start
-            reportDoubleMarkDragDebug(
-              "A",
-              "HighNeedleSvgAnnotatorCanvas:onMouseDown",
-              "brush start hit line",
-              {
-                step,
-                lineId: id,
-                hasMarkerPos: Boolean(markerPos),
-              },
-            );
-            // #endregion
-            if (step === "DML" || step === "单双") {
+            if (step === "DML") {
+              brushDmlLineIdsRef.current = [id];
+              brushDmlMarkerPosByLineIdRef.current = new Map();
+              if (markerPos) {
+                brushDmlMarkerPosByLineIdRef.current.set(id, markerPos);
+              }
+              bumpBrushDmlPreview();
+            } else if (step === "单双") {
               handleLineAction(id, {
                 markerPos,
-                dmlSelectionMode:
-                  step === "DML" ? brushDmlSelectionModeRef.current : undefined,
               });
             } else {
               toggleSelect(id, {
@@ -1266,7 +1343,10 @@ export default function HighNeedleSvgAnnotatorCanvas({
             }
           }
         }}
-        onMouseUp={resetBrushState}
+        onMouseUp={() => {
+          flushDmlBrushSelection();
+          resetBrushState();
+        }}
         onMouseMove={(e) => {
           processBrushMove(e.clientX, e.clientY, e.buttons);
         }}
@@ -1302,6 +1382,33 @@ export default function HighNeedleSvgAnnotatorCanvas({
             style={{ zIndex: 10 }}
           />
 
+          {step === "自定义文本"
+            ? textHitBoxes.map((box) => {
+                const isActive = box.textNodeId === activeTextNodeId;
+                return (
+                  <div
+                    key={`text_hit_${box.textNodeId}`}
+                    className="absolute"
+                    style={{
+                      left: box.left - 6,
+                      top: box.top - 6,
+                      width: Math.max(box.width + 12, 20),
+                      height: Math.max(box.height + 12, 20),
+                      zIndex: isActive ? 18 : 12,
+                      cursor: "move",
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      beginTextDrag(box.textNodeId, e.clientX, e.clientY);
+                      onTextActivate(box.textNodeId);
+                    }}
+                    title="拖动文本"
+                  />
+                );
+              })
+            : null}
+
           {activeTextBox && step === "自定义文本" ? (
             <>
               {/* 选中框 */}
@@ -1314,7 +1421,6 @@ export default function HighNeedleSvgAnnotatorCanvas({
                   height: activeTextBox.height + 8,
                 }}
               />
-              {/* 右上角删除按钮 */}
               <button
                 type="button"
                 className="absolute z-20 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold leading-none text-white shadow hover:bg-red-600"
@@ -1331,33 +1437,39 @@ export default function HighNeedleSvgAnnotatorCanvas({
               >
                 ×
               </button>
-              {/* 右下角缩放手柄 — 上下拖拽改变字号 */}
               <div
                 className="absolute z-20 flex h-4 w-4 cursor-ns-resize items-center justify-center rounded-sm border border-blue-500 bg-white shadow"
                 style={{
                   left: activeTextBox.left + activeTextBox.width + 4 - 4,
                   top: activeTextBox.top + activeTextBox.height + 4 - 4,
                 }}
-                title={`字号 ${Number(textNodeMap[activeTextKey]?.fontStyle?.fontSize ?? 14)} — 上下拖动缩放`}
+                title="上下拖动缩放字号"
                 onMouseDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   if (!activeTextKey) return;
+                  const wrap = canvasWrapRef.current;
+                  const textEl = wrap?.querySelector<SVGTextElement>(
+                    `#${cssEscapeId(activeTextNodeId)}`,
+                  );
+                  if (!textEl) return;
+                  const computedFontSize = Number.parseFloat(
+                    window.getComputedStyle(textEl).fontSize,
+                  );
                   resizeRef.current = {
                     startY: e.clientY,
-                    startFontSize: Number(
-                      textNodeMap[activeTextKey]?.fontStyle?.fontSize ?? 14,
-                    ),
+                    startFontSize: Number.isFinite(computedFontSize)
+                      ? computedFontSize
+                      : 14,
+                    latestFontSize: Number.isFinite(computedFontSize)
+                      ? computedFontSize
+                      : 14,
                     key: activeTextKey,
+                    textEl,
                   };
                 }}
               >
-                <svg
-                  width="8"
-                  height="8"
-                  viewBox="0 0 8 8"
-                  className="text-blue-500"
-                >
+                <svg width="8" height="8" viewBox="0 0 8 8" className="text-blue-500">
                   <path
                     d="M2 1L4 0L6 1M2 7L4 8L6 7"
                     stroke="currentColor"

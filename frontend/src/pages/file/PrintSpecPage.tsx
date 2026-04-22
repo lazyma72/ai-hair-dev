@@ -87,7 +87,12 @@ function createInitialSvgState(svg: string) {
 function normalizeSvgForPrintBox(svg: string): string {
   if (!svg.trim()) return svg;
 
-  return svg.replace(/<svg\b([^>]*)>/i, (_, attrs: string) => {
+  const withoutRegionNumbers = svg.replace(
+    /<text\b(?=[^>]*\bid=["']region_text[^"']*["'])[^>]*>[\s\S]*?<\/text>/gi,
+    "",
+  );
+
+  return withoutRegionNumbers.replace(/<svg\b([^>]*)>/i, (_, attrs: string) => {
     const cleaned = attrs
       .replace(/\swidth=["'][^"']*["']/gi, "")
       .replace(/\sheight=["'][^"']*["']/gi, "")
