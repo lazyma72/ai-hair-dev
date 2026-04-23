@@ -112,20 +112,20 @@ function normalize区域线条(
   return items
     .map((rawItem, itemIndex) => {
       const item = rawItem as RegionLineWithTextNodeIds;
-    const textNodeIds = Array.isArray(item.textNodeIds)
-      ? item.textNodeIds
-          .map((textNodeId) => String(textNodeId ?? "").trim())
-          .filter(Boolean)
+      const textNodeIds = Array.isArray(item.textNodeIds)
+        ? item.textNodeIds
+            .map((textNodeId) => String(textNodeId ?? "").trim())
+            .filter(Boolean)
             .slice(0, 1)
-      : [];
-    const lineLength =
-      typeof item.lineLength === "number" ? item.lineLength : 0;
-    const ratioValue =
-      typeof item.区域内位置占比 === "number"
-        ? item.区域内位置占比
-        : Number(item.区域内位置占比 ?? 0);
-    const 区域内位置占比 = Number.isFinite(ratioValue) ? ratioValue : 0;
-    const explicitSort = normalizeRegionLineSort(item.sort);
+        : [];
+      const lineLength =
+        typeof item.lineLength === "number" ? item.lineLength : 0;
+      const ratioValue =
+        typeof item.区域内位置占比 === "number"
+          ? item.区域内位置占比
+          : Number(item.区域内位置占比 ?? 0);
+      const 区域内位置占比 = Number.isFinite(ratioValue) ? ratioValue : 0;
+      const explicitSort = normalizeRegionLineSort(item.sort);
       return {
         ...item,
         lineNodeId: String(item.lineNodeId ?? "").trim(),
@@ -374,7 +374,8 @@ function buildRegionSegmentsFromLineIds(
   ]);
 
   const canonicalLineNodeIds: string[] = [];
-  const segments: Array<{ 区域: string; 开始位置: number; 结束位置: number }> = [];
+  const segments: Array<{ 区域: string; 开始位置: number; 结束位置: number }> =
+    [];
 
   regionNames.forEach((regionName) => {
     const ordered = orderedRegionLinesByName.get(regionName) ?? [];
@@ -418,7 +419,11 @@ function buildLevelSegmentsFromLineIds(
   ]);
 
   const canonicalLineNodeIds: string[] = [];
-  const segments: Array<{ 档位名称: string; 开始位置: number; 结束位置: number }> = [];
+  const segments: Array<{
+    档位名称: string;
+    开始位置: number;
+    结束位置: number;
+  }> = [];
 
   levelNames.forEach((levelName) => {
     const ordered = orderedLevelLinesByName.get(levelName) ?? [];
@@ -861,8 +866,7 @@ export default function useHighNeedleSvgAnnotator({
   const regionTextNodeIdByLineId = useMemo(() => {
     const map = new Map<string, string>();
     value.底图.区域线条.forEach((item) => {
-      const textNodeIds = (item as RegionLineWithTextNodeIds)
-        .textNodeIds;
+      const textNodeIds = (item as RegionLineWithTextNodeIds).textNodeIds;
       const lineId = String(item.lineNodeId ?? "").trim();
       const textNodeId = String(textNodeIds?.[0] ?? "").trim();
       if (!lineId || !textNodeId) return;
@@ -906,7 +910,8 @@ export default function useHighNeedleSvgAnnotator({
       filterExistingTextNodeMap(levelTextNodeIdByLineId, existingSvgTextIdSet),
     [existingSvgTextIdSet, levelTextNodeIdByLineId],
   );
-  const effectiveLevelTextNodeIdByLineId = actualPersistedLevelTextNodeIdByLineId;
+  const effectiveLevelTextNodeIdByLineId =
+    actualPersistedLevelTextNodeIdByLineId;
 
   const dmlTextNodeIdByLineId = useMemo(() => {
     const map = new Map<string, string>();
@@ -965,25 +970,22 @@ export default function useHighNeedleSvgAnnotator({
       item.lineNodeIds.forEach((lineId) => {
         map.set(lineId, item.区域名);
       });
-    })
+    });
     return map;
   }, [value.底图.档位标注]);
 
-  const orderedLevelLinesByName = useMemo(
-    () => {
-      const map = new Map<string, string[]>();
-      value.底图.档位标注.forEach((item) => {
-        const list = map.get(item.区域名) ?? [];
-        item.lineNodeIds.forEach((lineId) => {
-          if (!lineId) return;
-          list.push(lineId);
-        });
-        map.set(item.区域名, list);
+  const orderedLevelLinesByName = useMemo(() => {
+    const map = new Map<string, string[]>();
+    value.底图.档位标注.forEach((item) => {
+      const list = map.get(item.区域名) ?? [];
+      item.lineNodeIds.forEach((lineId) => {
+        if (!lineId) return;
+        list.push(lineId);
       });
-      return map;
-    },
-    [value.底图.档位标注],
-  );
+      map.set(item.区域名, list);
+    });
+    return map;
+  }, [value.底图.档位标注]);
 
   const actualDmlTextNodeIdByLineId = useMemo(
     () =>
@@ -1233,7 +1235,10 @@ export default function useHighNeedleSvgAnnotator({
 
   const canonicalizeActiveRangeRuleLineIds = useMemo(
     () =>
-      (lineIds: string[], ruleType: ActiveDmlRuleType | "" = activeDmlRuleType) =>
+      (
+        lineIds: string[],
+        ruleType: ActiveDmlRuleType | "" = activeDmlRuleType,
+      ) =>
         collectCanonicalRangeRuleLineIds(ruleType, lineIds, {
           orderedRegionLinesByName,
           regionOrder: dmlRegionNames,
@@ -1820,7 +1825,9 @@ export default function useHighNeedleSvgAnnotator({
     nextLineIds: string[],
   ) {
     let changed = false;
-    const normalizedNextLineIds = uniquePreserveOrder(nextLineIds.filter(Boolean));
+    const normalizedNextLineIds = uniquePreserveOrder(
+      nextLineIds.filter(Boolean),
+    );
     const nextCommands = commands.map((item) => {
       if (item.id !== activeDmlRuleId || item.type !== activeDmlRuleType) {
         return item;
@@ -1831,11 +1838,12 @@ export default function useHighNeedleSvgAnnotator({
       }
 
       if (item.type === "区域百分比") {
-        const { canonicalLineNodeIds, segments } = buildRegionSegmentsFromLineIds(
-          orderedRegionLinesByName,
-          dmlRegionNames,
-          normalizedNextLineIds,
-        );
+        const { canonicalLineNodeIds, segments } =
+          buildRegionSegmentsFromLineIds(
+            orderedRegionLinesByName,
+            dmlRegionNames,
+            normalizedNextLineIds,
+          );
 
         if (segments.length === 0) {
           if (item.区域百分比.length === 0 && !item.lineNodeIds?.length) {
@@ -1851,7 +1859,11 @@ export default function useHighNeedleSvgAnnotator({
         const prevLineNodeIds = item.lineNodeIds ?? [];
 
         if (
-          sameNamedRanges(item.区域百分比, segments, (segment) => segment.区域) &&
+          sameNamedRanges(
+            item.区域百分比,
+            segments,
+            (segment) => segment.区域,
+          ) &&
           sameStringArray(prevLineNodeIds, canonicalLineNodeIds)
         ) {
           return item;
@@ -1939,7 +1951,10 @@ export default function useHighNeedleSvgAnnotator({
         nextManual[lineId] = normalizedValue;
       });
 
-      const merged = mergeManualDmlAssignments(dmlCompiled.assignments, nextManual);
+      const merged = mergeManualDmlAssignments(
+        dmlCompiled.assignments,
+        nextManual,
+      );
       const previewByLineId = new Map<string, DmlValue>();
       normalizedLineIds.forEach((lineId) => {
         const nextValue = merged.get(lineId);
@@ -1976,13 +1991,16 @@ export default function useHighNeedleSvgAnnotator({
       value.自定义数据.DML规则命令列表,
       nextLineIds,
     );
-    const compiled = compileDmlRulesForLineIds({
-      ...value,
-      自定义数据: {
-        ...value.自定义数据,
-        DML规则命令列表: nextCommands,
+    const compiled = compileDmlRulesForLineIds(
+      {
+        ...value,
+        自定义数据: {
+          ...value.自定义数据,
+          DML规则命令列表: nextCommands,
+        },
       },
-    }, affectedLineIds);
+      affectedLineIds,
+    );
     const previewByLineId = new Map<string, DmlValue>();
     affectedLineIds.forEach((lineId) => {
       const nextValue = compiled.assignments.get(lineId);
@@ -2108,7 +2126,6 @@ export default function useHighNeedleSvgAnnotator({
 
       return existedInPrev ? prev.filter((x) => x !== id) : [...prev, id];
     });
-
   }
 
   function handleLineAction(
@@ -2377,10 +2394,14 @@ export default function useHighNeedleSvgAnnotator({
         .filter(Boolean),
     )
       .map((lineNodeId) => {
-        const matched = entries.find((entry) => entry.lineNodeId === lineNodeId);
+        const matched = entries.find(
+          (entry) => entry.lineNodeId === lineNodeId,
+        );
         return matched ? { lineNodeId, pos: matched.pos } : null;
       })
-      .filter((entry): entry is { lineNodeId: string; pos: SvgPoint } => Boolean(entry));
+      .filter((entry): entry is { lineNodeId: string; pos: SvgPoint } =>
+        Boolean(entry),
+      );
 
     if (uniqueEntries.length === 0) return;
 
@@ -2443,17 +2464,15 @@ export default function useHighNeedleSvgAnnotator({
     let addedTextId = "";
 
     setValue((cur) => {
-      const itemIndex = cur.底图.区域线条.findIndex((item) =>
-        item.lineNodeId === lineNodeId,
+      const itemIndex = cur.底图.区域线条.findIndex(
+        (item) => item.lineNodeId === lineNodeId,
       );
       if (itemIndex < 0) return cur;
 
       const prevItem = cur.底图.区域线条[
         itemIndex
       ] as RegionLineWithTextNodeIds;
-      const existingTextNodeId = String(
-        prevItem.textNodeIds?.[0] ?? "",
-      ).trim();
+      const existingTextNodeId = String(prevItem.textNodeIds?.[0] ?? "").trim();
       const regionNo = String(
         normalizeRegionLineSort(prevItem.sort) ?? itemIndex + 1,
       );

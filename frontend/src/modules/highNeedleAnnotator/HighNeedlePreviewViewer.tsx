@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import InlineSvg from "../../components/InlineSvg";
 import { makeDmlMap, makeDoubleSet } from "./helpers";
 import type { 高针图 } from "./types";
-import { collectSvgTextNodes, decorateLines, pruneSvgTextNodes } from "./svgUtils";
+import {
+  collectSvgTextNodes,
+  decorateLines,
+  pruneSvgTextNodes,
+} from "./svgUtils";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -61,7 +65,10 @@ function buildRegionColorByName(data: 高针图): Map<string, string> {
   data.底图.区域线条.forEach((d) => {
     const regionName = String(d.区域名 ?? "").trim();
     if (!regionName || map.has(regionName)) return;
-    map.set(regionName, REGION_COLOR_PALETTE[map.size % REGION_COLOR_PALETTE.length]);
+    map.set(
+      regionName,
+      REGION_COLOR_PALETTE[map.size % REGION_COLOR_PALETTE.length],
+    );
   });
 
   return map;
@@ -232,22 +239,24 @@ function buildPreviewLabels(
     });
   }
 
-  data.底图.档位标注.forEach(({ 区域名, lineNodeIds, textNodeIds = [] }, index) => {
-    if (!toggles.level) return;
-    const levelText = getLevelMarkerText(
-      parseLevelNo(String(区域名 ?? ""), index + 1),
-    );
-    lineNodeIds.forEach((lineId, lineIndex) => {
-      const textNodeId = String(textNodeIds[lineIndex] ?? "").trim();
-      if (textNodeId && existingSvgTextIdSet.has(textNodeId)) return;
-      out.push({
-        lineId,
-        text: levelText,
-        ratio: 0.5,
-        fill: "#0f172a",
+  data.底图.档位标注.forEach(
+    ({ 区域名, lineNodeIds, textNodeIds = [] }, index) => {
+      if (!toggles.level) return;
+      const levelText = getLevelMarkerText(
+        parseLevelNo(String(区域名 ?? ""), index + 1),
+      );
+      lineNodeIds.forEach((lineId, lineIndex) => {
+        const textNodeId = String(textNodeIds[lineIndex] ?? "").trim();
+        if (textNodeId && existingSvgTextIdSet.has(textNodeId)) return;
+        out.push({
+          lineId,
+          text: levelText,
+          ratio: 0.5,
+          fill: "#0f172a",
+        });
       });
-    });
-  });
+    },
+  );
 
   data.自定义数据.单双标注.forEach((item) => {
     if (!toggles.double) return;
@@ -286,10 +295,14 @@ export default function HighNeedlePreviewViewer({
 
   const previewSvg = useMemo(() => {
     if (!data?.底图?.svg) return "";
-    const allTextIds = collectSvgTextNodes(data.底图.svg).map((item) => item.id);
+    const allTextIds = collectSvgTextNodes(data.底图.svg).map(
+      (item) => item.id,
+    );
     const existingSvgTextIdSet = new Set(allTextIds);
     const dmlTextIds = allTextIds.filter((id) =>
-      String(id ?? "").trim().startsWith("dml_text_"),
+      String(id ?? "")
+        .trim()
+        .startsWith("dml_text_"),
     );
     const levelTextIds = data.底图.档位标注.flatMap(({ textNodeIds = [] }) => {
       return textNodeIds.filter((textNodeId) =>
@@ -381,7 +394,12 @@ export default function HighNeedlePreviewViewer({
     const existingSvgTextIdSet = new Set(
       collectSvgTextNodes(data.底图.svg).map((item) => item.id),
     );
-    return buildPreviewLabels(data, toggles, existingSvgTextIdSet, regionColorByName);
+    return buildPreviewLabels(
+      data,
+      toggles,
+      existingSvgTextIdSet,
+      regionColorByName,
+    );
   }, [data, regionColorByName, toggles]);
 
   useEffect(() => {

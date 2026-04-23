@@ -68,8 +68,7 @@ function collectNormalizedRegionLines(graph: GraphLike): NormalizedRegionLine[] 
       lineNodeId: String(line.lineNodeId ?? "").trim(),
       sort: normalizeRegionLineSort(line.sort, itemIndex),
       lineLength: typeof line.lineLength === "number" ? line.lineLength : 0,
-      区域内位置占比:
-        typeof line.区域内位置占比 === "number" ? line.区域内位置占比 : 0,
+      区域内位置占比: typeof line.区域内位置占比 === "number" ? line.区域内位置占比 : 0,
     }))
     .filter(line => line.lineNodeId)
     .map((line, index) => ({
@@ -126,9 +125,7 @@ function buildRegionSet(graph: GraphLike): Set<string> {
  * - 主要用于把任意线条 nodeId 反推到所属区域及全局顺序
  * - 若存在重复 nodeId，仅保留第一次出现的记录（保持稳定性）
  */
-function buildNodeIdToLineInfo(
-  graph: GraphLike
-): Map<string, { 区域名: string; sort: number }> {
+function buildNodeIdToLineInfo(graph: GraphLike): Map<string, { 区域名: string; sort: number }> {
   const m = new Map<string, { 区域名: string; sort: number }>()
   for (const line of collectNormalizedRegionLines(graph)) {
     if (!m.has(line.lineNodeId)) {

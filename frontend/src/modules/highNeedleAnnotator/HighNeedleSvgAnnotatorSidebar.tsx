@@ -206,8 +206,7 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
   }>;
   const regionCountByName: Record<string, number> = {};
   regionItems.forEach((item) => {
-    regionCountByName[item.区域名] =
-      (regionCountByName[item.区域名] ?? 0) + 1;
+    regionCountByName[item.区域名] = (regionCountByName[item.区域名] ?? 0) + 1;
   });
 
   const lineToLevelInfo = new Map<string, { 档位名称: string }>();
