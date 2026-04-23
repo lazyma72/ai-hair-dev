@@ -2,6 +2,7 @@ import type { DmlValue } from "./types";
 import type { DML规则命令 } from "../../shared/models/DML规则";
 import CustomTextStagePanel from "./CustomTextStagePanel";
 import DoneStagePanel from "./DoneStagePanel";
+import { orderLineIdsByReferenceOrder } from "./helpers";
 import LevelStagePanel from "./LevelStagePanel";
 import MarkStagePanel from "./MarkStagePanel";
 import RegionStagePanel from "./RegionStagePanel";
@@ -109,6 +110,7 @@ type Props = {
 
 type RegionLineEntry = {
   区域名: string;
+  sortNodeId?: string;
   lineNodeId: string;
   sort: number;
 };
@@ -220,6 +222,7 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
 
   const regionOrderedLines = new Map<string, string[]>();
   const levelOrderedLines = new Map<string, string[]>();
+  const globalLineIdsInOrder = regionItems.map((item) => item.lineNodeId);
   regionItems.forEach((item) => {
     const list = regionOrderedLines.get(item.区域名) ?? [];
     list.push(item.lineNodeId);
@@ -227,7 +230,10 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
   });
   (value.底图?.档位标注 ?? []).forEach(
     (item: { 区域名: string; lineNodeIds: string[] }) => {
-      levelOrderedLines.set(item.区域名, item.lineNodeIds.filter(Boolean));
+      levelOrderedLines.set(
+        item.区域名,
+        orderLineIdsByReferenceOrder(item.lineNodeIds, globalLineIdsInOrder),
+      );
     },
   );
 

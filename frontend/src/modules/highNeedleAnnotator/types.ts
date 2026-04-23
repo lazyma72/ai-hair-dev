@@ -52,6 +52,7 @@ export function 手织图To高针图(v: 手织图): 高针图 {
       区域线条: v.底图.区域线条.flatMap((item, itemIndex) =>
         item.lineNodeIds.map((lineNodeId, subIndex) => ({
           区域名: item.区域名,
+          sortNodeId: "",
           lineNodeId,
           lineLength: item.lineLength,
           区域内位置占比: item.区域内位置占比,

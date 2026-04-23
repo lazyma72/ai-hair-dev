@@ -18,7 +18,24 @@ type Props = {
 };
 
 export default function InlineSvg({ svg, className, height = 200 }: Props) {
-  const clean = DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true } });
+  // DOMPurify's SVG profile is conservative and may drop some SVG text layout
+  // attributes (e.g. `dominant-baseline`) which are needed to keep label
+  // alignment consistent with exported SVGs.
+  const clean = DOMPurify.sanitize(svg, {
+    USE_PROFILES: { svg: true },
+    ADD_ATTR: [
+      // text layout
+      "dominant-baseline",
+      "alignment-baseline",
+      "baseline-shift",
+      "text-anchor",
+      // font
+      "font-family",
+      "font-size",
+      "font-weight",
+      "letter-spacing",
+    ],
+  });
   return (
     <div
       className={className}

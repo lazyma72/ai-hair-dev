@@ -22,6 +22,57 @@ export function uniquePreserveOrder(list: string[]): string[] {
   return out;
 }
 
+type SortableLineItem = {
+  lineNodeId?: string;
+  sort?: number;
+};
+
+export function buildLineIdsBySortOrder(items: SortableLineItem[]): string[] {
+  const normalized = items
+    .map((item, index) => {
+      const lineNodeId = String(item.lineNodeId ?? "").trim();
+      const rawSort =
+        typeof item.sort === "number" ? item.sort : Number(item.sort);
+      const sort =
+        Number.isFinite(rawSort) && rawSort > 0 ? Math.floor(rawSort) : index + 1;
+      return {
+        lineNodeId,
+        sort,
+        index,
+      };
+    })
+    .filter((item) => item.lineNodeId)
+    .sort((left, right) => left.sort - right.sort || left.index - right.index);
+
+  return uniquePreserveOrder(normalized.map((item) => item.lineNodeId));
+}
+
+export function orderLineIdsByReferenceOrder(
+  rawLineIds: string[],
+  referenceLineIds: readonly string[],
+): string[] {
+  const normalized = uniquePreserveOrder(rawLineIds);
+  if (normalized.length === 0) return [];
+
+  const selected = new Set(normalized);
+  const ordered: string[] = [];
+
+  referenceLineIds.forEach((lineId) => {
+    const normalizedId = String(lineId ?? "").trim();
+    if (!normalizedId || !selected.has(normalizedId)) return;
+    ordered.push(normalizedId);
+    selected.delete(normalizedId);
+  });
+
+  normalized.forEach((lineId) => {
+    if (!selected.has(lineId)) return;
+    ordered.push(lineId);
+    selected.delete(lineId);
+  });
+
+  return ordered;
+}
+
 export function getMaxNodeNumber(lineIds: string[]): number {
   let max = 0;
   for (const id of lineIds) {

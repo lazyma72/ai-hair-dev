@@ -93,7 +93,7 @@ export default function ABCreateWizardPage() {
     () =>
       list.map((x) => ({
         value: x._id,
-        label: `${(x as any).样品编号 ?? x._id} · ${x.客户编号} · ${x.品名}`,
+        label: `${(x as any).样品编号 ?? x._id} · ${x.假发类型} · ${x.客户编号} · ${x.品名}`,
       })),
     [list],
   );

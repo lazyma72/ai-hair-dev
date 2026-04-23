@@ -5,6 +5,10 @@ import type {
   DML按档位标记命令,
   DML区域百分比命令,
 } from "../../shared/models/DML规则";
+import {
+  buildLineIdsBySortOrder,
+  orderLineIdsByReferenceOrder,
+} from "./helpers";
 
 export type DmlRuleSourceType = DML规则命令["type"];
 
@@ -31,6 +35,7 @@ export type DmlCompilableData = {
   底图: {
     区域线条: {
       区域名: string;
+      sortNodeId?: string;
       lineNodeId: string;
       区域内位置占比: number;
       sort: number;
@@ -180,62 +185,7 @@ function collectLevelLineIds(data: DmlCompilableData): Map<string, string[]> {
 }
 
 function collectGlobalOrderedLineIds(data: DmlCompilableData): string[] {
-  const items: OrderedRegionLine[] = [];
-  data.底图.区域线条.forEach((item, itemIndex) => {
-    const lineNodeId = String(item.lineNodeId ?? "").trim();
-    if (!lineNodeId) return;
-    items.push({
-      lineNodeId,
-      区域名: String(item.区域名 ?? ""),
-      sort: typeof item.sort === "number" ? item.sort : itemIndex + 1,
-      sourceIndex: itemIndex,
-    });
-  });
-
-  items.sort((left, right) => {
-    const sortDiff = left.sort - right.sort;
-    if (sortDiff !== 0) return sortDiff;
-    return left.sourceIndex - right.sourceIndex;
-  });
-
-  // Ensure unique ids while preserving the sorted order.
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const item of items) {
-    if (seen.has(item.lineNodeId)) continue;
-    seen.add(item.lineNodeId);
-    out.push(item.lineNodeId);
-  }
-  return out;
-}
-
-function orderLineIdsByGlobalSort(
-  rawLineIds: string[],
-  globalLineIdsInOrder: string[],
-): string[] {
-  const normalized = rawLineIds
-    .map((id) => String(id ?? "").trim())
-    .filter(Boolean);
-  if (normalized.length === 0) return [];
-
-  const selected = new Set(normalized);
-  const ordered: string[] = [];
-
-  // Prefer global `sort` order for continuity across regions/levels.
-  globalLineIdsInOrder.forEach((id) => {
-    if (!selected.has(id)) return;
-    ordered.push(id);
-    selected.delete(id);
-  });
-
-  // Fallback: keep the remaining ids in their input order.
-  normalized.forEach((id) => {
-    if (!selected.has(id)) return;
-    ordered.push(id);
-    selected.delete(id);
-  });
-
-  return ordered;
+  return buildLineIdsBySortOrder(data.底图.区域线条);
 }
 
 function collectSegmentRegionLineIds(
@@ -266,9 +216,16 @@ function getDmlCompileIndexes(data: DmlCompilableData): DmlCompileIndexes {
 
   const indexes = {
     regionLinesByName: collectOrderedRegionLines(data),
-    levelLineIdsByName: collectLevelLineIds(data),
     globalLineIdsInOrder: collectGlobalOrderedLineIds(data),
+    levelLineIdsByName: new Map<string, string[]>(),
   };
+  const rawLevelLineIdsByName = collectLevelLineIds(data);
+  rawLevelLineIdsByName.forEach((lineIds, levelName) => {
+    indexes.levelLineIdsByName.set(
+      levelName,
+      orderLineIdsByReferenceOrder(lineIds, indexes.globalLineIdsInOrder),
+    );
+  });
   dmlCompileIndexCache.set(data.底图, indexes);
   return indexes;
 }
@@ -280,13 +237,13 @@ function collectRegionCommandTargets(
 ): string[] {
   // 以标记为主：如果命令存有显式 lineNodeIds，直接使用，跳过位置计算避免边界拓占
   if (command.lineNodeIds.length > 0) {
-    return orderLineIdsByGlobalSort(command.lineNodeIds, globalLineIdsInOrder);
+    return orderLineIdsByReferenceOrder(command.lineNodeIds, globalLineIdsInOrder);
   }
   const raw = command.区域百分比.flatMap((segment) => {
     const list = byRegion.get(segment.区域) ?? [];
     return collectSegmentRegionLineIds(segment, list);
   });
-  return orderLineIdsByGlobalSort(raw, globalLineIdsInOrder);
+  return orderLineIdsByReferenceOrder(raw, globalLineIdsInOrder);
 }
 
 function collectLevelCommandTargets(
@@ -296,14 +253,14 @@ function collectLevelCommandTargets(
 ): string[] {
   // 以标记为主：如果命令存有显式 lineNodeIds，直接使用，跳过位置计算避免边界拓占
   if (command.lineNodeIds.length > 0) {
-    return orderLineIdsByGlobalSort(command.lineNodeIds, globalLineIdsInOrder);
+    return orderLineIdsByReferenceOrder(command.lineNodeIds, globalLineIdsInOrder);
   }
   const raw = command.档位.flatMap((segment) => {
     const list = byLevel.get(segment.档位名称) ?? [];
     if (list.length === 0) return [];
     return collectSegmentLevelLineIds(segment, list);
   });
-  return orderLineIdsByGlobalSort(raw, globalLineIdsInOrder);
+  return orderLineIdsByReferenceOrder(raw, globalLineIdsInOrder);
 }
 
 function applyPatternAssignments(

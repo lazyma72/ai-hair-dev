@@ -23,9 +23,11 @@ import {
   updateSvgTextNode,
 } from "./svgUtils";
 import {
+  buildLineIdsBySortOrder,
   makeDmlMap,
   makeDoubleSet,
   normalizeRegionDraft,
+  orderLineIdsByReferenceOrder,
   uniquePreserveOrder,
   type RegionDraft,
 } from "./helpers";
@@ -88,7 +90,8 @@ type RegionLineItem = {
   sort: number;
 };
 
-type RegionLineWithTextNodeIds = 高针图["底图"]["区域线条"][number] & {
+type LegacyRegionLine = 高针图["底图"]["区域线条"][number] & {
+  sortNodeId?: string;
   textNodeIds?: string[];
 };
 
@@ -108,16 +111,15 @@ function normalizeRegionLineSort(value: unknown): number | null {
 
 function normalize区域线条(
   items: ReadonlyArray<高针图["底图"]["区域线条"][number]>,
-): RegionLineWithTextNodeIds[] {
+): 高针图["底图"]["区域线条"] {
   return items
     .map((rawItem, itemIndex) => {
-      const item = rawItem as RegionLineWithTextNodeIds;
-      const textNodeIds = Array.isArray(item.textNodeIds)
-        ? item.textNodeIds
+      const item = rawItem as LegacyRegionLine;
+      const legacySortNodeId = Array.isArray(item.textNodeIds)
+        ? (item.textNodeIds
             .map((textNodeId) => String(textNodeId ?? "").trim())
-            .filter(Boolean)
-            .slice(0, 1)
-        : [];
+            .filter(Boolean)[0] ?? "")
+        : "";
       const lineLength =
         typeof item.lineLength === "number" ? item.lineLength : 0;
       const ratioValue =
@@ -127,12 +129,12 @@ function normalize区域线条(
       const 区域内位置占比 = Number.isFinite(ratioValue) ? ratioValue : 0;
       const explicitSort = normalizeRegionLineSort(item.sort);
       return {
-        ...item,
+        区域名: String(item.区域名 ?? "").trim(),
+        sortNodeId: String(item.sortNodeId ?? "").trim() || legacySortNodeId,
         lineNodeId: String(item.lineNodeId ?? "").trim(),
         lineLength,
         区域内位置占比,
         sort: explicitSort ?? itemIndex + 1,
-        textNodeIds,
       };
     })
     .filter((item) => item.lineNodeId)
@@ -820,18 +822,16 @@ export default function useHighNeedleSvgAnnotator({
     [value.底图.档位标注],
   );
   const regionLineIdsInOrder = useMemo(
-    () =>
-      uniquePreserveOrder(
-        value.底图.区域线条
-          .map((item) => String(item.lineNodeId ?? "").trim())
-          .filter(Boolean),
-      ),
+    () => buildLineIdsBySortOrder(value.底图.区域线条),
     [value.底图.区域线条],
   );
   const levelLineIdsInOrder = useMemo(
     () =>
-      uniquePreserveOrder(value.底图.档位标注.flatMap((d) => d.lineNodeIds)),
-    [value.底图.档位标注],
+      orderLineIdsByReferenceOrder(
+        value.底图.档位标注.flatMap((d) => d.lineNodeIds),
+        regionLineIdsInOrder,
+      ),
+    [regionLineIdsInOrder, value.底图.档位标注],
   );
   const missingLevelLineIds = useMemo(
     () => regionLineIdsInOrder.filter((lineId) => !usedLevelLines.has(lineId)),
@@ -865,10 +865,10 @@ export default function useHighNeedleSvgAnnotator({
 
   const regionTextNodeIdByLineId = useMemo(() => {
     const map = new Map<string, string>();
-    value.底图.区域线条.forEach((item) => {
-      const textNodeIds = (item as RegionLineWithTextNodeIds).textNodeIds;
+    value.底图.区域线条.forEach((rawItem) => {
+      const item = rawItem as LegacyRegionLine;
       const lineId = String(item.lineNodeId ?? "").trim();
-      const textNodeId = String(textNodeIds?.[0] ?? "").trim();
+      const textNodeId = String(item.sortNodeId ?? "").trim();
       if (!lineId || !textNodeId) return;
       map.set(lineId, textNodeId);
     });
@@ -982,10 +982,13 @@ export default function useHighNeedleSvgAnnotator({
         if (!lineId) return;
         list.push(lineId);
       });
-      map.set(item.区域名, list);
+      map.set(
+        item.区域名,
+        orderLineIdsByReferenceOrder(list, regionLineIdsInOrder),
+      );
     });
     return map;
-  }, [value.底图.档位标注]);
+  }, [regionLineIdsInOrder, value.底图.档位标注]);
 
   const actualDmlTextNodeIdByLineId = useMemo(
     () =>
@@ -2469,10 +2472,8 @@ export default function useHighNeedleSvgAnnotator({
       );
       if (itemIndex < 0) return cur;
 
-      const prevItem = cur.底图.区域线条[
-        itemIndex
-      ] as RegionLineWithTextNodeIds;
-      const existingTextNodeId = String(prevItem.textNodeIds?.[0] ?? "").trim();
+      const prevItem = cur.底图.区域线条[itemIndex] as LegacyRegionLine;
+      const existingTextNodeId = String(prevItem.sortNodeId ?? "").trim();
       const regionNo = String(
         normalizeRegionLineSort(prevItem.sort) ?? itemIndex + 1,
       );
@@ -2511,11 +2512,9 @@ export default function useHighNeedleSvgAnnotator({
 
       addedTextId = result.textNodeId;
       const nextItems = [...cur.底图.区域线条];
-      const nextTextNodeIds = [...(prevItem.textNodeIds ?? [])];
-      nextTextNodeIds[0] = result.textNodeId;
       nextItems[itemIndex] = {
         ...prevItem,
-        textNodeIds: nextTextNodeIds,
+        sortNodeId: result.textNodeId,
       } as (typeof nextItems)[number];
 
       return {
@@ -3095,7 +3094,10 @@ export default function useHighNeedleSvgAnnotator({
 
   function finishRegion(options?: { gotoNextStage?: boolean }) {
     const draft = normalizeRegionDraft(regionDraft, presets);
-    const selected = uniquePreserveOrder(draftSelected);
+    const selected = orderLineIdsByReferenceOrder(
+      uniquePreserveOrder(draftSelected),
+      regionLineIdsInOrder,
+    );
 
     if (!draft.name) {
       message.error("请先选择/输入区域名");
@@ -3143,9 +3145,7 @@ export default function useHighNeedleSvgAnnotator({
         }
         return {
           区域名: draft.name,
-          textNodeIds: result.textNodeId
-            ? [result.textNodeId]
-            : ([] as string[]),
+          sortNodeId: result.textNodeId,
           lineNodeId: lineId,
           lineLength: draft.lineLength,
           区域内位置占比:
@@ -3202,7 +3202,10 @@ export default function useHighNeedleSvgAnnotator({
       return;
     }
 
-    const selected = uniquePreserveOrder(draftSelected);
+    const selected = orderLineIdsByReferenceOrder(
+      uniquePreserveOrder(draftSelected),
+      regionLineIdsInOrder,
+    );
     if (selected.length < 1) {
       message.error("请先选择该档位对应的线条");
       return;

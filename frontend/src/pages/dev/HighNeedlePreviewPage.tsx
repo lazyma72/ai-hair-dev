@@ -37,12 +37,19 @@ function normalizeRegionLines(rawLines: unknown): 高针图["底图"]["区域线
     .map((rawItem, itemIndex) => {
       const item = (rawItem ?? {}) as {
         区域名?: unknown;
+        sortNodeId?: unknown;
         lineNodeId?: unknown;
         lineLength?: unknown;
         区域内位置占比?: unknown;
         sort?: unknown;
+        textNodeIds?: unknown;
       };
       const 区域名 = String(item.区域名 ?? "").trim();
+      const sortNodeId =
+        String(item.sortNodeId ?? "").trim() ||
+        (Array.isArray(item.textNodeIds)
+          ? String(item.textNodeIds[0] ?? "").trim()
+          : "");
       const lineLength =
         typeof item.lineLength === "number" ? item.lineLength : 0;
       const ratio =
@@ -60,6 +67,7 @@ function normalizeRegionLines(rawLines: unknown): 高针图["底图"]["区域线
 
       return {
         区域名,
+        sortNodeId,
         lineNodeId: explicitLineNodeId,
         lineLength,
         区域内位置占比,
