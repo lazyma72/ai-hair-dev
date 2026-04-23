@@ -48,6 +48,8 @@ export type DmlCompilableData = {
 type DmlCompileIndexes = {
   regionLinesByName: Map<string, OrderedRegionLine[]>;
   levelLineIdsByName: Map<string, string[]>;
+  /** Global stable order based on `底图.区域线条.sort` */
+  globalLineIdsInOrder: string[];
 };
 
 const dmlCompileIndexCache = new WeakMap<
@@ -177,6 +179,65 @@ function collectLevelLineIds(data: DmlCompilableData): Map<string, string[]> {
   return byLevel;
 }
 
+function collectGlobalOrderedLineIds(data: DmlCompilableData): string[] {
+  const items: OrderedRegionLine[] = [];
+  data.底图.区域线条.forEach((item, itemIndex) => {
+    const lineNodeId = String(item.lineNodeId ?? "").trim();
+    if (!lineNodeId) return;
+    items.push({
+      lineNodeId,
+      区域名: String(item.区域名 ?? ""),
+      sort: typeof item.sort === "number" ? item.sort : itemIndex + 1,
+      sourceIndex: itemIndex,
+    });
+  });
+
+  items.sort((left, right) => {
+    const sortDiff = left.sort - right.sort;
+    if (sortDiff !== 0) return sortDiff;
+    return left.sourceIndex - right.sourceIndex;
+  });
+
+  // Ensure unique ids while preserving the sorted order.
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    if (seen.has(item.lineNodeId)) continue;
+    seen.add(item.lineNodeId);
+    out.push(item.lineNodeId);
+  }
+  return out;
+}
+
+function orderLineIdsByGlobalSort(
+  rawLineIds: string[],
+  globalLineIdsInOrder: string[],
+): string[] {
+  const normalized = rawLineIds
+    .map((id) => String(id ?? "").trim())
+    .filter(Boolean);
+  if (normalized.length === 0) return [];
+
+  const selected = new Set(normalized);
+  const ordered: string[] = [];
+
+  // Prefer global `sort` order for continuity across regions/levels.
+  globalLineIdsInOrder.forEach((id) => {
+    if (!selected.has(id)) return;
+    ordered.push(id);
+    selected.delete(id);
+  });
+
+  // Fallback: keep the remaining ids in their input order.
+  normalized.forEach((id) => {
+    if (!selected.has(id)) return;
+    ordered.push(id);
+    selected.delete(id);
+  });
+
+  return ordered;
+}
+
 function collectSegmentRegionLineIds(
   segment: DML区域百分比命令["区域百分比"][number],
   list: OrderedRegionLine[],
@@ -206,94 +267,43 @@ function getDmlCompileIndexes(data: DmlCompilableData): DmlCompileIndexes {
   const indexes = {
     regionLinesByName: collectOrderedRegionLines(data),
     levelLineIdsByName: collectLevelLineIds(data),
+    globalLineIdsInOrder: collectGlobalOrderedLineIds(data),
   };
   dmlCompileIndexCache.set(data.底图, indexes);
   return indexes;
 }
 
-function sortExplicitRegionLineIds(
-  command: DML区域百分比命令,
-  byRegion: Map<string, OrderedRegionLine[]>,
-): string[] {
-  const selectedSet = new Set(command.lineNodeIds.filter(Boolean));
-  if (selectedSet.size === 0) return [];
-
-  const orderedTargets: string[] = [];
-  const seen = new Set<string>();
-
-  command.区域百分比.forEach((segment) => {
-    const list = byRegion.get(segment.区域) ?? [];
-    collectSegmentRegionLineIds(segment, list).forEach((lineNodeId) => {
-      if (!selectedSet.has(lineNodeId) || seen.has(lineNodeId)) return;
-      orderedTargets.push(lineNodeId);
-      seen.add(lineNodeId);
-    });
-  });
-
-  command.lineNodeIds.forEach((lineNodeId) => {
-    if (!selectedSet.has(lineNodeId) || seen.has(lineNodeId)) return;
-    orderedTargets.push(lineNodeId);
-    seen.add(lineNodeId);
-  });
-
-  return orderedTargets;
-}
-
-function sortExplicitLevelLineIds(
-  command: DML按档位标记命令,
-  byLevel: Map<string, string[]>,
-): string[] {
-  const selectedSet = new Set(command.lineNodeIds.filter(Boolean));
-  if (selectedSet.size === 0) return [];
-
-  const orderedTargets: string[] = [];
-  const seen = new Set<string>();
-
-  command.档位.forEach((segment) => {
-    const list = byLevel.get(segment.档位名称) ?? [];
-    collectSegmentLevelLineIds(segment, list).forEach((lineNodeId) => {
-      if (!selectedSet.has(lineNodeId) || seen.has(lineNodeId)) return;
-      orderedTargets.push(lineNodeId);
-      seen.add(lineNodeId);
-    });
-  });
-
-  command.lineNodeIds.forEach((lineNodeId) => {
-    if (!selectedSet.has(lineNodeId) || seen.has(lineNodeId)) return;
-    orderedTargets.push(lineNodeId);
-    seen.add(lineNodeId);
-  });
-
-  return orderedTargets;
-}
-
 function collectRegionCommandTargets(
   command: DML区域百分比命令,
   byRegion: Map<string, OrderedRegionLine[]>,
+  globalLineIdsInOrder: string[],
 ): string[] {
   // 以标记为主：如果命令存有显式 lineNodeIds，直接使用，跳过位置计算避免边界拓占
   if (command.lineNodeIds.length > 0) {
-    return sortExplicitRegionLineIds(command, byRegion);
+    return orderLineIdsByGlobalSort(command.lineNodeIds, globalLineIdsInOrder);
   }
-  return command.区域百分比.flatMap((segment) => {
+  const raw = command.区域百分比.flatMap((segment) => {
     const list = byRegion.get(segment.区域) ?? [];
     return collectSegmentRegionLineIds(segment, list);
   });
+  return orderLineIdsByGlobalSort(raw, globalLineIdsInOrder);
 }
 
 function collectLevelCommandTargets(
   command: DML按档位标记命令,
   byLevel: Map<string, string[]>,
+  globalLineIdsInOrder: string[],
 ): string[] {
   // 以标记为主：如果命令存有显式 lineNodeIds，直接使用，跳过位置计算避免边界拓占
   if (command.lineNodeIds.length > 0) {
-    return sortExplicitLevelLineIds(command, byLevel);
+    return orderLineIdsByGlobalSort(command.lineNodeIds, globalLineIdsInOrder);
   }
-  return command.档位.flatMap((segment) => {
+  const raw = command.档位.flatMap((segment) => {
     const list = byLevel.get(segment.档位名称) ?? [];
     if (list.length === 0) return [];
     return collectSegmentLevelLineIds(segment, list);
   });
+  return orderLineIdsByGlobalSort(raw, globalLineIdsInOrder);
 }
 
 function applyPatternAssignments(
@@ -334,7 +344,8 @@ function compileDmlRulesInternal(
   const managedLineIds = new Set<string>();
   const items: DmlCompiledItem[] = [];
   const rules = data.自定义数据.DML规则命令列表 ?? [];
-  const { regionLinesByName, levelLineIdsByName } = getDmlCompileIndexes(data);
+  const { regionLinesByName, levelLineIdsByName, globalLineIdsInOrder } =
+    getDmlCompileIndexes(data);
 
   rules.forEach((command) => {
     if (command.type === "区域百分比") {
@@ -343,7 +354,11 @@ function compileDmlRulesInternal(
         items,
         managedLineIds,
         command,
-        collectRegionCommandTargets(command, regionLinesByName),
+        collectRegionCommandTargets(
+          command,
+          regionLinesByName,
+          globalLineIdsInOrder,
+        ),
         options,
       );
       return;
@@ -355,7 +370,11 @@ function compileDmlRulesInternal(
         items,
         managedLineIds,
         command,
-        collectLevelCommandTargets(command, levelLineIdsByName),
+        collectLevelCommandTargets(
+          command,
+          levelLineIdsByName,
+          globalLineIdsInOrder,
+        ),
         options,
       );
       return;
