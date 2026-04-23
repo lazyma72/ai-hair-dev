@@ -1,123 +1,141 @@
-import { ServiceProto } from "tsrpc-proto"
-import { ReqAdd, ResAdd } from "./admin/customer/PtlAdd"
-import { ReqGetList, ResGetList } from "./admin/customer/PtlGetList"
-import { ReqAdd as ReqAdd_1, ResAdd as ResAdd_1 } from "./admin/file/PtlAdd"
-import { ReqDelete, ResDelete } from "./admin/file/PtlDelete"
-import { ReqGenerateByAB, ResGenerateByAB } from "./admin/file/PtlGenerateByAB"
-import { ReqGetDetail, ResGetDetail } from "./admin/file/PtlGetDetail"
-import { ReqGetList as ReqGetList_1, ResGetList as ResGetList_1 } from "./admin/file/PtlGetList"
-import { ReqUpdate, ResUpdate } from "./admin/file/PtlUpdate"
-import { ReqAdd as ReqAdd_2, ResAdd as ResAdd_2 } from "./admin/hatMaking/PtlAdd"
+import { ServiceProto } from "tsrpc-proto";
+import { ReqAdd, ResAdd } from "./admin/customer/PtlAdd";
+import { ReqGetList, ResGetList } from "./admin/customer/PtlGetList";
+import { ReqAdd as ReqAdd_1, ResAdd as ResAdd_1 } from "./admin/file/PtlAdd";
+import { ReqDelete, ResDelete } from "./admin/file/PtlDelete";
+import { ReqGenerateByAB, ResGenerateByAB } from "./admin/file/PtlGenerateByAB";
+import { ReqGetDetail, ResGetDetail } from "./admin/file/PtlGetDetail";
+import {
+  ReqGetList as ReqGetList_1,
+  ResGetList as ResGetList_1,
+} from "./admin/file/PtlGetList";
+import { ReqUpdate, ResUpdate } from "./admin/file/PtlUpdate";
+import {
+  ReqAdd as ReqAdd_2,
+  ResAdd as ResAdd_2,
+} from "./admin/hatMaking/PtlAdd";
 import {
   ReqGetDetail as ReqGetDetail_1,
   ResGetDetail as ResGetDetail_1,
-} from "./admin/hatMaking/PtlGetDetail"
+} from "./admin/hatMaking/PtlGetDetail";
 import {
   ReqGetList as ReqGetList_2,
   ResGetList as ResGetList_2,
-} from "./admin/hatMaking/PtlGetList"
-import { ReqGetPreview, ResGetPreview } from "./admin/PtlGetPreview"
+} from "./admin/hatMaking/PtlGetList";
+import { ReqGetPreview, ResGetPreview } from "./admin/PtlGetPreview";
 import {
   ReqGetDetail as ReqGetDetail_2,
   ResGetDetail as ResGetDetail_2,
-} from "./admin/ratio/PtlGetDetail"
-import { ReqGetList as ReqGetList_3, ResGetList as ResGetList_3 } from "./admin/ratio/PtlGetList"
-import { ReqUpdate as ReqUpdate_1, ResUpdate as ResUpdate_1 } from "./admin/ratio/PtlUpdate"
-import { ReqAdd as ReqAdd_3, ResAdd as ResAdd_3 } from "./admin/user/PtlAdd"
-import { ReqDelete as ReqDelete_1, ResDelete as ResDelete_1 } from "./admin/user/PtlDelete"
-import { ReqGetList as ReqGetList_4, ResGetList as ResGetList_4 } from "./admin/user/PtlGetList"
-import { ReqLogin, ResLogin } from "./PtlLogin"
-import { ReqMe, ResMe } from "./PtlMe"
-import { ReqUpload, ResUpload } from "./PtlUpload"
+} from "./admin/ratio/PtlGetDetail";
+import {
+  ReqGetList as ReqGetList_3,
+  ResGetList as ResGetList_3,
+} from "./admin/ratio/PtlGetList";
+import {
+  ReqUpdate as ReqUpdate_1,
+  ResUpdate as ResUpdate_1,
+} from "./admin/ratio/PtlUpdate";
+import { ReqAdd as ReqAdd_3, ResAdd as ResAdd_3 } from "./admin/user/PtlAdd";
+import {
+  ReqDelete as ReqDelete_1,
+  ResDelete as ResDelete_1,
+} from "./admin/user/PtlDelete";
+import {
+  ReqGetList as ReqGetList_4,
+  ResGetList as ResGetList_4,
+} from "./admin/user/PtlGetList";
+import { ReqLogin, ResLogin } from "./PtlLogin";
+import { ReqMe, ResMe } from "./PtlMe";
+import { ReqUpload, ResUpload } from "./PtlUpload";
 
 export interface ServiceType {
   api: {
     "admin/customer/Add": {
-      req: ReqAdd
-      res: ResAdd
-    }
+      req: ReqAdd;
+      res: ResAdd;
+    };
     "admin/customer/GetList": {
-      req: ReqGetList
-      res: ResGetList
-    }
+      req: ReqGetList;
+      res: ResGetList;
+    };
     "admin/file/Add": {
-      req: ReqAdd_1
-      res: ResAdd_1
-    }
+      req: ReqAdd_1;
+      res: ResAdd_1;
+    };
     "admin/file/Delete": {
-      req: ReqDelete
-      res: ResDelete
-    }
+      req: ReqDelete;
+      res: ResDelete;
+    };
     "admin/file/GenerateByAB": {
-      req: ReqGenerateByAB
-      res: ResGenerateByAB
-    }
+      req: ReqGenerateByAB;
+      res: ResGenerateByAB;
+    };
     "admin/file/GetDetail": {
-      req: ReqGetDetail
-      res: ResGetDetail
-    }
+      req: ReqGetDetail;
+      res: ResGetDetail;
+    };
     "admin/file/GetList": {
-      req: ReqGetList_1
-      res: ResGetList_1
-    }
+      req: ReqGetList_1;
+      res: ResGetList_1;
+    };
     "admin/file/Update": {
-      req: ReqUpdate
-      res: ResUpdate
-    }
+      req: ReqUpdate;
+      res: ResUpdate;
+    };
     "admin/hatMaking/Add": {
-      req: ReqAdd_2
-      res: ResAdd_2
-    }
+      req: ReqAdd_2;
+      res: ResAdd_2;
+    };
     "admin/hatMaking/GetDetail": {
-      req: ReqGetDetail_1
-      res: ResGetDetail_1
-    }
+      req: ReqGetDetail_1;
+      res: ResGetDetail_1;
+    };
     "admin/hatMaking/GetList": {
-      req: ReqGetList_2
-      res: ResGetList_2
-    }
+      req: ReqGetList_2;
+      res: ResGetList_2;
+    };
     "admin/GetPreview": {
-      req: ReqGetPreview
-      res: ResGetPreview
-    }
+      req: ReqGetPreview;
+      res: ResGetPreview;
+    };
     "admin/ratio/GetDetail": {
-      req: ReqGetDetail_2
-      res: ResGetDetail_2
-    }
+      req: ReqGetDetail_2;
+      res: ResGetDetail_2;
+    };
     "admin/ratio/GetList": {
-      req: ReqGetList_3
-      res: ResGetList_3
-    }
+      req: ReqGetList_3;
+      res: ResGetList_3;
+    };
     "admin/ratio/Update": {
-      req: ReqUpdate_1
-      res: ResUpdate_1
-    }
+      req: ReqUpdate_1;
+      res: ResUpdate_1;
+    };
     "admin/user/Add": {
-      req: ReqAdd_3
-      res: ResAdd_3
-    }
+      req: ReqAdd_3;
+      res: ResAdd_3;
+    };
     "admin/user/Delete": {
-      req: ReqDelete_1
-      res: ResDelete_1
-    }
+      req: ReqDelete_1;
+      res: ResDelete_1;
+    };
     "admin/user/GetList": {
-      req: ReqGetList_4
-      res: ResGetList_4
-    }
+      req: ReqGetList_4;
+      res: ResGetList_4;
+    };
     Login: {
-      req: ReqLogin
-      res: ResLogin
-    }
+      req: ReqLogin;
+      res: ResLogin;
+    };
     Me: {
-      req: ReqMe
-      res: ResMe
-    }
+      req: ReqMe;
+      res: ResMe;
+    };
     Upload: {
-      req: ReqUpload
-      res: ResUpload
-    }
-  }
-  msg: {}
+      req: ReqUpload;
+      res: ResUpload;
+    };
+  };
+  msg: {};
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
@@ -4550,4 +4568,4 @@ export const serviceProto: ServiceProto<ServiceType> = {
       ],
     },
   },
-}
+};
