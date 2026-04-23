@@ -114,7 +114,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 26,
+    "version": 27,
     "services": [
         {
             "id": 9,
@@ -1727,40 +1727,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "type": {
                                     "type": "Array",
                                     "elementType": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 0,
-                                                "name": "区域名",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 1,
-                                                "name": "lineNodeIds",
-                                                "type": {
-                                                    "type": "Array",
-                                                    "elementType": {
-                                                        "type": "String"
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                "id": 2,
-                                                "name": "lineLength",
-                                                "type": {
-                                                    "type": "Number"
-                                                }
-                                            },
-                                            {
-                                                "id": 3,
-                                                "name": "区域内位置占比",
-                                                "type": {
-                                                    "type": "Number"
-                                                }
-                                            }
-                                        ]
+                                        "type": "Reference",
+                                        "target": "../models/高针图/高针图区域线条"
                                     }
                                 }
                             },
@@ -1906,6 +1874,46 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 }
                             }
                         ]
+                    }
+                }
+            ]
+        },
+        "../models/高针图/高针图区域线条": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "区域名",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "lineNodeId",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "lineLength",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "区域内位置占比",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 4,
+                    "name": "sort",
+                    "type": {
+                        "type": "Number"
                     }
                 }
             ]

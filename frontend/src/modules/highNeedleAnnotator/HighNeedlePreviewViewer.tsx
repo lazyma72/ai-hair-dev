@@ -39,6 +39,15 @@ type Props = {
   hideDoubleToggle?: boolean;
 };
 
+function getRegionLineSort(
+  item: 高针图["底图"]["区域线条"][number],
+  fallback: number,
+): number {
+  const sort = typeof item.sort === "number" ? item.sort : Number(item.sort);
+  if (!Number.isFinite(sort) || sort < 1) return fallback + 1;
+  return Math.floor(sort);
+}
+
 function buildRegionColorByName(data: 高针图): Map<string, string> {
   const map = new Map<string, string>();
   const orderedNames = (data.底图.区域名 ?? [])
@@ -195,26 +204,24 @@ function buildPreviewLabels(
   if (toggles.region) {
     const regionLineItems = new Map<
       string,
-      Array<{ lineId: string; 区域内位置占比: number }>
+      Array<{ lineId: string; sort: number }>
     >();
-    data.底图.区域线条.forEach((item) => {
+    data.底图.区域线条.forEach((item, itemIndex) => {
       const regionName = String(item.区域名 ?? "").trim();
+      const lineId = String(item.lineNodeId ?? "").trim();
       if (!regionName) return;
+      if (!lineId) return;
       const list = regionLineItems.get(regionName) ?? [];
-      (item.lineNodeIds ?? []).forEach((lineNodeId) => {
-        const lineId = String(lineNodeId ?? "").trim();
-        if (!lineId) return;
-        list.push({
-          lineId,
-          区域内位置占比: Number(item.区域内位置占比 ?? 0),
-        });
+      list.push({
+        lineId,
+        sort: getRegionLineSort(item, itemIndex),
       });
       regionLineItems.set(regionName, list);
     });
 
     regionLineItems.forEach((items, regionName) => {
       if (items.length === 0) return;
-      items.sort((a, b) => a.区域内位置占比 - b.区域内位置占比);
+      items.sort((a, b) => a.sort - b.sort);
       const anchor = items[Math.floor(items.length / 2)];
       out.push({
         lineId: anchor.lineId,
@@ -333,12 +340,10 @@ export default function HighNeedlePreviewViewer({
     data.底图.区域线条.forEach((d) => {
       const regionName = String(d.区域名 ?? "").trim();
       const color = regionColorByName.get(regionName);
-      d.lineNodeIds.forEach((id) => {
-        const lineId = String(id ?? "").trim();
-        if (!lineId) return;
-        allTouchIds.push(lineId);
-        if (toggles.region && color) regionStrokeById.set(lineId, color);
-      });
+      const lineId = String(d.lineNodeId ?? "").trim();
+      if (!lineId) return;
+      allTouchIds.push(lineId);
+      if (toggles.region && color) regionStrokeById.set(lineId, color);
     });
 
     const levelNoById = new Map<string, number>();

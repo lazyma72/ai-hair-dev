@@ -31,8 +31,9 @@ export type DmlCompilableData = {
   底图: {
     区域线条: {
       区域名: string;
-      lineNodeIds: string[];
+      lineNodeId: string;
       区域内位置占比: number;
+      sort: number;
     }[];
     档位标注: {
       区域名: string;
@@ -113,23 +114,9 @@ export function replacePatternChar(
 type OrderedRegionLine = {
   lineNodeId: string;
   区域名: string;
-  区域内位置占比: number;
+  sort: number;
   sourceIndex: number;
-  subIndex: number;
 };
-
-function isDmlBoundaryIncluded(
-  value: number,
-  start: number,
-  end: number,
-): boolean {
-  const rangeStart = Math.min(start, end);
-  const rangeEnd = Math.max(start, end);
-  if (rangeEnd >= 1) {
-    return value >= rangeStart && value <= rangeEnd;
-  }
-  return value >= rangeStart && value < rangeEnd;
-}
 
 function isDmlBucketSelected(
   index: number,
@@ -153,16 +140,24 @@ function collectOrderedRegionLines(
 ): Map<string, OrderedRegionLine[]> {
   const byRegion = new Map<string, OrderedRegionLine[]>();
   data.底图.区域线条.forEach((item, itemIndex) => {
-    item.lineNodeIds.forEach((lineNodeId, subIndex) => {
-      const list = byRegion.get(item.区域名) ?? [];
-      list.push({
-        lineNodeId,
-        区域名: item.区域名,
-        区域内位置占比: clampRatio(item.区域内位置占比),
-        sourceIndex: itemIndex,
-        subIndex,
-      });
-      byRegion.set(item.区域名, list);
+    const lineNodeId = String(item.lineNodeId ?? "").trim();
+    if (!lineNodeId) return;
+
+    const list = byRegion.get(item.区域名) ?? [];
+    list.push({
+      lineNodeId,
+      区域名: item.区域名,
+      sort: typeof item.sort === "number" ? item.sort : itemIndex + 1,
+      sourceIndex: itemIndex,
+    });
+    byRegion.set(item.区域名, list);
+  });
+
+  byRegion.forEach((list) => {
+    list.sort((left, right) => {
+      const sortDiff = left.sort - right.sort;
+      if (sortDiff !== 0) return sortDiff;
+      return left.sourceIndex - right.sourceIndex;
     });
   });
 

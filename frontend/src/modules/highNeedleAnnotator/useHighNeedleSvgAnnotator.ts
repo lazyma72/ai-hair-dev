@@ -85,7 +85,11 @@ type ManualDmlOverride = DmlValue | "";
 type RegionLineItem = {
   lineId: string;
   regionName: string;
-  posRatio: number;
+  sort: number;
+};
+
+type RegionLineWithTextNodeIds = 高针图["底图"]["区域线条"][number] & {
+  textNodeIds?: string[];
 };
 
 type DmlBrushPreview = {
@@ -96,22 +100,61 @@ type DmlBrushPreview = {
 type MarkerTextKind = "region" | "level" | "dml" | "double";
 type ActiveDmlRuleType = "区域百分比" | "按档位标记" | "特殊标记";
 
+function normalizeRegionLineSort(value: unknown): number | null {
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(num) || num < 1) return null;
+  return Math.floor(num);
+}
+
+function normalize区域线条(
+  items: ReadonlyArray<高针图["底图"]["区域线条"][number]>,
+): RegionLineWithTextNodeIds[] {
+  return items
+    .map((rawItem, itemIndex) => {
+      const item = rawItem as RegionLineWithTextNodeIds;
+    const textNodeIds = Array.isArray(item.textNodeIds)
+      ? item.textNodeIds
+          .map((textNodeId) => String(textNodeId ?? "").trim())
+          .filter(Boolean)
+            .slice(0, 1)
+      : [];
+    const lineLength =
+      typeof item.lineLength === "number" ? item.lineLength : 0;
+    const ratioValue =
+      typeof item.区域内位置占比 === "number"
+        ? item.区域内位置占比
+        : Number(item.区域内位置占比 ?? 0);
+    const 区域内位置占比 = Number.isFinite(ratioValue) ? ratioValue : 0;
+    const explicitSort = normalizeRegionLineSort(item.sort);
+      return {
+        ...item,
+        lineNodeId: String(item.lineNodeId ?? "").trim(),
+        lineLength,
+        区域内位置占比,
+        sort: explicitSort ?? itemIndex + 1,
+        textNodeIds,
+      };
+    })
+    .filter((item) => item.lineNodeId)
+    .map((item, index) => ({
+      item,
+      sort: normalizeRegionLineSort(item.sort) ?? index + 1,
+      index,
+    }))
+    .sort((left, right) => left.sort - right.sort || left.index - right.index)
+    .map(({ item }, index) => ({
+      ...item,
+      sort: index + 1,
+    }));
+}
+
 function normalize高针图值(value: 高针图): 高针图 {
   return {
     ...value,
     底图: {
       ...value.底图,
       区域名: value.底图.区域名 ?? [],
-      区域线条: (value.底图.区域线条 ?? []).map((item) => {
-        const legacyTextNodeIds = (
-          item as typeof item & { textNodeIds?: string[] }
-        ).textNodeIds;
-        return {
-          ...item,
-          textNodeIds: legacyTextNodeIds ?? [],
-          lineNodeIds: item.lineNodeIds ?? [],
-        };
-      }),
+      区域线条: normalize区域线条(value.底图.区域线条 ?? []),
       档位标注: (value.底图.档位标注 ?? []).map((item) => ({
         ...item,
         textNodeIds: item.textNodeIds ?? [],
@@ -317,7 +360,7 @@ function sameStringArray(left: string[], right: string[]): boolean {
 }
 
 function buildRegionSegmentsFromLineIds(
-  orderedRegionLinesByName: Map<string, Array<{ lineId: string; posRatio: number }>>,
+  orderedRegionLinesByName: Map<string, string[]>,
   regionOrder: string[],
   selectedLineIds: string[],
 ): {
@@ -338,13 +381,13 @@ function buildRegionSegmentsFromLineIds(
     if (ordered.length === 0) return;
 
     const selectedIndexes = ordered
-      .map((entry, index) => (selectedSet.has(entry.lineId) ? index : -1))
+      .map((lineId, index) => (selectedSet.has(lineId) ? index : -1))
       .filter((index) => index >= 0);
     if (selectedIndexes.length === 0) return;
 
-    ordered.forEach((entry) => {
-      if (selectedSet.has(entry.lineId)) {
-        canonicalLineNodeIds.push(entry.lineId);
+    ordered.forEach((lineId) => {
+      if (selectedSet.has(lineId)) {
+        canonicalLineNodeIds.push(lineId);
       }
     });
 
@@ -408,7 +451,7 @@ function collectCanonicalRangeRuleLineIds(
   ruleType: ActiveDmlRuleType | "",
   lineIds: string[],
   options: {
-    orderedRegionLinesByName: Map<string, Array<{ lineId: string; posRatio: number }>>;
+    orderedRegionLinesByName: Map<string, string[]>;
     regionOrder: string[];
     orderedLevelLinesByName: Map<string, string[]>;
     levelOrder: string[];
@@ -758,7 +801,12 @@ export default function useHighNeedleSvgAnnotator({
   }, [step]);
 
   const usedRegionLines = useMemo(
-    () => new Set(value.底图.区域线条.flatMap((d) => d.lineNodeIds)),
+    () =>
+      new Set(
+        value.底图.区域线条
+          .map((item) => String(item.lineNodeId ?? "").trim())
+          .filter(Boolean),
+      ),
     [value.底图.区域线条],
   );
 
@@ -768,7 +816,11 @@ export default function useHighNeedleSvgAnnotator({
   );
   const regionLineIdsInOrder = useMemo(
     () =>
-      uniquePreserveOrder(value.底图.区域线条.flatMap((d) => d.lineNodeIds)),
+      uniquePreserveOrder(
+        value.底图.区域线条
+          .map((item) => String(item.lineNodeId ?? "").trim())
+          .filter(Boolean),
+      ),
     [value.底图.区域线条],
   );
   const levelLineIdsInOrder = useMemo(
@@ -809,13 +861,12 @@ export default function useHighNeedleSvgAnnotator({
   const regionTextNodeIdByLineId = useMemo(() => {
     const map = new Map<string, string>();
     value.底图.区域线条.forEach((item) => {
-      const textNodeIds = (item as typeof item & { textNodeIds?: string[] })
+      const textNodeIds = (item as RegionLineWithTextNodeIds)
         .textNodeIds;
-      item.lineNodeIds.forEach((lineId, index) => {
-        const textNodeId = String(textNodeIds?.[index] ?? "").trim();
-        if (!textNodeId) return;
-        map.set(lineId, textNodeId);
-      });
+      const lineId = String(item.lineNodeId ?? "").trim();
+      const textNodeId = String(textNodeIds?.[0] ?? "").trim();
+      if (!lineId || !textNodeId) return;
+      map.set(lineId, textNodeId);
     });
     return map;
   }, [value.底图.区域线条]);
@@ -1156,40 +1207,25 @@ export default function useHighNeedleSvgAnnotator({
   }, [markerTextIdSet, value.底图.svg]);
 
   const regionLineItems = useMemo<RegionLineItem[]>(() => {
-    const out: RegionLineItem[] = [];
-    value.底图.区域线条.forEach((d) => {
-      const name = String(d.区域名 ?? "").trim();
-      const ratio =
-        typeof d.区域内位置占比 === "number" ? d.区域内位置占比 : 0.5;
-      (d.lineNodeIds ?? []).forEach((id) => {
-        const lineId = String(id ?? "").trim();
-        if (!lineId) return;
-        out.push({ lineId, regionName: name, posRatio: ratio });
-      });
-    });
-    return out;
+    return value.底图.区域线条
+      .map((item, index) => {
+        const lineId = String(item.lineNodeId ?? "").trim();
+        if (!lineId) return null;
+        return {
+          lineId,
+          regionName: String(item.区域名 ?? "").trim(),
+          sort: normalizeRegionLineSort(item.sort) ?? index + 1,
+        };
+      })
+      .filter((item): item is RegionLineItem => item !== null)
+      .sort((left, right) => left.sort - right.sort);
   }, [value.底图.区域线条]);
 
-  const regionLineItemsById = useMemo(() => {
-    const map = new Map<
-      string,
-      { regionName: string; sourceIndex: number; posRatio: number }
-    >();
-    regionLineItems.forEach((item, index) => {
-      map.set(item.lineId, {
-        regionName: item.regionName,
-        sourceIndex: index,
-        posRatio: item.posRatio,
-      });
-    });
-    return map;
-  }, [regionLineItems]);
-
   const orderedRegionLinesByName = useMemo(() => {
-    const map = new Map<string, Array<{ lineId: string; posRatio: number }>>();
+    const map = new Map<string, string[]>();
     regionLineItems.forEach((item) => {
       const list = map.get(item.regionName) ?? [];
-      list.push({ lineId: item.lineId, posRatio: item.posRatio });
+      list.push(item.lineId);
       map.set(item.regionName, list);
     });
     return map;
@@ -1241,11 +1277,9 @@ export default function useHighNeedleSvgAnnotator({
       const color = regionColorByName.get(regionName);
       if (!color) return;
 
-      d.lineNodeIds.forEach((id) => {
-        const lineId = String(id ?? "").trim();
-        if (!lineId) return;
-        map.set(lineId, color);
-      });
+      const lineId = String(d.lineNodeId ?? "").trim();
+      if (!lineId) return;
+      map.set(lineId, color);
     });
 
     return map;
@@ -1265,13 +1299,11 @@ export default function useHighNeedleSvgAnnotator({
     const byName = new Map<string, string[]>();
     value.底图.区域线条.forEach((d) => {
       const name = String(d.区域名 ?? "").trim();
+      const lineId = String(d.lineNodeId ?? "").trim();
       if (!name) return;
+      if (!lineId) return;
       const list = byName.get(name) ?? [];
-      d.lineNodeIds.forEach((id) => {
-        const lineId = String(id ?? "").trim();
-        if (!lineId) return;
-        list.push(lineId);
-      });
+      list.push(lineId);
       byName.set(name, list);
     });
 
@@ -1286,7 +1318,9 @@ export default function useHighNeedleSvgAnnotator({
     const map = new Map<string, number>();
 
     value.底图.区域线条.forEach((d, idx) => {
-      d.lineNodeIds.forEach((id) => map.set(id, idx + 1));
+      const lineId = String(d.lineNodeId ?? "").trim();
+      if (!lineId) return;
+      map.set(lineId, normalizeRegionLineSort(d.sort) ?? idx + 1);
     });
 
     if (step === "区域") {
@@ -1540,9 +1574,7 @@ export default function useHighNeedleSvgAnnotator({
     }
 
     if (step === "档位") {
-      const archived = new Set(
-        value.底图.区域线条.flatMap((d) => d.lineNodeIds),
-      );
+      const archived = new Set(regionLineIdsInOrder);
       usedLevelLines.forEach((id) => archived.delete(id));
       return archived;
     }
@@ -1556,13 +1588,12 @@ export default function useHighNeedleSvgAnnotator({
   }, [
     allLineIds,
     canEditRegion,
-    step,
     levelLineIdsInOrder,
     missingLevelLineIds.length,
+    regionLineIdsInOrder,
+    step,
     usedLevelLines,
     usedRegionLines,
-    value.底图.区域线条,
-    value.底图.档位标注,
   ]);
 
   const disabledForStep = useMemo(() => {
@@ -1620,7 +1651,9 @@ export default function useHighNeedleSvgAnnotator({
 
     // 「原线条」关闭时：隐藏没有区域归属的线条
     const assignedLineIds = new Set(
-      value.底图.区域线条.flatMap((d) => d.lineNodeIds),
+      value.底图.区域线条
+        .map((item) => String(item.lineNodeId ?? "").trim())
+        .filter(Boolean),
     );
     const hiddenLineIds = !layerToggles.rawLines
       ? new Set(allLineIds.filter((id) => !assignedLineIds.has(id)))
@@ -1725,22 +1758,12 @@ export default function useHighNeedleSvgAnnotator({
   }
 
   const dmlOrderRankByLineId = useMemo(() => {
-    const regionOrderIndex = new Map<string, number>();
-    value.底图.区域名.forEach((name, index) => {
-      regionOrderIndex.set(String(name ?? "").trim(), index);
-    });
-
     const map = new Map<string, number>();
-    regionLineItems.forEach((item, index) => {
-      const regionIndex =
-        regionOrderIndex.get(String(item.regionName ?? "").trim()) ??
-        Number.MAX_SAFE_INTEGER;
-      const rank =
-        regionIndex * 100000 + Math.round(item.posRatio * 10000) * 10 + index;
-      map.set(item.lineId, rank);
+    regionLineItems.forEach((item) => {
+      map.set(item.lineId, item.sort);
     });
     return map;
-  }, [regionLineItems, value.底图.区域名]);
+  }, [regionLineItems]);
 
   useEffect(() => {
     if (step === "DML") return;
@@ -2421,24 +2444,19 @@ export default function useHighNeedleSvgAnnotator({
 
     setValue((cur) => {
       const itemIndex = cur.底图.区域线条.findIndex((item) =>
-        item.lineNodeIds.includes(lineNodeId),
+        item.lineNodeId === lineNodeId,
       );
       if (itemIndex < 0) return cur;
 
-      const lineIndex =
-        cur.底图.区域线条[itemIndex].lineNodeIds.indexOf(lineNodeId);
-      if (lineIndex < 0) return cur;
-
       const prevItem = cur.底图.区域线条[
         itemIndex
-      ] as (typeof cur.底图.区域线条)[number] & {
-        textNodeIds?: string[];
-      };
+      ] as RegionLineWithTextNodeIds;
       const existingTextNodeId = String(
-        (prevItem as typeof prevItem & { textNodeIds?: string[] })
-          .textNodeIds?.[lineIndex] ?? "",
+        prevItem.textNodeIds?.[0] ?? "",
       ).trim();
-      const regionNo = String(itemIndex + 1);
+      const regionNo = String(
+        normalizeRegionLineSort(prevItem.sort) ?? itemIndex + 1,
+      );
       if (existingTextNodeId) {
         // Ensure persisted marker text content stays correct (avoid showing raw ids like `region_text_*`).
         let nextSvg = updateSvgTextNode(
@@ -2475,7 +2493,7 @@ export default function useHighNeedleSvgAnnotator({
       addedTextId = result.textNodeId;
       const nextItems = [...cur.底图.区域线条];
       const nextTextNodeIds = [...(prevItem.textNodeIds ?? [])];
-      nextTextNodeIds[lineIndex] = result.textNodeId;
+      nextTextNodeIds[0] = result.textNodeId;
       nextItems[itemIndex] = {
         ...prevItem,
         textNodeIds: nextTextNodeIds,
@@ -3090,7 +3108,8 @@ export default function useHighNeedleSvgAnnotator({
         const markerPos =
           draftMarkerPosByLineIdRef.current.get(lineId) ??
           preferredRegionPosByLineId.get(lineId);
-        const regionNo = String(startNoInSetter + i + 1);
+        const sort = startNoInSetter + i + 1;
+        const regionNo = String(sort);
         const result = upsertMarkerTextNode(nextSvg, {
           textNodeId: "",
           createNodeId: allocLocalId("region_text"),
@@ -3108,10 +3127,11 @@ export default function useHighNeedleSvgAnnotator({
           textNodeIds: result.textNodeId
             ? [result.textNodeId]
             : ([] as string[]),
-          lineNodeIds: [lineId],
+          lineNodeId: lineId,
           lineLength: draft.lineLength,
           区域内位置占比:
             selected.length <= 1 ? 0.5 : i / (selected.length - 1),
+          sort,
         };
       });
 

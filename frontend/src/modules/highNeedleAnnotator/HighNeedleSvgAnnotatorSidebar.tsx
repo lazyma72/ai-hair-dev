@@ -107,6 +107,31 @@ type Props = {
   clearCustomText: () => void;
 };
 
+type RegionLineEntry = {
+  区域名: string;
+  lineNodeId: string;
+  sort: number;
+};
+
+function getRegionLineSort(item: RegionLineEntry, fallback: number): number {
+  const sort = typeof item.sort === "number" ? item.sort : Number(item.sort);
+  if (!Number.isFinite(sort) || sort < 1) return fallback + 1;
+  return Math.floor(sort);
+}
+
+function normalizeRegionItems(
+  items: RegionLineEntry[],
+): Array<{ 区域名: string; lineNodeId: string; sort: number }> {
+  return items
+    .map((item, itemIndex) => ({
+      区域名: String(item.区域名 ?? "").trim(),
+      lineNodeId: String(item.lineNodeId ?? "").trim(),
+      sort: getRegionLineSort(item, itemIndex),
+    }))
+    .filter((item) => item.lineNodeId)
+    .sort((left, right) => left.sort - right.sort);
+}
+
 export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
   const {
     presets,
@@ -172,10 +197,9 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
   const textNodeEntries = Object.entries(value.底图?.文本节点 ?? {}) as Array<
     [string, TextNodeRecord]
   >;
-  const regionItems = (value.底图?.区域线条 ?? []) as Array<{
-    区域名: string;
-    lineNodeIds: string[];
-  }>;
+  const regionItems = normalizeRegionItems(
+    (value.底图?.区域线条 ?? []) as RegionLineEntry[],
+  );
   const levelItems = (value.底图?.档位标注 ?? []) as Array<{
     区域名: string;
     lineNodeIds: string[];
@@ -183,41 +207,8 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
   const regionCountByName: Record<string, number> = {};
   regionItems.forEach((item) => {
     regionCountByName[item.区域名] =
-      (regionCountByName[item.区域名] ?? 0) + item.lineNodeIds.length;
+      (regionCountByName[item.区域名] ?? 0) + 1;
   });
-
-  // line → region/level info maps for DML segment derivation
-  // Use global insertion-order index within the region (not per-batch 区域内位置占比,
-  // which resets 0→1 for every annotation batch and can't be compared across batches).
-  const regionTotalCount = new Map<string, number>();
-  (value.底图?.区域线条 ?? []).forEach(
-    (item: { 区域名: string; lineNodeIds: string[] }) => {
-      item.lineNodeIds.forEach(() => {
-        regionTotalCount.set(
-          item.区域名,
-          (regionTotalCount.get(item.区域名) ?? 0) + 1,
-        );
-      });
-    },
-  );
-  const regionCurrentIdx = new Map<string, number>();
-  const lineToRegionInfo = new Map<
-    string,
-    { 区域名: string; globalIndex: number; total: number }
-  >();
-  (value.底图?.区域线条 ?? []).forEach(
-    (item: { 区域名: string; lineNodeIds: string[] }) => {
-      item.lineNodeIds.forEach((id) => {
-        const idx = regionCurrentIdx.get(item.区域名) ?? 0;
-        lineToRegionInfo.set(id, {
-          区域名: item.区域名,
-          globalIndex: idx,
-          total: regionTotalCount.get(item.区域名) ?? 1,
-        });
-        regionCurrentIdx.set(item.区域名, idx + 1);
-      });
-    },
-  );
 
   const lineToLevelInfo = new Map<string, { 档位名称: string }>();
   (value.底图?.档位标注 ?? []).forEach(
@@ -230,33 +221,28 @@ export default function HighNeedleSvgAnnotatorSidebar(props: Props) {
 
   const regionOrderedLines = new Map<string, string[]>();
   const levelOrderedLines = new Map<string, string[]>();
-  (value.底图?.区域线条 ?? []).forEach(
-    (item: { 区域名: string; lineNodeIds: string[] }) => {
-      const list = regionOrderedLines.get(item.区域名) ?? [];
-      item.lineNodeIds.forEach((id) => {
-        if (!id) return;
-        list.push(id);
-      });
-      regionOrderedLines.set(item.区域名, list);
-    },
-  );
+  regionItems.forEach((item) => {
+    const list = regionOrderedLines.get(item.区域名) ?? [];
+    list.push(item.lineNodeId);
+    regionOrderedLines.set(item.区域名, list);
+  });
   (value.底图?.档位标注 ?? []).forEach(
     (item: { 区域名: string; lineNodeIds: string[] }) => {
       levelOrderedLines.set(item.区域名, item.lineNodeIds.filter(Boolean));
     },
   );
 
-  // Update globalIndex / total to match persisted region order in 底图.区域线条.
+  const lineToRegionInfo = new Map<
+    string,
+    { 区域名: string; globalIndex: number; total: number }
+  >();
   regionOrderedLines.forEach((ids, regionName) => {
     ids.forEach((id, idx) => {
-      const info = lineToRegionInfo.get(id);
-      if (info) {
-        lineToRegionInfo.set(id, {
-          ...info,
-          globalIndex: idx,
-          total: ids.length,
-        });
-      }
+      lineToRegionInfo.set(id, {
+        区域名: regionName,
+        globalIndex: idx,
+        total: ids.length,
+      });
     });
   });
   const savedRegions = Object.entries(regionCountByName).map(

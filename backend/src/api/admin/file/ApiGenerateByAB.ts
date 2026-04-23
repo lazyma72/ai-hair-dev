@@ -32,7 +32,9 @@ type GraphLike = {
     区域名: string[]
     区域线条: {
       区域名: string
-      lineNodeIds: string[]
+      lineNodeId: string
+      sort: number
+      lineLength: number
       区域内位置占比: number
     }[]
     档位标注: {
@@ -43,6 +45,43 @@ type GraphLike = {
   自定义数据: {
     DML规则命令列表: DML规则命令列表
   }
+}
+
+type NormalizedRegionLine = {
+  区域名: string
+  lineNodeId: string
+  sort: number
+  lineLength: number
+  区域内位置占比: number
+}
+
+function normalizeRegionLineSort(value: unknown, fallback: number): number {
+  const num = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(num) || num < 1) return fallback + 1
+  return Math.floor(num)
+}
+
+function collectNormalizedRegionLines(graph: GraphLike): NormalizedRegionLine[] {
+  return (graph.底图.区域线条 ?? [])
+    .map((line, itemIndex) => ({
+      区域名: String(line.区域名 ?? "").trim(),
+      lineNodeId: String(line.lineNodeId ?? "").trim(),
+      sort: normalizeRegionLineSort(line.sort, itemIndex),
+      lineLength: typeof line.lineLength === "number" ? line.lineLength : 0,
+      区域内位置占比:
+        typeof line.区域内位置占比 === "number" ? line.区域内位置占比 : 0,
+    }))
+    .filter(line => line.lineNodeId)
+    .map((line, index) => ({
+      line,
+      sort: normalizeRegionLineSort(line.sort, index),
+      index,
+    }))
+    .sort((left, right) => left.sort - right.sort || left.index - right.index)
+    .map(({ line }, index) => ({
+      ...line,
+      sort: index + 1,
+    }))
 }
 
 /**
@@ -83,40 +122,37 @@ function buildRegionSet(graph: GraphLike): Set<string> {
 }
 
 /**
- * 构建 lineNodeId -> {区域名, 区域内位置占比} 的索引表。
- * - 主要用于把任意线条 nodeId 反推到所属区域及相对位置
+ * 构建 lineNodeId -> {区域名, sort} 的索引表。
+ * - 主要用于把任意线条 nodeId 反推到所属区域及全局顺序
  * - 若存在重复 nodeId，仅保留第一次出现的记录（保持稳定性）
  */
 function buildNodeIdToLineInfo(
   graph: GraphLike
-): Map<string, { 区域名: string; 区域内位置占比: number }> {
-  const m = new Map<string, { 区域名: string; 区域内位置占比: number }>()
-  for (const line of graph.底图.区域线条 ?? []) {
-    for (const nodeId of line.lineNodeIds ?? []) {
-      // Keep the first hit if duplicated.
-      if (!m.has(nodeId)) {
-        m.set(nodeId, { 区域名: line.区域名, 区域内位置占比: line.区域内位置占比 })
-      }
+): Map<string, { 区域名: string; sort: number }> {
+  const m = new Map<string, { 区域名: string; sort: number }>()
+  for (const line of collectNormalizedRegionLines(graph)) {
+    if (!m.has(line.lineNodeId)) {
+      m.set(line.lineNodeId, { 区域名: line.区域名, sort: line.sort })
     }
   }
   return m
 }
 
 /**
- * 按区域分组，并按“区域内位置占比”排序每个区域的线条列表。
- * - 用于后续“按位置最近”把 B 的线条映射到 A 的线条
+ * 按区域分组，并按全局 sort 排序每个区域的线条列表。
+ * - 用于后续按区域内相对顺序把 B 的线条映射到 A 的线条
  */
 function buildRegionLinesSorted(
   graph: GraphLike
-): Map<string, { 区域内位置占比: number; lineNodeIds: string[] }[]> {
-  const m = new Map<string, { 区域内位置占比: number; lineNodeIds: string[] }[]>()
-  for (const line of graph.底图.区域线条 ?? []) {
+): Map<string, { sort: number; lineNodeId: string }[]> {
+  const m = new Map<string, { sort: number; lineNodeId: string }[]>()
+  for (const line of collectNormalizedRegionLines(graph)) {
     const arr = m.get(line.区域名) ?? []
-    arr.push({ 区域内位置占比: line.区域内位置占比, lineNodeIds: line.lineNodeIds ?? [] })
+    arr.push({ sort: line.sort, lineNodeId: line.lineNodeId })
     m.set(line.区域名, arr)
   }
   for (const [region, arr] of m.entries()) {
-    arr.sort((a, b) => a.区域内位置占比 - b.区域内位置占比)
+    arr.sort((a, b) => a.sort - b.sort)
     m.set(region, arr)
   }
   return m
@@ -125,9 +161,9 @@ function buildRegionLinesSorted(
 /**
  * 将 B 的一组 lineNodeIds 映射到 A 的一组 lineNodeIds。
  * 映射规则：
- * - 先用 B 的 nodeId 反推其 {区域名, 区域内位置占比}
+ * - 先用 B 的 nodeId 反推其 {区域名, sort}
  * - 若 A 不存在对应区域，则跳过该 nodeId
- * - 在 A 的同区域线条中，选择“区域内位置占比最接近”的线条，取其全部 nodeId 作为映射结果
+ * - 在 A 的同区域线条中，选择 sort 最接近的线条，取其 nodeId 作为映射结果
  *
  * 说明：
  * - 该函数是通用映射器，不依赖具体业务（DML/染色等），只依赖区域与线条位置数据
@@ -150,19 +186,18 @@ function mapLineNodeIdsByRegionPosition(
     const candidates = aRegionLines.get(bInfo.区域名)
     if (!candidates || candidates.length === 0) continue
 
-    // Find the closest line by region-relative position.
+    // Find the closest line by global sort within the same region.
     let best = candidates[0]
-    let bestDist = Math.abs(candidates[0].区域内位置占比 - bInfo.区域内位置占比)
+    let bestDist = Math.abs(candidates[0].sort - bInfo.sort)
     for (let i = 1; i < candidates.length; i++) {
-      const dist = Math.abs(candidates[i].区域内位置占比 - bInfo.区域内位置占比)
+      const dist = Math.abs(candidates[i].sort - bInfo.sort)
       if (dist < bestDist) {
         bestDist = dist
         best = candidates[i]
       }
     }
 
-    // Store all node ids for that line (a line can be composed of multiple SVG nodes).
-    for (const aNodeId of best.lineNodeIds) out.add(aNodeId)
+    out.add(best.lineNodeId)
   }
   return Array.from(out)
 }
@@ -245,6 +280,13 @@ function clampRatio(value: unknown): number {
   return Math.min(1, Math.max(0, num))
 }
 
+type OrderedRegionLine = {
+  lineNodeId: string
+  区域名: string
+  sort: number
+  sourceIndex: number
+}
+
 function isDmlBoundaryIncluded(value: number, start: number, end: number): boolean {
   const rangeStart = Math.min(start, end)
   const rangeEnd = Math.max(start, end)
@@ -254,42 +296,36 @@ function isDmlBoundaryIncluded(value: number, start: number, end: number): boole
   return value >= rangeStart && value < rangeEnd
 }
 
+function isDmlBucketSelected(index: number, total: number, start: number, end: number): boolean {
+  if (total <= 0) return false
+  const rangeStart = Math.min(start, end)
+  const rangeEnd = Math.max(start, end)
+  const bucketEnd = (index + 1) / total
+  return bucketEnd > rangeStart && bucketEnd <= rangeEnd
+}
+
 function isValidDmlValue(v: unknown): v is DML值 {
   return v === "D" || v === "M" || v === "L"
 }
 
-type OrderedRegionLine = {
-  lineNodeId: string
-  区域名: string
-  区域内位置占比: number
-  sourceIndex: number
-  subIndex: number
-}
-
 function collectOrderedRegionLines(data: GraphLike): Map<string, OrderedRegionLine[]> {
   const byRegion = new Map<string, OrderedRegionLine[]>()
-  ;(data.底图.区域线条 ?? []).forEach((item, itemIndex) => {
-    ;(item.lineNodeIds ?? []).forEach((lineNodeId, subIndex) => {
-      if (!lineNodeId) return
-      const list = byRegion.get(item.区域名) ?? []
-      list.push({
-        lineNodeId,
-        区域名: item.区域名,
-        区域内位置占比: clampRatio(item.区域内位置占比),
-        sourceIndex: itemIndex,
-        subIndex,
-      })
-      byRegion.set(item.区域名, list)
+  collectNormalizedRegionLines(data).forEach((item, itemIndex) => {
+    const list = byRegion.get(item.区域名) ?? []
+    list.push({
+      lineNodeId: item.lineNodeId,
+      区域名: item.区域名,
+      sort: normalizeRegionLineSort(item.sort, itemIndex),
+      sourceIndex: itemIndex,
     })
+    byRegion.set(item.区域名, list)
   })
 
   byRegion.forEach(list => {
     list.sort((a, b) => {
-      const ratioDiff = a.区域内位置占比 - b.区域内位置占比
-      if (ratioDiff !== 0) return ratioDiff
-      const sourceDiff = a.sourceIndex - b.sourceIndex
-      if (sourceDiff !== 0) return sourceDiff
-      return a.subIndex - b.subIndex
+      const sortDiff = a.sort - b.sort
+      if (sortDiff !== 0) return sortDiff
+      return a.sourceIndex - b.sourceIndex
     })
   })
 
@@ -317,7 +353,7 @@ function collectRegionCommandTargets(
     const end = clampRatio(segment.结束位置)
     const list = byRegion.get(segment.区域) ?? []
     return list
-      .filter(item => isDmlBoundaryIncluded(item.区域内位置占比, start, end))
+      .filter((_, index) => isDmlBucketSelected(index, list.length, start, end))
       .map(item => item.lineNodeId)
   })
 }
@@ -387,8 +423,8 @@ function buildLineMetaMaps(graph: 高针图): {
   nodeIdToMeta: Map<string, LineMeta>
 } {
   const nodeIdToMeta = new Map<string, LineMeta>()
-  ;(graph.底图.区域线条 ?? []).forEach((line, idx) => {
-    const nodeIds = (line.lineNodeIds ?? []).map(x => String(x ?? "").trim()).filter(Boolean)
+  collectNormalizedRegionLines(graph as unknown as GraphLike).forEach((line, idx) => {
+    const nodeIds = [line.lineNodeId]
     const meta: LineMeta = {
       lineKey: idx,
       lineLength: typeof line.lineLength === "number" ? line.lineLength : 0,
@@ -469,14 +505,12 @@ function isHandSlot(slot: string): boolean {
  */
 function buildRegionLineIdSet(graph: GraphLike): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>()
-  for (const row of graph.底图.区域线条 ?? []) {
+  for (const row of collectNormalizedRegionLines(graph)) {
     const region = String(row.区域名 ?? "").trim()
     if (!region) continue
     const s = out.get(region) ?? new Set<string>()
-    for (const id of row.lineNodeIds ?? []) {
-      const nid = String(id ?? "").trim()
-      if (nid) s.add(nid)
-    }
+    const nid = String(row.lineNodeId ?? "").trim()
+    if (nid) s.add(nid)
     out.set(region, s)
   }
   return out

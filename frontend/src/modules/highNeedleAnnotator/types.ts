@@ -47,7 +47,18 @@ export function createEmpty手织图(svg: string): 手织图 {
 /** 将手织图转为高针图格式（补空单双标注），用于复用标注器 */
 export function 手织图To高针图(v: 手织图): 高针图 {
   return {
-    底图: v.底图,
+    底图: {
+      ...v.底图,
+      区域线条: v.底图.区域线条.flatMap((item, itemIndex) =>
+        item.lineNodeIds.map((lineNodeId, subIndex) => ({
+          区域名: item.区域名,
+          lineNodeId,
+          lineLength: item.lineLength,
+          区域内位置占比: item.区域内位置占比,
+          sort: itemIndex + subIndex + 1,
+        })),
+      ),
+    },
     自定义数据: {
       DML规则命令列表: v.自定义数据.DML规则命令列表,
       单双标注: [],
@@ -58,7 +69,15 @@ export function 手织图To高针图(v: 手织图): 高针图 {
 /** 将高针图格式转回手织图（移除单双标注） */
 export function 高针图To手织图(v: 高针图): 手织图 {
   return {
-    底图: v.底图,
+    底图: {
+      ...v.底图,
+      区域线条: v.底图.区域线条.map((item) => ({
+        区域名: item.区域名,
+        lineNodeIds: [item.lineNodeId],
+        lineLength: item.lineLength,
+        区域内位置占比: item.区域内位置占比,
+      })),
+    },
     自定义数据: {
       DML规则命令列表: v.自定义数据.DML规则命令列表,
     },

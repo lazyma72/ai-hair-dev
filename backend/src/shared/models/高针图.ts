@@ -1,16 +1,20 @@
 import type { DML规则命令列表 } from "./DML规则"
+
+export interface 高针图区域线条 {
+  区域名: string
+  lineNodeId: string
+  lineLength: number
+  区域内位置占比: number
+  sort: number
+}
+
 export interface 高针图 {
   底图: {
     /** SVG 字符串（底图数据，不包含运行时 UI 叠加标记） */
     svg: string
     区域名: string[]
     /** 每根线一个记录 */
-    区域线条: {
-      区域名: string
-      lineNodeIds: string[]
-      lineLength: number
-      区域内位置占比: number
-    }[]
+    区域线条: 高针图区域线条[]
     档位标注: {
       区域名: string
       lineNodeIds: string[]
@@ -51,6 +55,7 @@ export const 高针图系统预置区域列表: 高针图系统预置区域[] = 
   { name: "竖车", lineLength: 7 },
   { name: "横车", lineLength: 6 },
   { name: "鱼眼", lineLength: 2 },
+  { name: "鱼眼上-短横车", lineLength: 2 },
   { name: "鱼眼上-横车", lineLength: 6 },
   { name: "鱼眼下-横车", lineLength: 6 },
   { name: "拱形前网", lineLength: 12 },
