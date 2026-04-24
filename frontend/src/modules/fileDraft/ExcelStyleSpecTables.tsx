@@ -1912,6 +1912,11 @@ export function ExcelStyleHighNeedleImageTable({
 }: {
   rows: HighNeedleImageRow[];
 }) {
+  const showM = rows.some((row) => row.长度.M != null);
+  const showL = rows.some((row) => row.长度.L != null);
+  const lengthColCount = 1 + (showM ? 1 : 0) + (showL ? 1 : 0);
+  const colSpan = 6 + lengthColCount;
+
   return (
     <TableShell>
       <thead>
@@ -1922,7 +1927,7 @@ export function ExcelStyleHighNeedleImageTable({
           <Header rowSpan={2} narrow>
             毛长
           </Header>
-          <Header colSpan={3}>长度</Header>
+          <Header colSpan={lengthColCount}>长度</Header>
           <Header rowSpan={2} narrow>
             形态
           </Header>
@@ -1936,15 +1941,15 @@ export function ExcelStyleHighNeedleImageTable({
         </tr>
         <tr>
           <Header narrow>D</Header>
-          <Header narrow>M</Header>
-          <Header narrow>L</Header>
+          {showM ? <Header narrow>M</Header> : null}
+          {showL ? <Header narrow>L</Header> : null}
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
           <tr>
             <td
-              colSpan={9}
+              colSpan={colSpan}
               className="border border-slate-300 px-4 py-6 text-center text-xs text-slate-400"
             >
               暂无机器规格清单（高针图版）
@@ -1956,8 +1961,8 @@ export function ExcelStyleHighNeedleImageTable({
               <Cell narrow>{row.档位 || "—"}</Cell>
               <Cell narrow>{fmtInchCell(row.毛长)}</Cell>
               <Cell narrow>{fmtIntLike(row.长度.D)}</Cell>
-              <Cell narrow>{fmtIntLike(row.长度.M)}</Cell>
-              <Cell narrow>{fmtIntLike(row.长度.L)}</Cell>
+              {showM ? <Cell narrow>{fmtIntLike(row.长度.M)}</Cell> : null}
+              {showL ? <Cell narrow>{fmtIntLike(row.长度.L)}</Cell> : null}
               <Cell>{row.形态 || ""}</Cell>
               <Cell narrow>{fmtIntLike(row.管径)}</Cell>
               <Cell>{row.方向 || ""}</Cell>
@@ -1975,6 +1980,11 @@ export function ExcelStyleHandWovenImageTable({
 }: {
   rows: HandWovenImageRow[];
 }) {
+  const showM = rows.some((row) => row.重量.M != null);
+  const showL = rows.some((row) => row.重量.L != null);
+  const weightColCount = 1 + (showM ? 1 : 0) + (showL ? 1 : 0);
+  const colSpan = 4 + weightColCount;
+
   return (
     <TableShell>
       <thead>
@@ -1988,20 +1998,20 @@ export function ExcelStyleHandWovenImageTable({
           <Header rowSpan={2} narrow>
             毛长
           </Header>
-          <Header colSpan={3}>重量: g</Header>
+          <Header colSpan={weightColCount}>重量: g</Header>
           <Header rowSpan={2}>备注</Header>
         </tr>
         <tr>
           <Header narrow>D</Header>
-          <Header narrow>M</Header>
-          <Header narrow>L</Header>
+          {showM ? <Header narrow>M</Header> : null}
+          {showL ? <Header narrow>L</Header> : null}
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
           <tr>
             <td
-              colSpan={7}
+              colSpan={colSpan}
               className="border border-slate-300 px-4 py-6 text-center text-xs text-slate-400"
             >
               暂无人工规格清单（手织图版）
@@ -2014,8 +2024,8 @@ export function ExcelStyleHandWovenImageTable({
               <Cell narrow>{fmtIntLike(row.整长)}</Cell>
               <Cell narrow>{fmtInchCell(row.毛长)}</Cell>
               <Cell narrow>{fmtIntLike(row.重量.D)}</Cell>
-              <Cell narrow>{fmtIntLike(row.重量.M)}</Cell>
-              <Cell narrow>{fmtIntLike(row.重量.L)}</Cell>
+              {showM ? <Cell narrow>{fmtIntLike(row.重量.M)}</Cell> : null}
+              {showL ? <Cell narrow>{fmtIntLike(row.重量.L)}</Cell> : null}
               <Cell align="left">{row.位置 || ""}</Cell>
             </tr>
           ))
