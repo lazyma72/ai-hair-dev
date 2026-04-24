@@ -14,6 +14,11 @@ import {
   recalc机器规格清单上下分重量,
   recalc机器规格清单按比例DML重量,
 } from "../../../shared/models/重量计算"
+import {
+  按高针图回算机器规格清单上下分尺数 as shared按高针图回算机器规格清单上下分尺数,
+  提取高针图上下分标记 as shared提取高针图上下分标记,
+  type 上下分标记,
+} from "../../../shared/models/上下分计算尺数"
 import { ObjectId } from "mongodb"
 import type { 高针图 } from "../../../shared/models/高针图"
 import { load } from "cheerio"
@@ -1020,85 +1025,17 @@ function 生成上下分图稿(
 function 按上下分图稿回算机器规格清单(
   c稿: 沐茵丝假发成品稿,
   高针图: 沐茵丝假发成品稿["高针指示单"]["高针图"],
-  splitFlags: { hasM: boolean; hasL: boolean }
+  splitFlags: 上下分标记
 ): 沐茵丝假发成品稿["制品规格书"]["机器规格清单"] {
-  return strip机器规格清单到单D尺数(c稿.制品规格书.机器规格清单).map(row => ({
-    ...row,
-    双针: {
-      ...row.双针,
-      尺数: 根据高针图计算档位尺数(高针图 as 高针图, row.档位, splitFlags),
-    },
-  }))
-}
-
-function 提取上下分标记(机器规格清单: 沐茵丝假发成品稿["制品规格书"]["机器规格清单"]): {
-  hasM: boolean
-  hasL: boolean
-} {
-  return {
-    hasM: 机器规格清单.some(row => row.双针.尺数.M != null),
-    hasL: 机器规格清单.some(row => row.双针.尺数.L != null),
-  }
-}
-
-function 提取图稿DML全局标记(graph: 高针图): {
-  hasM: boolean
-  hasL: boolean
-} {
-  const dmlMap = compileDmlAssignments(graph as unknown as GraphLike)
-  let hasM = false
-  let hasL = false
-  dmlMap.forEach(value => {
-    if (value === "M") hasM = true
-    else if (value === "L") hasL = true
-  })
-  return { hasM, hasL }
-}
-
-// 用高针图上的 DML 和单双，回算上下分每档的尺数。
-function 根据高针图计算档位尺数(
-  graph: 高针图,
-  slotName: string,
-  splitFlags: { hasM: boolean; hasL: boolean } = { hasM: false, hasL: false }
-): { D: number; M?: number; L?: number } {
-  const dmlMap = compileDmlAssignments(graph as unknown as GraphLike)
-  const lineMap = new Map(
-    getRegionLines(graph as unknown as GraphLike).map(line => [line.lineNodeId, line] as const)
+  return shared按高针图回算机器规格清单上下分尺数(
+    strip机器规格清单到单D尺数(c稿.制品规格书.机器规格清单),
+    高针图 as 高针图,
+    splitFlags
   )
-  const doubleSet = new Set(
-    (graph.自定义数据?.单双标注 ?? [])
-      .filter(item => item?.双数)
-      .map(item => String(item.lineNodeId ?? "").trim())
-      .filter(Boolean)
-  )
+}
 
-  const totals = { D: 0, M: 0, L: 0 }
-  const used = new Set<string>()
-
-  ;(graph.底图.档位标注 ?? [])
-    .filter(item => normalizeLevelName(item.区域名) === normalizeLevelName(slotName))
-    .flatMap(item => item.lineNodeIds ?? [])
-    .forEach(rawLineId => {
-      const lineId = String(rawLineId ?? "").trim()
-      if (!lineId || used.has(lineId)) return
-      used.add(lineId)
-
-      const line = lineMap.get(lineId)
-      if (!line) return
-
-      const value = dmlMap.get(lineId)
-      if (!value) return
-      const length = line.lineLength * (doubleSet.has(lineId) ? 2 : 1)
-      if (value === "M") totals.M += length
-      else if (value === "L") totals.L += length
-      else totals.D += length
-    })
-
-  return {
-    D: totals.D,
-    ...(splitFlags.hasM ? { M: totals.M } : {}),
-    ...(splitFlags.hasL ? { L: totals.L } : {}),
-  }
+function 提取图稿DML全局标记(graph: 高针图): 上下分标记 {
+  return shared提取高针图上下分标记(graph)
 }
 
 function 按B稿纯色规则生成C稿(fileA: 沐茵丝假发成品稿, fileB: 沐茵丝假发成品稿): 沐茵丝假发成品稿 {

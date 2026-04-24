@@ -454,6 +454,7 @@ function ExcelStyleMachineTableInner({
   假发类型: type = 假发类型.纯色,
   hasGlobalM = false,
   hasGlobalL = false,
+  lockSplitSizeInputs = false,
 }: {
   rows: MachineRow[];
   editable?: boolean;
@@ -462,6 +463,7 @@ function ExcelStyleMachineTableInner({
   假发类型?: 假发类型;
   hasGlobalM?: boolean;
   hasGlobalL?: boolean;
+  lockSplitSizeInputs?: boolean;
 }) {
   const [t色重量行ByRow, setT色重量行ByRow] = React.useState<
     Record<number, T色重量行Map>
@@ -489,6 +491,8 @@ function ExcelStyleMachineTableInner({
   const hasAny对裁 = rows.some((row) => row.整毛.对裁 != null);
   const show对裁 = editable || hasAny对裁;
   const show间色比例列 = editable && type === 假发类型.间色;
+  const is上下分只读尺数 =
+    editable && type === 假发类型.上下分 && lockSplitSizeInputs;
   const weightColCount = 1 + (showWeightM ? 1 : 0) + (showWeightL ? 1 : 0);
   const doubleNeedleColCount = 3 + (show尺数M ? 1 : 0) + (show尺数L ? 1 : 0);
   const colSpan =
@@ -905,7 +909,9 @@ function ExcelStyleMachineTableInner({
                       )}
                     </Cell>
                     <Cell rowSpan={cutRows.length} narrow>
-                      {editable ? (
+                      {is上下分只读尺数 ? (
+                        fmtNum(row.双针.尺数.D)
+                      ) : editable ? (
                         <NumInput
                           value={row.双针.尺数.D}
                           className={compactTableInputCls}
@@ -925,7 +931,9 @@ function ExcelStyleMachineTableInner({
                     </Cell>
                     {show尺数M ? (
                       <Cell rowSpan={cutRows.length} narrow>
-                        {editable && type === 假发类型.上下分 && hasM尺数 ? (
+                        {is上下分只读尺数 ? (
+                          fmtNum(row.双针.尺数.M)
+                        ) : editable && type === 假发类型.上下分 && hasM尺数 ? (
                           <NumInput
                             value={row.双针.尺数.M ?? 0}
                             className={compactTableInputCls}
@@ -946,7 +954,9 @@ function ExcelStyleMachineTableInner({
                     ) : null}
                     {show尺数L ? (
                       <Cell rowSpan={cutRows.length} narrow>
-                        {editable && type === 假发类型.上下分 && hasL尺数 ? (
+                        {is上下分只读尺数 ? (
+                          fmtNum(row.双针.尺数.L)
+                        ) : editable && type === 假发类型.上下分 && hasL尺数 ? (
                           <NumInput
                             value={row.双针.尺数.L ?? 0}
                             className={compactTableInputCls}
@@ -1872,6 +1882,7 @@ export function EditableExcelStyleMachineTable({
   假发类型,
   hasGlobalM,
   hasGlobalL,
+  lockSplitSizeInputs = false,
 }: {
   rows: MachineRow[];
   onChange: (rows: MachineRow[]) => void;
@@ -1879,6 +1890,7 @@ export function EditableExcelStyleMachineTable({
   假发类型: 假发类型;
   hasGlobalM?: boolean;
   hasGlobalL?: boolean;
+  lockSplitSizeInputs?: boolean;
 }) {
   return (
     <ExcelStyleMachineTableInner
@@ -1889,6 +1901,7 @@ export function EditableExcelStyleMachineTable({
       假发类型={假发类型}
       hasGlobalM={hasGlobalM}
       hasGlobalL={hasGlobalL}
+      lockSplitSizeInputs={lockSplitSizeInputs}
     />
   );
 }

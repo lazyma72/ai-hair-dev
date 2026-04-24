@@ -10,6 +10,7 @@ type Props = {
   假发类型: 假发类型;
   hasGlobalM?: boolean;
   hasGlobalL?: boolean;
+  lockSplitSizeInputs?: boolean;
   error?: string;
   clearError?: () => void;
 };
@@ -20,6 +21,7 @@ export default function MachineSpecSection({
   假发类型,
   hasGlobalM = false,
   hasGlobalL = false,
+  lockSplitSizeInputs = false,
   error,
   clearError,
 }: Props) {
@@ -30,6 +32,7 @@ export default function MachineSpecSection({
         假发类型={假发类型}
         hasGlobalM={hasGlobalM}
         hasGlobalL={hasGlobalL}
+        lockSplitSizeInputs={lockSplitSizeInputs}
         onChange={(next) => {
           clearError?.();
           onChange(next);

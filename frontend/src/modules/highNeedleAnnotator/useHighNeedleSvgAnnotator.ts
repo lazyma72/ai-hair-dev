@@ -1,5 +1,5 @@
 import { message } from "antd";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   createEmpty高针图,
   type DmlValue,
@@ -694,6 +694,16 @@ export default function useHighNeedleSvgAnnotator({
 
   const [dirty, setDirty] = useState(false);
   const [canvasEpoch, setCanvasEpoch] = useState(0);
+  const latestValueRef = useRef<高针图>(value);
+
+  function setValueAndSync(updater: (current: 高针图) => 高针图) {
+    setValue((current) => {
+      const next = updater(current);
+      latestValueRef.current = next;
+      onChangeRef.current?.(next);
+      return next;
+    });
+  }
 
   // 初始化：保证线条 / 文本节点 id 可用（仅补齐 id，不写入交互样式）。
   useEffect(() => {
@@ -772,9 +782,16 @@ export default function useHighNeedleSvgAnnotator({
     });
   }, [initialValue, lineSelector, presets, startFromDone]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    latestValueRef.current = value;
     onChangeRef.current?.(value);
   }, [value]);
+
+  useEffect(() => {
+    return () => {
+      onChangeRef.current?.(latestValueRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!dirty) return;
@@ -1709,7 +1726,7 @@ export default function useHighNeedleSvgAnnotator({
   function commitMergedDml() {
     const manual = manualDmlOverridesRef.current;
 
-    setValue((cur) => {
+    setValueAndSync((cur) => {
       const nonSpecialCommands = cur.自定义数据.DML规则命令列表.filter(
         (item) => item.type !== "特殊标记",
       );
@@ -2030,7 +2047,7 @@ export default function useHighNeedleSvgAnnotator({
       return;
     }
 
-    setValue((cur) => {
+    setValueAndSync((cur) => {
       const { changed, nextCommands } = patchActiveRangeRuleCommands(
         cur.自定义数据.DML规则命令列表,
         canonicalLineIds,
@@ -2736,7 +2753,7 @@ export default function useHighNeedleSvgAnnotator({
     setDirty(true);
     let nextCommandsSnapshot: 高针图["自定义数据"]["DML规则命令列表"] | null =
       null;
-    setValue((cur) => ({
+    setValueAndSync((cur) => ({
       ...cur,
       自定义数据: {
         ...cur.自定义数据,

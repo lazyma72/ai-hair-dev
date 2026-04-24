@@ -1,5 +1,5 @@
 import { message } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { callApi } from "../../api/callApi";
 import PageShell from "../../components/PageShell";
 import StatusView from "../../components/StatusView";
@@ -21,6 +21,12 @@ import {
   toDbPayload,
   toPreviewDbFile,
 } from "../../shared/fileDraft/adapters/toDbPayload";
+import { 假发类型 } from "../../shared/db/Db沐茵丝假发成品稿";
+import { recalc机器规格清单上下分重量 } from "../../shared/models/重量计算";
+import {
+  按高针图回算机器规格清单上下分尺数,
+  提取高针图上下分标记,
+} from "../../shared/models/上下分计算尺数";
 
 const MAX_CUT_WEIGHT_ITEMS = 3;
 const EDITOR_TABS = [
@@ -51,6 +57,7 @@ type Props = {
   onSubmitted: (id: string, form: FileDraftViewModel) => void;
   onDraftChange?: (form: FileDraftViewModel) => void;
   extraActions?: React.ReactNode;
+  enableSplitDmlSizing?: boolean;
 };
 
 function normalizeName(s: string): string {
@@ -71,6 +78,7 @@ export default function FileEditorPage({
   onSubmitted,
   onDraftChange,
   extraActions,
+  enableSplitDmlSizing = false,
 }: Props) {
   const [form, setForm] = useState<FileDraftViewModel | null>(initialValue);
   const [activeTab, setActiveTab] = useState<EditorTabKey>("制品规格书");
@@ -80,15 +88,63 @@ export default function FileEditorPage({
   const [customerList, setCustomerList] = useState<DbCustomer[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const loadedDraftIdRef = useRef<string | null>(initialValue?._id ?? null);
 
   useEffect(() => {
-    setForm(initialValue);
-  }, [initialValue]);
+    const nextId = initialValue?._id ?? null;
+    if (form == null) {
+      setForm(initialValue);
+      loadedDraftIdRef.current = nextId;
+      return;
+    }
+    if (nextId !== loadedDraftIdRef.current) {
+      setForm(initialValue);
+      loadedDraftIdRef.current = nextId;
+    }
+  }, [form, initialValue]);
 
   useEffect(() => {
     if (!form) return;
     onDraftChange?.(form);
   }, [form, onDraftChange]);
+
+  useEffect(() => {
+    if (
+      !enableSplitDmlSizing ||
+      !form ||
+      form.假发类型 !== 假发类型.上下分
+    ) {
+      return;
+    }
+
+    const splitFlags = 提取高针图上下分标记(form.高针指示单.高针图);
+    const nextMachineRows = recalc机器规格清单上下分重量(
+      按高针图回算机器规格清单上下分尺数(
+        form.制品规格书.机器规格清单,
+        form.高针指示单.高针图,
+        splitFlags,
+      ),
+      splitFlags,
+    );
+
+    if (
+      JSON.stringify(nextMachineRows) ===
+      JSON.stringify(form.制品规格书.机器规格清单)
+    ) {
+      return;
+    }
+
+    setForm((prev) => {
+      if (!prev || prev.假发类型 !== 假发类型.上下分) return prev;
+      return {
+        ...prev,
+        制品规格书: {
+          ...prev.制品规格书,
+          机器规格清单: nextMachineRows,
+        },
+      };
+    });
+  }, [enableSplitDmlSizing, form]);
 
   useEffect(() => {
     callApi("admin/ratio/GetList", {
@@ -340,6 +396,7 @@ export default function FileEditorPage({
                 <FileDraftDataSections
                   mode="edit"
                   value={form}
+                  enableSplitDmlSizing={enableSplitDmlSizing}
                   onChange={updateForm}
                   customerList={customerList}
                 hatMakingList={hatMakingList}

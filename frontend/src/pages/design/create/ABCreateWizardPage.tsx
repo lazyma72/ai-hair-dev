@@ -211,6 +211,7 @@ export default function ABCreateWizardPage() {
               mode="add"
               title={`编辑 C 稿（未保存）· A:${aId} + B:${bId}`}
               initialValue={cDraft}
+              enableSplitDmlSizing
               submitLabel="保存 C 稿"
               submittingLabel="保存中…"
               onBack={() => setEditing(false)}

@@ -1,14 +1,10 @@
 import type { 制品规格书 } from "../db/Db沐茵丝假发成品稿"
+import type { 上下分标记 } from "./上下分计算尺数"
 
 type DML比值 = {
   D: number
   M?: number
   L?: number
-}
-
-type 上下分标记 = {
-  hasM: boolean
-  hasL: boolean
 }
 
 export function get档位行系数(rowIndex: number, totalRows: number): number {
