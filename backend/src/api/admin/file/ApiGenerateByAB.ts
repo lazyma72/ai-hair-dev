@@ -4,7 +4,11 @@ import {
   ResGenerateByAB,
 } from "../../../shared/protocols/admin/file/PtlGenerateByAB"
 import { Global } from "../../../models/Global"
-import { 假发类型, type 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿"
+import {
+  假发类型,
+  type 染色档位,
+  type 沐茵丝假发成品稿,
+} from "../../../shared/db/Db沐茵丝假发成品稿"
 import type { DML值, DML规则命令, DML规则命令列表 } from "../../../shared/models/DML规则"
 import {
   recalc人工规格清单D重量,
@@ -60,6 +64,11 @@ type RegionLine = {
   lineNodeId: string
   sort: number
   lineLength: number
+}
+
+type 区域覆盖段 = {
+  start: number
+  end: number
 }
 
 type DML比值 = {
@@ -211,6 +220,139 @@ function getLevelLineIds(graph: GraphLike): Map<string, string[]> {
     out.set(slot, list)
   })
   return out
+}
+
+function merge覆盖段列表(segments: 区域覆盖段[]): 区域覆盖段[] {
+  if (segments.length <= 1) return segments.slice()
+  const sorted = [...segments].sort((a, b) => a.start - b.start || a.end - b.end)
+  const merged: 区域覆盖段[] = [sorted[0]]
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i]
+    const prev = merged[merged.length - 1]
+    if (current.start <= prev.end) {
+      prev.end = Math.max(prev.end, current.end)
+      continue
+    }
+    merged.push({ ...current })
+  }
+  return merged
+}
+
+function build档位区域覆盖映射(graph: GraphLike): Map<string, Map<string, 区域覆盖段[]>> {
+  const byRegion = getRegionLinesByName(graph)
+  const out = new Map<string, Map<string, 区域覆盖段[]>>()
+
+  ;(graph.底图.档位标注 ?? []).forEach(item => {
+    const slot = normalizeLevelName(item.区域名)
+    if (!slot) return
+    const selected = new Set(uniqueLineIds(item.lineNodeIds ?? []))
+    if (selected.size === 0) return
+
+    const regionMap = out.get(slot) ?? new Map<string, 区域覆盖段[]>()
+    byRegion.forEach((regionLines, regionName) => {
+      const indexes: number[] = []
+      regionLines.forEach((line, index) => {
+        if (selected.has(line.lineNodeId)) indexes.push(index)
+      })
+      if (indexes.length === 0) return
+
+      const start = indexes[0] / regionLines.length
+      const end = (indexes[indexes.length - 1] + 1) / regionLines.length
+      const next = [...(regionMap.get(regionName) ?? []), { start, end }]
+      regionMap.set(regionName, merge覆盖段列表(next))
+    })
+
+    out.set(slot, regionMap)
+  })
+
+  return out
+}
+
+function 收集染色区域覆盖(
+  slotNames: string[],
+  slotCoverage: Map<string, Map<string, 区域覆盖段[]>>
+): Map<string, 区域覆盖段[]> {
+  const out = new Map<string, 区域覆盖段[]>()
+  slotNames.forEach(slot => {
+    const regionMap = slotCoverage.get(slot)
+    if (!regionMap) return
+    regionMap.forEach((segments, regionName) => {
+      const next = [...(out.get(regionName) ?? []), ...segments]
+      out.set(regionName, merge覆盖段列表(next))
+    })
+  })
+  return out
+}
+
+function 覆盖段有重叠(a: 区域覆盖段, b: 区域覆盖段): boolean {
+  return Math.min(a.end, b.end) > Math.max(a.start, b.start)
+}
+
+function 是否命中染色区域(
+  slot: string,
+  targetCoverage: Map<string, Map<string, 区域覆盖段[]>>,
+  dyedCoverage: Map<string, 区域覆盖段[]>
+): boolean {
+  const regionMap = targetCoverage.get(slot)
+  if (!regionMap) return false
+
+  for (const [regionName, targetSegments] of regionMap.entries()) {
+    const dyedSegments = dyedCoverage.get(regionName)
+    if (!dyedSegments || dyedSegments.length === 0) continue
+    for (const targetSegment of targetSegments) {
+      if (dyedSegments.some(dyed => 覆盖段有重叠(targetSegment, dyed))) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+function 转换B稿染色档位列表到C稿(fileA: 沐茵丝假发成品稿, fileB: 沐茵丝假发成品稿): 染色档位[] {
+  const sourceList = 深拷贝普通对象(fileB.染色档位列表 ?? []) as 染色档位[]
+  if (sourceList.length === 0) return sourceList
+
+  const aMachineSlotOrder = (fileA.制品规格书.机器规格清单 ?? [])
+    .map(row => normalizeLevelName(row.档位))
+    .filter(Boolean)
+  const aMachineSlotSet = new Set(aMachineSlotOrder)
+  const bMachineSlotSet = new Set(
+    (fileB.制品规格书.机器规格清单 ?? []).map(row => normalizeLevelName(row.档位)).filter(Boolean)
+  )
+  const bCoverage = build档位区域覆盖映射(fileB.高针指示单.高针图 as unknown as GraphLike)
+  const aCoverage = build档位区域覆盖映射(fileA.高针指示单.高针图 as unknown as GraphLike)
+
+  return sourceList.map(item => {
+    const rawSlots = (item.染色图?.档位标注?.档位列表 ?? [])
+      .map(slot => normalizeLevelName(slot))
+      .filter(Boolean)
+    const machineSlots = rawSlots.filter(slot => bMachineSlotSet.has(slot))
+    const passThroughSlots = rawSlots.filter(slot => !bMachineSlotSet.has(slot))
+
+    // 只有人工档位染色，直接 pass
+    if (machineSlots.length === 0) return item
+
+    const dyedCoverage = 收集染色区域覆盖(machineSlots, bCoverage)
+    let mappedMachineSlots = aMachineSlotOrder.filter(slot =>
+      是否命中染色区域(slot, aCoverage, dyedCoverage)
+    )
+
+    if (mappedMachineSlots.length === 0) {
+      mappedMachineSlots = machineSlots.filter(slot => aMachineSlotSet.has(slot))
+    }
+
+    return {
+      ...item,
+      染色图: {
+        ...item.染色图,
+        档位标注: {
+          ...item.染色图.档位标注,
+          档位列表: uniqueLineIds([...mappedMachineSlots, ...passThroughSlots]),
+        },
+      },
+    } as 染色档位
+  })
 }
 
 function selectLineIdsByRange(lineIds: string[], start: unknown, end: unknown): string[] {
@@ -933,7 +1075,7 @@ function 构建C稿公共底稿(fileA: 沐茵丝假发成品稿, fileB: 沐茵�
   return {
     ...fileA,
     假发类型: fileB.假发类型,
-    染色档位列表: 深拷贝普通对象(fileB.染色档位列表),
+    染色档位列表: 转换B稿染色档位列表到C稿(fileA, fileB),
     制品规格书: {
       ...fileA.制品规格书,
       胶丝比例id: fileB.制品规格书.胶丝比例id,
