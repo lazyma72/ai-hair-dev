@@ -1019,13 +1019,14 @@ function 生成上下分图稿(
 
 function 按上下分图稿回算机器规格清单(
   c稿: 沐茵丝假发成品稿,
-  高针图: 沐茵丝假发成品稿["高针指示单"]["高针图"]
+  高针图: 沐茵丝假发成品稿["高针指示单"]["高针图"],
+  splitFlags: { hasM: boolean; hasL: boolean }
 ): 沐茵丝假发成品稿["制品规格书"]["机器规格清单"] {
   return strip机器规格清单到单D尺数(c稿.制品规格书.机器规格清单).map(row => ({
     ...row,
     双针: {
       ...row.双针,
-      尺数: 根据高针图计算档位尺数(高针图 as 高针图, row.档位),
+      尺数: 根据高针图计算档位尺数(高针图 as 高针图, row.档位, splitFlags),
     },
   }))
 }
@@ -1040,10 +1041,25 @@ function 提取上下分标记(机器规格清单: 沐茵丝假发成品稿["制
   }
 }
 
+function 提取图稿DML全局标记(graph: 高针图): {
+  hasM: boolean
+  hasL: boolean
+} {
+  const dmlMap = compileDmlAssignments(graph as unknown as GraphLike)
+  let hasM = false
+  let hasL = false
+  dmlMap.forEach(value => {
+    if (value === "M") hasM = true
+    else if (value === "L") hasL = true
+  })
+  return { hasM, hasL }
+}
+
 // 用高针图上的 DML 和单双，回算上下分每档的尺数。
 function 根据高针图计算档位尺数(
   graph: 高针图,
-  slotName: string
+  slotName: string,
+  splitFlags: { hasM: boolean; hasL: boolean } = { hasM: false, hasL: false }
 ): { D: number; M?: number; L?: number } {
   const dmlMap = compileDmlAssignments(graph as unknown as GraphLike)
   const lineMap = new Map(
@@ -1070,7 +1086,8 @@ function 根据高针图计算档位尺数(
       const line = lineMap.get(lineId)
       if (!line) return
 
-      const value = dmlMap.get(lineId) ?? "D"
+      const value = dmlMap.get(lineId)
+      if (!value) return
       const length = line.lineLength * (doubleSet.has(lineId) ? 2 : 1)
       if (value === "M") totals.M += length
       else if (value === "L") totals.L += length
@@ -1079,8 +1096,8 @@ function 根据高针图计算档位尺数(
 
   return {
     D: totals.D,
-    ...(totals.M > 0 ? { M: totals.M } : {}),
-    ...(totals.L > 0 ? { L: totals.L } : {}),
+    ...(splitFlags.hasM ? { M: totals.M } : {}),
+    ...(splitFlags.hasL ? { L: totals.L } : {}),
   }
 }
 
@@ -1186,8 +1203,8 @@ function 按B稿上下分规则生成C稿(
   */
   const fileC = 构建C稿公共底稿(fileA, fileB)
   const 图稿 = 生成上下分图稿(fileC, fileB, 记录日志)
-  const machineRows = 按上下分图稿回算机器规格清单(fileC, 图稿.高针指示单.高针图)
-  const splitFlags = 提取上下分标记(machineRows)
+  const splitFlags = 提取图稿DML全局标记(图稿.高针指示单.高针图 as 高针图)
+  const machineRows = 按上下分图稿回算机器规格清单(fileC, 图稿.高针指示单.高针图, splitFlags)
 
   // #region debug-point D:split-generate-summary
   记录日志?.("上下分生成摘要", {
