@@ -39,7 +39,7 @@ export default function CustomTextStagePanel({
   return (
     <div className="mt-4 space-y-4">
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-        文本阶段：默认隐藏 D/M/L/单/双 文本节点（不会立刻删除），其余文本已加入“已保留文本节点”；可拖动文字调整位置；不需要的文本可在列表中删除。最终完成时会清理无关文本。
+        文本阶段：默认隐藏 D/M/L/单/双 文本节点（不会立刻删除），其余文本已加入“已保留文本节点”；文本修改会自动保存；可拖动文字调整位置；不需要的文本可在列表中删除。点击下方按钮会清理无关文本。
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-3">
@@ -83,7 +83,7 @@ export default function CustomTextStagePanel({
             className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
             onClick={completeTextStage}
           >
-            保存并清理文本
+            清理无关文本
           </button>
         </div>
       </div>

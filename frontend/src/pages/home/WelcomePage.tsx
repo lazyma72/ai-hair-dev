@@ -104,6 +104,11 @@ export default function WelcomePage() {
           to="/users"
         />
         <ActionCard
+          title="手织标注测试页面"
+          desc="生成横排 / 方形 / 特殊手织图 SVG，并支持继续编辑"
+          to="/test/hand-woven-annotator"
+        />
+        <ActionCard
           title="高针标注 Demo"
           desc="高针图标注工具演示入口"
           to="/test/high-needle-annotator"

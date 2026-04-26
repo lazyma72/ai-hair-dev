@@ -11,8 +11,10 @@ import {
 import CustomerListPage from "./pages/admin/CustomerListPage";
 import EditFilePage from "./pages/admin/EditFilePage";
 import LoginPage from "./pages/auth/LoginPage";
+import HandWovenAnnotatorPage from "./pages/dev/HandWovenAnnotatorPage";
 import HighNeedleAnnotatorDemoPage from "./pages/dev/HighNeedleAnnotatorDemo";
 import HighNeedlePreviewPage from "./pages/dev/HighNeedlePreviewPage";
+import TestPagesHome from "./pages/dev/TestPagesHome";
 import DesignDraftListPage from "./pages/design/DesignDraftListPage";
 import ABCreateWizardPage from "./pages/design/create/ABCreateWizardPage";
 import DesignCreateHubPage from "./pages/design/create/DesignCreateHubPage";
@@ -111,6 +113,14 @@ function App() {
           <Route path="/customers" element={<CustomerListPage />} />
           <Route path="/users" element={<UserManagementPage />} />
 
+          <Route
+            path="/test"
+            element={<TestPagesHome />}
+          />
+          <Route
+            path="/test/hand-woven-annotator"
+            element={<HandWovenAnnotatorPage />}
+          />
           <Route
             path="/test/high-needle-annotator"
             element={<HighNeedleAnnotatorDemoPage />}
