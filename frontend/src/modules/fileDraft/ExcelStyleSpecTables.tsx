@@ -1274,6 +1274,10 @@ function ExcelStyleManualTableInner({
     }));
   }
 
+  function getMaterializedManualCutRows(row: ManualRow): ManualRow["裁断与重量"] {
+    return row.裁断与重量.length > 0 ? row.裁断与重量 : [{ 裁断: 0 }];
+  }
+
   function toggleAll对裁(enabled: boolean) {
     emit(
       rows.map((row) => {
@@ -1493,7 +1497,7 @@ function ExcelStyleManualTableInner({
                         onChange={(n) =>
                           patchRow(rowIndex, (current) => ({
                             ...current,
-                            裁断与重量: current.裁断与重量.map(
+                              裁断与重量: getMaterializedManualCutRows(current).map(
                               (cut, cutIndex) =>
                                 cutIndex === index ? { ...cut, 裁断: n } : cut,
                             ),
@@ -1584,7 +1588,7 @@ function ExcelStyleManualTableInner({
                       onChange={(n) =>
                         patchRow(rowIndex, (current) => ({
                           ...current,
-                          裁断与重量: current.裁断与重量.map((cut, cutIndex) =>
+                          裁断与重量: getMaterializedManualCutRows(current).map((cut, cutIndex) =>
                             cutIndex === index
                               ? {
                                   ...cut,
@@ -1609,7 +1613,7 @@ function ExcelStyleManualTableInner({
                           onChange={(n) =>
                             patchRow(rowIndex, (current) => ({
                               ...current,
-                              裁断与重量: current.裁断与重量.map(
+                              裁断与重量: getMaterializedManualCutRows(current).map(
                                 (cut, cutIndex) =>
                                   cutIndex === index
                                     ? {
@@ -1642,7 +1646,7 @@ function ExcelStyleManualTableInner({
                           onChange={(n) =>
                             patchRow(rowIndex, (current) => ({
                               ...current,
-                              裁断与重量: current.裁断与重量.map(
+                              裁断与重量: getMaterializedManualCutRows(current).map(
                                 (cut, cutIndex) =>
                                   cutIndex === index
                                     ? {

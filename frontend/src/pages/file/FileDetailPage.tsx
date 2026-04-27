@@ -61,6 +61,11 @@ export default function FileDetailPage() {
   const rawFile: FileDraftViewModel | null = rawDbFile
     ? fromDbToFileDraftViewModel(rawDbFile)
     : null;
+  const pageTitle = file
+    ? file.制品规格书.title.样品编号 ||
+      file.制品规格书.title.品名 ||
+      "成品稿详情"
+    : "成品稿详情";
 
   useEffect(() => {
     callApi(
@@ -80,7 +85,7 @@ export default function FileDetailPage() {
 
   return (
     <PageShell
-      title={file ? `${file.制品规格书.title.品名}` : "成品稿详情"}
+      title={pageTitle}
       onBack={() => navigate(-1)}
       actions={
         id ? (

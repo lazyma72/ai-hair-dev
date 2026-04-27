@@ -89,6 +89,70 @@ type Props = {
   clearError?: (key: string) => void;
 };
 
+function 计算当前重量(value: FileDraftViewModel): number {
+  return (
+    value.制品规格书.机器规格清单.reduce((total, row) => {
+      return (
+        total +
+        row.裁断与重量.reduce((sum, item) => {
+          const g = item.重量g;
+          if (!g) return sum;
+          return sum + g.D + (g.M ?? 0) + (g.L ?? 0);
+        }, 0)
+      );
+    }, 0) +
+    value.制品规格书.人工规格清单.reduce((total, row) => {
+      return (
+        total +
+        row.裁断与重量.reduce((sum, item) => {
+          const g = item.重量g;
+          if (!g) return sum;
+          return sum + g.D + (g.M ?? 0) + (g.L ?? 0);
+        }, 0)
+      );
+    }, 0)
+  );
+}
+
+function 从草稿计算工程重量详情(
+  value: FileDraftViewModel,
+): 制品规格书Frontend["工程重量"] {
+  const 当前重量 = 计算当前重量(value);
+  const raw = value.制品规格书.工程重量 ?? {};
+  const 整毛加减 = raw.整毛?.加减 ?? 0;
+  const 双针加减 = raw.双针?.加减 ?? 0;
+  const 美容加减 = raw.美容?.加减 ?? 0;
+  const 制帽加减 = raw.制帽?.加减 ?? 0;
+  const 手织加减 = raw.手织?.加减 ?? 0;
+  const 高针加减 = raw.高针?.加减 ?? 0;
+  const 剪驳加减 = raw.剪驳?.加减 ?? 0;
+  const 发网加减 = raw.发网?.加减 ?? 0;
+  const 完成加减 = raw.完成?.加减 ?? 0;
+
+  const 整毛数值 = 当前重量 + 整毛加减;
+  const 双针数值 = 整毛数值 + 双针加减;
+  const 美容数值 = 双针数值 + 美容加减;
+  const 制帽数值 = 制帽加减;
+  const 手织数值 = 制帽数值 + 手织加减;
+  const 高针数值 = 美容数值 + 手织数值;
+  const 剪驳数值 = 高针数值 + 剪驳加减;
+  const 发网数值 = 剪驳数值 + 发网加减;
+  const 完成数值 = 发网数值 + 完成加减;
+
+  return {
+    整毛: { 加减: 整毛加减, 数值: 整毛数值 },
+    双针: { 加减: 双针加减, 数值: 双针数值 },
+    美容: { 加减: 美容加减, 数值: 美容数值 },
+    制帽: { 加减: 制帽加减, 数值: 制帽数值 },
+    手织: { 加减: 手织加减, 数值: 手织数值 },
+    高针: { 加减: 高针加减, 数值: 高针数值 },
+    剪驳: { 加减: 剪驳加减, 数值: 剪驳数值 },
+    发网: { 加减: 发网加减, 数值: 发网数值 },
+    完成: { 加减: 完成加减, 数值: 完成数值 },
+    重量: `${格式化定位小数(完成数值, 2)}±2g`,
+  };
+}
+
 function ReadonlyRow({
   label,
   value,
@@ -96,10 +160,11 @@ function ReadonlyRow({
   label: string;
   value: React.ReactNode;
 }) {
+  const hasValue = value !== null && value !== undefined && value !== "";
   return (
     <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2 border-b border-slate-100 px-3 py-1.5 text-xs last:border-b-0">
       <div className="text-slate-400">{label}</div>
-      <div className="text-slate-700">{value || "—"}</div>
+      <div className="text-slate-700">{hasValue ? value : "—"}</div>
     </div>
   );
 }
@@ -265,7 +330,7 @@ function FileDraftReadonlySections({
       (item) => item._id === getHatMakingIdFromCAP(value.CAP),
     ) ?? null;
   const 胶丝比例 = 制品规格书详情?.胶丝比例;
-  const 工程重量 = 制品规格书详情?.工程重量;
+  const 工程重量 = 制品规格书详情?.工程重量 ?? 从草稿计算工程重量详情(value);
   const 机器规格清单 = 制品规格书详情?.机器规格清单 ?? value.制品规格书.机器规格清单;
   const 人工规格清单 = 制品规格书详情?.人工规格清单 ?? value.制品规格书.人工规格清单;
   const 工程重量行 = 工程重量

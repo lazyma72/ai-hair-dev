@@ -1437,7 +1437,13 @@ function PrintHighNeedleDoc({ data }: { data: 高针指示单Frontend }) {
           { label: "尺寸", value: data.title.尺寸 },
           { label: "原料", value: data.title.原料 },
           { label: "CAP", value: data.title.CAP },
-          { label: "重量", value: `${data.title.重量 ?? "—"}` },
+          {
+            label: "重量",
+            value:
+              data.title.重量 == null
+                ? "—"
+                : `${格式化定位小数(data.title.重量, 2)}g`,
+          },
         ]}
       />
       <div style={SECTION_HEADER}>机器规格清单（高针图版）</div>

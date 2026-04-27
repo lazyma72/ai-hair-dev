@@ -8,6 +8,7 @@ import type { 高针指示单 } from "../../shared/db/Db沐茵丝假发成品稿
 import type { 高针指示单Frontend } from "../../shared/frontend/model/model";
 import { inputCls } from "../../pages/admin/add-file/components/ui";
 import HighNeedlePreviewViewer from "../highNeedleAnnotator/HighNeedlePreviewViewer";
+import { 格式化定位小数 } from "../../shared/models/数字格式化";
 
 type Props = {
   mode: "edit" | "readonly";
@@ -33,6 +34,10 @@ export default function HighNeedleBlock({
     const svg = value.高针图?.底图?.svg?.trim() ?? "";
     return svg ? "已导入 SVG" : null;
   }, [value.高针图?.底图?.svg]);
+  const formattedPreviewWeight =
+    previewData?.title?.重量 != null
+      ? `${格式化定位小数(previewData.title.重量, 2)}g`
+      : "—";
 
   if (!isEdit) {
     const preview = previewData?.高针图数据 ?? value.高针图;
@@ -51,7 +56,7 @@ export default function HighNeedleBlock({
               <Row label="尺寸" value={previewData.title.尺寸} />
               <Row label="原料" value={previewData.title.原料} />
               <Row label="CAP" value={previewData.title.CAP} />
-              <Row label="重量" value={previewData.title.重量 || "—"} />
+              <Row label="重量" value={formattedPreviewWeight} />
             </div>
           </Section>
         ) : null}

@@ -225,6 +225,19 @@ export default function FileEditorPage({
     () => (form ? to手织指示单Frontend(toPreviewDbFile(form)) : null),
     [form],
   );
+  const displayTitle = useMemo(() => {
+    const sampleNo = form?.样品编号?.trim();
+    if (!sampleNo || sampleNo === "无") {
+      return title;
+    }
+    if (title.trim() === "无") {
+      return sampleNo;
+    }
+    if (/·\s*无$/.test(title)) {
+      return title.replace(/·\s*无$/, `· ${sampleNo}`);
+    }
+    return title;
+  }, [form?.样品编号, title]);
 
   const updateForm: React.Dispatch<React.SetStateAction<FileDraftViewModel>> = (
     next,
@@ -343,7 +356,7 @@ export default function FileEditorPage({
 
   return (
     <PageShell
-      title={title}
+      title={displayTitle}
       onBack={onBack}
       actions={actions}
       compact
