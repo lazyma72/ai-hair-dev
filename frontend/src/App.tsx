@@ -11,6 +11,7 @@ import {
 import CustomerListPage from "./pages/admin/CustomerListPage";
 import EditFilePage from "./pages/admin/EditFilePage";
 import LoginPage from "./pages/auth/LoginPage";
+import CdrToSvgPage from "./pages/dev/CdrToSvgPage";
 import HandWovenAnnotatorPage from "./pages/dev/HandWovenAnnotatorPage";
 import HighNeedleAnnotatorDemoPage from "./pages/dev/HighNeedleAnnotatorDemo";
 import HighNeedlePreviewPage from "./pages/dev/HighNeedlePreviewPage";
@@ -128,6 +129,10 @@ function App() {
           <Route
             path="/test/high-needle-preview"
             element={<HighNeedlePreviewPage />}
+          />
+          <Route
+            path="/test/cdr-to-svg"
+            element={<CdrToSvgPage />}
           />
 
           <Route path="/file/:id" element={<FileDetailPage />} />

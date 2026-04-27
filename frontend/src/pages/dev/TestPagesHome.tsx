@@ -51,6 +51,11 @@ export default function TestPagesHome() {
           desc="导入 JSON，查看高针图预览和叠加标记效果。"
           to="/test/high-needle-preview"
         />
+        <TestEntryCard
+          title="CDR 转 SVG"
+          desc="上传 CDR 文件，调用后端转换接口并直接在页面内预览 SVG。"
+          to="/test/cdr-to-svg"
+        />
       </div>
     </PageShell>
   );

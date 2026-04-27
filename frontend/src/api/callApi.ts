@@ -14,6 +14,10 @@ import type {
   ReqGenerateByAB,
   ResGenerateByAB,
 } from "../shared/protocols/admin/file/PtlGenerateByAB";
+import type {
+  ReqCdrToSvg,
+  ResCdrToSvg,
+} from "../shared/protocols/PtlCdrToSvg";
 import { getToken, clearToken } from "../auth";
 import { frontConfig } from "../frontConfig";
 
@@ -58,6 +62,13 @@ export async function callApi(
   | { isSucc: true; res: ResGenerateByAB }
   | { isSucc: false; err: { message: string } }
 >;
+export async function callApi(
+  apiName: "CdrToSvg",
+  req: ReqCdrToSvg,
+): Promise<
+  | { isSucc: true; res: ResCdrToSvg }
+  | { isSucc: false; err: { message: string } }
+>;
 export async function callApi<K extends ApiName>(
   apiName: K,
   req: ServiceType["api"][K]["req"],
@@ -66,7 +77,7 @@ export async function callApi<K extends ApiName>(
   | { isSucc: false; err: { message: string } }
 >;
 export async function callApi(
-  apiName: ApiName | "admin/file/GenerateByAB",
+  apiName: ApiName | "admin/file/GenerateByAB" | "CdrToSvg",
   req: any,
 ): Promise<
   { isSucc: true; res: any } | { isSucc: false; err: { message: string } }

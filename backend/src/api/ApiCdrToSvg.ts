@@ -13,12 +13,34 @@ const STATIC_ROOT = path.resolve(__dirname, "../static")
 const TEMP_ROOT = path.join(STATIC_ROOT, "tmp", "cdr-to-svg")
 const ALLOWED_INPUT_EXTS = new Set([".cdr"])
 
+type ExecFileError = {
+  code?: unknown
+  message?: unknown
+  stderr?: unknown
+  stdout?: unknown
+}
+
 async function safeRemove(filePath: string) {
   try {
     await fs.promises.rm(filePath, { recursive: true, force: true })
   } catch {
     // ignore cleanup errors
   }
+}
+
+function getExecErrorDetail(error: unknown) {
+  if (typeof error !== "object" || !error) {
+    return { code: "", detail: "" }
+  }
+
+  const execError = error as ExecFileError
+  const code = String(execError.code ?? "").trim()
+  const message = String(execError.message ?? "").trim()
+  const stderr = String(execError.stderr ?? "").trim()
+  const stdout = String(execError.stdout ?? "").trim()
+  const detail = stderr || stdout || message
+
+  return { code, detail }
 }
 
 export default async function (call: ApiCall<ReqCdrToSvg, ResCdrToSvg>) {
@@ -48,17 +70,14 @@ export default async function (call: ApiCall<ReqCdrToSvg, ResCdrToSvg>) {
         maxBuffer: 10 * 1024 * 1024,
       })
     } catch (error) {
-      const stderr =
-        typeof error === "object" && error && "stderr" in error
-          ? String((error as { stderr?: unknown }).stderr ?? "").trim()
-          : ""
-      const stdout =
-        typeof error === "object" && error && "stdout" in error
-          ? String((error as { stdout?: unknown }).stdout ?? "").trim()
-          : ""
-      const detail = stderr || stdout
+      const { code, detail } = getExecErrorDetail(error)
 
-      if (detail.includes("ENOENT") || detail.includes("not found")) {
+      if (
+        code === "ENOENT" ||
+        detail.includes("ENOENT") ||
+        detail.includes("not found") ||
+        detail.includes("spawn uniconvertor")
+      ) {
         return call.error("服务器未安装 uniconvertor，无法转换 CDR", {
           code: "UNICONVERTOR_NOT_FOUND",
         })
@@ -66,6 +85,14 @@ export default async function (call: ApiCall<ReqCdrToSvg, ResCdrToSvg>) {
 
       return call.error(detail ? `CDR 转 SVG 失败：${detail}` : "CDR 转 SVG 失败", {
         code: "CDR_TO_SVG_FAILED",
+      })
+    }
+
+    try {
+      await fs.promises.access(outputPath, fs.constants.F_OK)
+    } catch {
+      return call.error("CDR 转 SVG 失败：未生成 output.svg", {
+        code: "EMPTY_SVG_OUTPUT",
       })
     }
 
