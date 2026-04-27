@@ -1131,24 +1131,14 @@ function 生成上下分图稿(
     记录日志
   )
 
-  const 手织图 = {
-    ...c稿.手织指示单.手织图,
-    自定义数据: {
-      ...c稿.手织指示单.手织图.自定义数据,
-      DML规则命令列表: mapDmlRulesFromBToA(
-        c稿.手织指示单.手织图 as unknown as GraphLike,
-        b稿.手织指示单.手织图 as unknown as GraphLike,
-        记录日志
-      ),
-    },
-  }
+  const 手织图 = c稿.手织指示单.手织图
 
   // #region debug-point D:split-graph-output
   记录日志?.("生成上下分图稿结果摘要", {
     高针图规则数: 高针图.自定义数据.DML规则命令列表?.length ?? 0,
-    手织图规则数: 手织图.自定义数据.DML规则命令列表?.length ?? 0,
     B稿高针图规则数: b稿.高针指示单.高针图.自定义数据.DML规则命令列表?.length ?? 0,
-    B稿手织图规则数: b稿.手织指示单.手织图.自定义数据.DML规则命令列表?.length ?? 0,
+    手织图类型: 手织图.类型.type,
+    B稿手织图类型: b稿.手织指示单.手织图.类型.type,
   })
   // #endregion
 
@@ -1291,7 +1281,7 @@ function 按B稿上下分规则生成C稿(
     splitHasM: splitFlags.hasM,
     splitHasL: splitFlags.hasL,
     高针图规则数: 图稿.高针指示单.高针图.自定义数据.DML规则命令列表?.length ?? 0,
-    手织图规则数: 图稿.手织指示单.手织图.自定义数据.DML规则命令列表?.length ?? 0,
+    手织图类型: 图稿.手织指示单.手织图.类型.type,
   })
   // #endregion
 

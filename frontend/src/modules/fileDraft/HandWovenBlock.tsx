@@ -1,13 +1,12 @@
 import { useMemo, useState } from "react";
 import Row from "../../components/Row";
 import Section from "../../components/Section";
+import InlineSvg from "../../components/InlineSvg";
 import { ExcelStyleHandWovenImageTable } from "./ExcelStyleSpecTables";
 import HandWovenImportStep from "../../pages/design/create/components/HandWovenImportStep";
 import type { 手织指示单 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { 手织指示单Frontend } from "../../shared/frontend/model/model";
 import { inputCls } from "../../pages/admin/add-file/components/ui";
-import HighNeedlePreviewViewer from "../highNeedleAnnotator/HighNeedlePreviewViewer";
-import { 手织图To高针图 } from "../highNeedleAnnotator/types";
 
 type Props = {
   mode: "edit" | "readonly";
@@ -26,17 +25,15 @@ export default function HandWovenBlock({
 }: Props) {
   const isEdit = mode === "edit";
   const [expanded, setExpanded] = useState(false);
-  const hasSvg = Boolean(value.手织图?.底图?.svg?.trim());
+  const hasSvg = Boolean(value.手织图?.svg?.trim());
   const [showUploader, setShowUploader] = useState(!hideUploader || !hasSvg);
   const fileName = useMemo(() => {
-    const svg = value.手织图?.底图?.svg?.trim() ?? "";
+    const svg = value.手织图?.svg?.trim() ?? "";
     return svg ? "已导入 SVG" : null;
-  }, [value.手织图?.底图?.svg]);
+  }, [value.手织图?.svg]);
 
   if (!isEdit) {
-    const preview高针 = value.手织图?.底图?.svg?.trim()
-      ? 手织图To高针图(value.手织图)
-      : null;
+    const previewSvg = value.手织图?.svg?.trim() ?? "";
     return (
       <div className="space-y-5">
         {previewData?.title ? (
@@ -73,16 +70,16 @@ export default function HandWovenBlock({
               </div>
             </div>
 
-            {preview高针 ? (
+            {previewSvg ? (
               <div>
                 <div className="mb-1 text-xs font-medium text-slate-700">
                   手织图
                 </div>
                 <div className="overflow-hidden rounded border border-slate-100 bg-white">
-                  <HighNeedlePreviewViewer
-                    data={preview高针}
-                    emptyText="暂无手织图"
-                    hideDoubleToggle
+                  <InlineSvg
+                    svg={previewSvg}
+                    className="min-h-[200px] w-full overflow-auto bg-white p-3"
+                    height="auto"
                   />
                 </div>
               </div>

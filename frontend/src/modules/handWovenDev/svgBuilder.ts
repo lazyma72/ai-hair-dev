@@ -1,16 +1,16 @@
 import type {
-  手织图_dev,
+  手织图,
   手织图比例项,
   手织图比例键,
   手织图比值,
-} from "../../shared/models/手织图_dev";
+} from "../../shared/models/手织图";
 import { parseSvg, serializeSvg } from "../highNeedleAnnotator/svgUtils";
 
 const 横排分组节点ID = "hand_woven_horizontal_group";
 const 方形分组节点ID = "hand_woven_square_group";
 const 手织图生成层ID = "hand_woven_generated_overlay";
 
-type 可生成类型 = Extract<手织图_dev["类型"], { type: "横排" | "方形" }>;
+type 可生成类型 = Extract<手织图["类型"], { type: "横排" | "方形" }>;
 
 type SvgCanvasSize = {
   width: number;
@@ -28,19 +28,13 @@ export function createEmpty手织图SourceSvg(): string {
 </svg>`;
 }
 
-export function createEmpty手织图Dev(): 手织图_dev {
-  return build手织图Svg({
+export function createEmpty手织图(): 手织图 {
+  return {
     svg: "",
     类型: {
-      type: "横排",
-      groupNodeId: 横排分组节点ID,
-      比值: {
-        D: { 值: 1, remark: "前排", sort: 1 },
-        M: { 值: 2, remark: "中排", sort: 2 },
-        L: { 值: 1, remark: "后排", sort: 3 },
-      },
+      type: "特殊",
     },
-  });
+  };
 }
 
 function get比值项(
@@ -190,8 +184,8 @@ function getOrCreateOverlayGroup(doc: Document): SVGGElement | null {
   root.setAttribute("overflow", "visible");
 
   const existed = doc.getElementById(手织图生成层ID);
-  if (existed) {
-    existed.remove();
+  if (existed instanceof SVGGElement) {
+    return existed;
   }
 
   const group = createSvgElement(doc, "g");
@@ -205,9 +199,25 @@ function createContentGroup(
   overlayGroup: SVGGElement,
   groupNodeId: string,
 ): SVGGElement {
-  const group = createSvgElement(doc, "g");
-  group.setAttribute("id", groupNodeId);
-  overlayGroup.appendChild(group);
+  Array.from(overlayGroup.children).forEach((child) => {
+    if (child.id !== groupNodeId) {
+      child.remove();
+    }
+  });
+
+  const existed = overlayGroup.querySelector(`#${CSS.escape(groupNodeId)}`);
+  const group =
+    existed instanceof SVGGElement ? existed : createSvgElement(doc, "g");
+
+  if (!(existed instanceof SVGGElement)) {
+    group.setAttribute("id", groupNodeId);
+    overlayGroup.appendChild(group);
+  }
+
+  while (group.firstChild) {
+    group.removeChild(group.firstChild);
+  }
+
   return group;
 }
 
@@ -468,9 +478,9 @@ function normalize生成类型(type: 可生成类型): 可生成类型 {
 }
 
 export function build手织图Svg(
-  data: 手织图_dev,
+  data: 手织图,
   options?: { sourceSvg?: string },
-): 手织图_dev {
+): 手织图 {
   if (data.类型.type === "特殊") {
     return data;
   }
@@ -508,11 +518,11 @@ export function build手织图Svg(
   };
 }
 
-export function get当前分组节点ID(data: 手织图_dev): string {
+export function get当前分组节点ID(data: 手织图): string {
   return data.类型.type === "特殊" ? "" : data.类型.groupNodeId;
 }
 
-export function get有效排序(data: 手织图_dev): 手织图比例键[] {
+export function get有效排序(data: 手织图): 手织图比例键[] {
   if (data.类型.type === "特殊") return [];
   return get有效比例键列表(data.类型.比值);
 }

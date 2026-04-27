@@ -18,6 +18,7 @@ import { to高针指示单Frontend } from "../../../shared/frontend/converters/t
 import 高针指示单View from "../../file/sections/高针指示单View";
 import 手织指示单View from "../../file/sections/手织指示单View";
 import HighNeedleImportStep from "./components/HighNeedleImportStep";
+import HandWovenImportStep from "./components/HandWovenImportStep";
 
 const STEPS = ["选择文件", "导入高针图", "导入手织图", "预览"] as const;
 const PREVIEW_TABS = [
@@ -95,7 +96,7 @@ function UploadCard({
 function buildDemoFile(params: {
   excelFileName: string;
   highNeedle图: FileDraftViewModel["高针指示单"]["高针图"];
-  handWovenSvg: string;
+  handWoven图: FileDraftViewModel["手织指示单"]["手织图"];
 }): FileDraftViewModel {
   const guess = params.excelFileName.replace(/\.(xlsx|xls|csv)$/i, "");
   const file = emptyFile();
@@ -179,7 +180,7 @@ function buildDemoFile(params: {
     },
     手织指示单: {
       注意事项: "手织：1. 手织后帽子不能变形。",
-      手织图: createEmpty手织图(params.handWovenSvg),
+      手织图: params.handWoven图,
     },
   };
 }
@@ -192,11 +193,13 @@ export default function ImportExcelWizardPage() {
   const [highNeedleFileName, setHighNeedleFileName] = useState<string | null>(
     null,
   );
-  const [handWovenFileName, setHandWovenFileName] = useState<string>("");
+  const [handWovenFileName, setHandWovenFileName] = useState<string | null>(
+    null,
+  );
   const [highNeedle图, setHighNeedle图] = useState(
     () => emptyFile().高针指示单.高针图,
   );
-  const [handWovenSvg, setHandWovenSvg] = useState<string>("");
+  const [handWoven图, setHandWoven图] = useState(() => createEmpty手织图(""));
   const [draft, setDraft] = useState<FileDraftViewModel | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -207,7 +210,7 @@ export default function ImportExcelWizardPage() {
       : step === 1
         ? Boolean(highNeedle图.底图.svg.trim())
         : step === 2
-          ? Boolean(handWovenSvg.trim())
+          ? Boolean(handWoven图.svg.trim())
           : true;
   const isPreviewStep = step >= STEPS.length - 1;
   const demoFile = useMemo(
@@ -215,9 +218,9 @@ export default function ImportExcelWizardPage() {
       buildDemoFile({
         excelFileName,
         highNeedle图,
-        handWovenSvg,
+        handWoven图,
       }),
-    [excelFileName, handWovenSvg, highNeedle图],
+    [excelFileName, handWoven图, highNeedle图],
   );
 
   useEffect(() => {
@@ -379,28 +382,14 @@ export default function ImportExcelWizardPage() {
       ) : null}
 
       {step === 2 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <div className="text-sm font-semibold text-slate-900">导入手织图</div>
-          <div className="mt-1 text-xs text-slate-500">
-            请选择手织图 SVG 文件，下一步将进入预览。
-          </div>
-
-          <div className="mt-3">
-            <UploadCard
-              title="手织图 SVG"
-              accept=".svg"
-              fileName={handWovenFileName}
-              hint="点击上传手织图 SVG"
-              onFileSelect={(file) => {
-                setHandWovenFileName(file.name);
-                const reader = new FileReader();
-                reader.onload = () =>
-                  setHandWovenSvg(String(reader.result ?? ""));
-                reader.readAsText(file);
-              }}
-            />
-          </div>
-        </div>
+        <HandWovenImportStep
+          description="请选择手织图类型并上传 SVG，在当前页面完成生成或编辑；下一步将进入预览。"
+          value={handWoven图}
+          onChange={setHandWoven图}
+          fileName={handWovenFileName}
+          onFileNameChange={setHandWovenFileName}
+          fullscreen
+        />
       ) : null}
 
       {isPreviewStep && draft ? (

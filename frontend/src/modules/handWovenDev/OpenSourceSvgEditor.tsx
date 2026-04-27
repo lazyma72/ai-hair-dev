@@ -11,7 +11,8 @@ type Props = {
 };
 
 const SKIP_TAGS = new Set(["defs", "style", "title", "desc", "metadata"]);
-const SELECTED_FILTER = "drop-shadow(0 0 0.6px #2563eb) drop-shadow(0 0 4px rgba(37,99,235,0.65))";
+const TRANSIENT_SELECTED_FILTER =
+  "drop-shadow(0 0 0.6px #2563eb) drop-shadow(0 0 4px rgba(37,99,235,0.65))";
 const ROOT_CONTENT_GROUP_ID = "svg_editor_root_content_group";
 const MODE_LABELS = {
   preview: "默认模式",
@@ -19,6 +20,7 @@ const MODE_LABELS = {
   line: "线条模式",
   scale: "缩放模式",
 } as const;
+const VISIBLE_MODES = ["preview", "text", "line"] as const;
 
 type EditorMode = keyof typeof MODE_LABELS;
 type LineTool = "select" | "draw-line" | "draw-curve";
@@ -98,6 +100,17 @@ function describeNode(el: Element): string {
   const id = (el.getAttribute("id") ?? "").trim();
   if (id) return `${tag}#${id}`;
   return tag;
+}
+
+function clearTransientSelectionStyles(root: ParentNode) {
+  root.querySelectorAll("*").forEach((node) => {
+    if (!(node instanceof SVGElement)) return;
+    if (node.style.filter !== TRANSIENT_SELECTED_FILTER) return;
+    node.style.filter = "";
+    if (!node.getAttribute("style")?.trim()) {
+      node.removeAttribute("style");
+    }
+  });
 }
 
 function getGroupNode(root: SVGSVGElement | null, groupNodeId?: string): Element | null {
@@ -238,7 +251,7 @@ export default function OpenSourceSvgEditor({
   const [selectedIndex, setSelectedIndex] = React.useState<number | null>(null);
   const [selectedLabel, setSelectedLabel] = React.useState("");
   const [nodeCount, setNodeCount] = React.useState(0);
-  const [zoom, setZoom] = React.useState(1);
+  const [zoom] = React.useState(1);
   const [mode, setMode] = React.useState<EditorMode>("preview");
   const [lineTool, setLineTool] = React.useState<LineTool>("select");
   const [textBoxes, setTextBoxes] = React.useState<TextBox[]>([]);
@@ -258,22 +271,12 @@ export default function OpenSourceSvgEditor({
   const syncBack = React.useCallback((nextRoot?: SVGSVGElement | null) => {
     const activeRoot = nextRoot ?? rootRef.current;
     if (!activeRoot) return;
+    clearTransientSelectionStyles(activeRoot);
     const nextSvg = activeRoot.outerHTML;
     if (nextSvg !== latestSvgRef.current) {
       latestSvgRef.current = nextSvg;
       onChangeRef.current(nextSvg);
     }
-  }, []);
-
-  const applySelectionStyles = React.useCallback((nextIndex: number | null) => {
-    nodesRef.current.forEach((node, index) => {
-      if (!(node instanceof SVGElement)) return;
-      if (index === nextIndex) {
-        node.style.filter = SELECTED_FILTER;
-      } else {
-        node.style.filter = "";
-      }
-    });
   }, []);
 
   const refreshTextBoxes = React.useCallback(() => {
@@ -310,7 +313,7 @@ export default function OpenSourceSvgEditor({
   }, [groupNodeId, mode]);
 
   const refreshGroupBox = React.useCallback(() => {
-    if (!groupNodeId || mode !== "text") {
+    if (!groupNodeId || (mode !== "text" && mode !== "scale")) {
       setGroupBox(null);
       return;
     }
@@ -399,11 +402,10 @@ export default function OpenSourceSvgEditor({
   }
 
   React.useEffect(() => {
-    applySelectionStyles(selectedIndex);
     const selectedNode =
       selectedIndex != null ? nodesRef.current[selectedIndex] ?? null : null;
     setSelectedLabel(selectedNode ? describeNode(selectedNode) : "");
-  }, [applySelectionStyles, selectedIndex]);
+  }, [selectedIndex]);
 
   const canEditNode = React.useCallback(
     (node: Element) => {
@@ -435,6 +437,7 @@ export default function OpenSourceSvgEditor({
     }
 
     const mountedRoot = document.importNode(root, true) as unknown as SVGSVGElement;
+    clearTransientSelectionStyles(mountedRoot);
     ensureSvgStyles(mountedRoot);
     ensureRootContentGroup(mountedRoot);
     rootRef.current = mountedRoot;
@@ -519,7 +522,6 @@ export default function OpenSourceSvgEditor({
     const handleBackgroundClick = () => {
       setSelectedIndex(null);
       setSelectedLabel("");
-      applySelectionStyles(null);
     };
     mountedRoot.addEventListener("click", handleBackgroundClick);
     cleanupTasks.push(() => {
@@ -814,7 +816,7 @@ export default function OpenSourceSvgEditor({
   }
 
   function startGroupResize(event: React.PointerEvent) {
-    if (!groupNodeId || mode !== "scale") return;
+    if (!groupNodeId || (mode !== "text" && mode !== "scale")) return;
     const root = rootRef.current;
     if (!root) return;
     const groupNode = getGroupNode(root, groupNodeId);
@@ -876,7 +878,7 @@ export default function OpenSourceSvgEditor({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {(Object.keys(MODE_LABELS) as EditorMode[]).map((item) => (
+          {VISIBLE_MODES.map((item) => (
             <button
               key={item}
               type="button"
@@ -889,7 +891,6 @@ export default function OpenSourceSvgEditor({
                 setMode(item);
                 setSelectedIndex(null);
                 setSelectedLabel("");
-                applySelectionStyles(null);
                 setLineTool("select");
                 setLineDraft(null);
               }}
@@ -934,27 +935,6 @@ export default function OpenSourceSvgEditor({
               </button>
             </div>
           ) : null}
-          <button
-            type="button"
-            className="rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
-            onClick={() => setZoom((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(1))))}
-          >
-            缩小
-          </button>
-          <button
-            type="button"
-            className="rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
-            onClick={() => setZoom(1)}
-          >
-            100%
-          </button>
-          <button
-            type="button"
-            className="rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
-            onClick={() => setZoom((prev) => Math.min(3, Number((prev + 0.1).toFixed(1))))}
-          >
-            放大
-          </button>
         </div>
       </div>
 
@@ -992,7 +972,7 @@ export default function OpenSourceSvgEditor({
             <div ref={containerRef} className="min-h-[480px] min-w-[720px]" />
             {mode === "text" && viewBoxState ? (
               <svg
-                className="absolute inset-0 h-full w-full"
+                className="pointer-events-none absolute inset-0 h-full w-full"
                 viewBox={viewBoxState.raw}
                 preserveAspectRatio="xMidYMid meet"
               >
@@ -1082,7 +1062,7 @@ export default function OpenSourceSvgEditor({
             ) : null}
             {mode === "text" && viewBoxState && groupBox ? (
               <svg
-                className="absolute inset-0 h-full w-full"
+                className="pointer-events-none absolute inset-0 h-full w-full"
                 viewBox={viewBoxState.raw}
                 preserveAspectRatio="xMidYMid meet"
               >

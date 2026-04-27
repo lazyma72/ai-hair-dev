@@ -29,4 +29,8 @@ export class Global {
     return this.db.collection(prefix+col)
   }
 
+  static async destroy() {
+    await this.client?.close()
+  }
+
 }

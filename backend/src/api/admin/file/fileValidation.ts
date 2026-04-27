@@ -113,19 +113,38 @@ const 高针图Schema = z.object({
   }),
 })
 
+const 手织图比例项Schema = z.object({
+  值: DMLValueSchema,
+  是否染色: z.boolean().optional(),
+  remark: z.string().optional(),
+  sort: z.number().int().positive(),
+})
+
 const 手织图Schema = z.object({
-  底图: z
-    .object({
-      svg: z.string(),
-      区域名: z.array(z.string()),
-      区域线条: z.array(z.object({}).passthrough()),
-      档位标注: z.array(z.object({}).passthrough()),
-      文本节点: z.record(z.string(), z.object({}).passthrough()),
-    })
-    .passthrough(),
-  自定义数据: z.object({
-    DML规则命令列表: DML规则命令列表Schema,
-  }),
+  svg: z.string(),
+  类型: z.discriminatedUnion("type", [
+    z.object({
+      type: z.literal("横排"),
+      groupNodeId: z.string().trim().min(1),
+      比值: z.object({
+        D: 手织图比例项Schema,
+        M: 手织图比例项Schema.optional(),
+        L: 手织图比例项Schema.optional(),
+      }),
+    }),
+    z.object({
+      type: z.literal("方形"),
+      groupNodeId: z.string().trim().min(1),
+      比值: z.object({
+        D: 手织图比例项Schema,
+        M: 手织图比例项Schema.optional(),
+        L: 手织图比例项Schema.optional(),
+      }),
+    }),
+    z.object({
+      type: z.literal("特殊"),
+    }),
+  ]),
 })
 
 const FileSchema = z

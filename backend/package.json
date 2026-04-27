@@ -12,6 +12,7 @@
     "test": "mocha test/diy/factory/listOrder.test.ts",
     "build": "tsrpc build",
     "doc": "tsrpc-cli doc",
+    "reset:hand-woven-empty": "ts-node src/scripts/resetHandWovenToEmpty.ts",
     "start": "node index.js --max-old-space-size=2048"
   },
   "dependencies": {

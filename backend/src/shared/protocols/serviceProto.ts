@@ -114,7 +114,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 28,
+    "version": 29,
     "services": [
         {
             "id": 9,
@@ -2193,180 +2193,163 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "type": "Interface",
             "properties": [
                 {
-                    "id": 0,
-                    "name": "底图",
+                    "id": 2,
+                    "name": "svg",
                     "type": {
-                        "type": "Interface",
-                        "properties": [
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "类型",
+                    "type": {
+                        "type": "Union",
+                        "members": [
                             {
                                 "id": 0,
-                                "name": "svg",
                                 "type": {
-                                    "type": "String"
+                                    "type": "Interface",
+                                    "properties": [
+                                        {
+                                            "id": 0,
+                                            "name": "type",
+                                            "type": {
+                                                "type": "Literal",
+                                                "literal": "横排"
+                                            }
+                                        },
+                                        {
+                                            "id": 1,
+                                            "name": "groupNodeId",
+                                            "type": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        {
+                                            "id": 2,
+                                            "name": "比值",
+                                            "type": {
+                                                "type": "Reference",
+                                                "target": "../models/手织图/手织图比值"
+                                            }
+                                        }
+                                    ]
                                 }
                             },
                             {
                                 "id": 1,
-                                "name": "区域名",
                                 "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "String"
-                                    }
+                                    "type": "Interface",
+                                    "properties": [
+                                        {
+                                            "id": 0,
+                                            "name": "type",
+                                            "type": {
+                                                "type": "Literal",
+                                                "literal": "方形"
+                                            }
+                                        },
+                                        {
+                                            "id": 1,
+                                            "name": "groupNodeId",
+                                            "type": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        {
+                                            "id": 2,
+                                            "name": "比值",
+                                            "type": {
+                                                "type": "Reference",
+                                                "target": "../models/手织图/手织图比值"
+                                            }
+                                        }
+                                    ]
                                 }
                             },
                             {
                                 "id": 2,
-                                "name": "区域线条",
-                                "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 0,
-                                                "name": "区域名",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 1,
-                                                "name": "lineNodeIds",
-                                                "type": {
-                                                    "type": "Array",
-                                                    "elementType": {
-                                                        "type": "String"
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                "id": 2,
-                                                "name": "lineLength",
-                                                "type": {
-                                                    "type": "Number"
-                                                }
-                                            },
-                                            {
-                                                "id": 3,
-                                                "name": "区域内位置占比",
-                                                "type": {
-                                                    "type": "Number"
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            },
-                            {
-                                "id": 3,
-                                "name": "档位标注",
-                                "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 0,
-                                                "name": "区域名",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 1,
-                                                "name": "lineNodeIds",
-                                                "type": {
-                                                    "type": "Array",
-                                                    "elementType": {
-                                                        "type": "String"
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                "id": 2,
-                                                "name": "textNodeIds",
-                                                "type": {
-                                                    "type": "Array",
-                                                    "elementType": {
-                                                        "type": "String"
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            },
-                            {
-                                "id": 4,
-                                "name": "文本节点",
                                 "type": {
                                     "type": "Interface",
-                                    "indexSignature": {
-                                        "keyType": "String",
-                                        "type": {
-                                            "type": "Interface",
-                                            "properties": [
-                                                {
-                                                    "id": 0,
-                                                    "name": "textNodeId",
-                                                    "type": {
-                                                        "type": "String"
-                                                    }
-                                                },
-                                                {
-                                                    "id": 1,
-                                                    "name": "text",
-                                                    "type": {
-                                                        "type": "String"
-                                                    },
-                                                    "optional": true
-                                                },
-                                                {
-                                                    "id": 2,
-                                                    "name": "created",
-                                                    "type": {
-                                                        "type": "Boolean"
-                                                    },
-                                                    "optional": true
-                                                },
-                                                {
-                                                    "id": 3,
-                                                    "name": "fontStyle",
-                                                    "type": {
-                                                        "type": "Interface",
-                                                        "indexSignature": {
-                                                            "keyType": "String",
-                                                            "type": {
-                                                                "type": "Any"
-                                                            }
-                                                        }
-                                                    },
-                                                    "optional": true
-                                                }
-                                            ]
+                                    "properties": [
+                                        {
+                                            "id": 0,
+                                            "name": "type",
+                                            "type": {
+                                                "type": "Literal",
+                                                "literal": "特殊"
+                                            }
                                         }
-                                    }
+                                    ]
                                 }
                             }
                         ]
                     }
+                }
+            ]
+        },
+        "../models/手织图/手织图比值": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "D",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/手织图/手织图比例项"
+                    }
                 },
                 {
                     "id": 1,
-                    "name": "自定义数据",
+                    "name": "M",
                     "type": {
-                        "type": "Interface",
-                        "properties": [
-                            {
-                                "id": 2,
-                                "name": "DML规则命令列表",
-                                "type": {
-                                    "type": "Reference",
-                                    "target": "../models/DML规则/DML规则命令列表"
-                                }
-                            }
-                        ]
+                        "type": "Reference",
+                        "target": "../models/手织图/手织图比例项"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "L",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/手织图/手织图比例项"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "../models/手织图/手织图比例项": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "值",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "是否染色",
+                    "type": {
+                        "type": "Boolean"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "remark",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "sort",
+                    "type": {
+                        "type": "Number"
                     }
                 }
             ]
