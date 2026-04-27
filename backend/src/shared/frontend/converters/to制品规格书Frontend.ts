@@ -2,6 +2,7 @@ import { 沐茵丝假发成品稿 } from "../../db/Db沐茵丝假发成品稿"
 import { Db胶丝比例 } from "../../db/Db胶丝比例"
 import { 制品规格书Frontend } from "../model/model"
 import { Db制帽 } from "../../db/Db制帽"
+import { 格式化定位小数 } from "../../models/数字格式化"
 
 /**
  * 将 沐茵丝假发成品稿 转换为 制品规格书Frontend
@@ -91,7 +92,7 @@ export function to制品规格书Frontend(
     // TODO: 完成.数值 含义（是否与 完成.加减 相同）待确认
     完成: { 加减: 完成加减, 数值: 完成数值 },
     // 格式："{完成数值}±2g"
-    重量: `${完成数值}±2g`,
+    重量: `${格式化定位小数(完成数值, 2)}±2g`,
   }
 
   return {

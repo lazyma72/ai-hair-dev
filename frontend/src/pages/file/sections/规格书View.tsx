@@ -22,7 +22,7 @@ import {
 import type { KLS胶丝比例 } from "../../../shared/db/Db胶丝比例";
 import type { 染色档位 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import type { 制品规格书Frontend } from "../../../shared/frontend/model/model";
-import { 数字转分数字符串 } from "../../../shared/models/分数转换";
+import { 格式化定位小数 } from "../../../shared/models/数字格式化";
 
 type Props = { data: 制品规格书Frontend };
 
@@ -189,7 +189,7 @@ export default function 规格书View({ data }: Props) {
       ) : null}
 
       {/* ── 工程重量 ── */}
-      <Section title={`工程重量（当前重量：${当前重量}g）`}>
+      <Section title={`工程重量（当前重量：${格式化定位小数(当前重量, 2)}g）`}>
         <div className="px-5 py-3 text-xs text-slate-500">
           备注：手织重量 = 制帽的加减 + 手织的加减。
         </div>
@@ -214,7 +214,7 @@ export default function 规格书View({ data }: Props) {
                   {v.加减 >= 0 ? "+" : ""}
                   {v.加减}
                 </span>
-                <span className="text-slate-900">{v.数值}g</span>
+                <span className="text-slate-900">{`${格式化定位小数(v.数值, 2)}g`}</span>
               </div>
             );
           })}

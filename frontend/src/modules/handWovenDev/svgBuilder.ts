@@ -4,6 +4,10 @@ import type {
   手织图比例键,
   手织图比值,
 } from "../../shared/models/手织图";
+import {
+  格式化厘米文本,
+  格式化最多一位小数,
+} from "../../shared/models/数字格式化";
 import { parseSvg, serializeSvg } from "../highNeedleAnnotator/svgUtils";
 
 const 横排分组节点ID = "hand_woven_horizontal_group";
@@ -69,8 +73,7 @@ function get有效比例键列表(比值: 手织图比值): 手织图比例键[]
 }
 
 function format厘米(value: number): string {
-  const normalized = Number.isFinite(value) ? value : 0;
-  return `${normalized.toFixed(1)}CM`;
+  return 格式化厘米文本(value, 1);
 }
 
 function format档位名(key: 手织图比例键, item: 手织图比例项): string {
@@ -129,6 +132,37 @@ function make最简整数比值(
     item: entry.item,
     count: Math.max(1, Math.round((entry.value * scale) / divisor)),
   }));
+}
+
+function build间色比例标题(type: 可生成类型): string {
+  if (type.type === "方形") {
+    const 边长文本 = 格式化最多一位小数(type.边长);
+    return `间色比例 ${边长文本}*${边长文本} CM`;
+  }
+  return "间色比例";
+}
+
+function append标题文本(
+  doc: Document,
+  group: SVGGElement,
+  text: string,
+  x: number,
+  y: number,
+) {
+  const title = createSvgElement(doc, "text");
+  title.setAttribute("x", String(x));
+  title.setAttribute("y", String(y));
+  title.setAttribute("fill", "#0f172a");
+  title.setAttribute("text-anchor", "middle");
+  title.setAttribute("dominant-baseline", "middle");
+  title.setAttribute(
+    "font-family",
+    "system-ui, -apple-system, Segoe UI, sans-serif",
+  );
+  title.setAttribute("font-size", "16");
+  title.setAttribute("font-weight", "700");
+  title.textContent = text;
+  group.appendChild(title);
 }
 
 function rotateRight<T>(list: T[], step: number): T[] {
@@ -264,6 +298,15 @@ function render横排到源图(
   const groupNodeId = type.groupNodeId || 横排分组节点ID;
   const group = createContentGroup(doc, overlayGroup, groupNodeId);
 
+  // 间色比例：显示在横排内容区域正上方
+  append标题文本(
+    doc,
+    group,
+    build间色比例标题(type),
+    (canvas.viewBoxX + paddingX + lineEndX) / 2,
+    topY - 18,
+  );
+
   if (labels.length === 0) {
     const placeholderBottomY = topY + 60;
     const topLine = createSvgElement(doc, "line");
@@ -386,6 +429,16 @@ function render方形到源图(
   const gridY = canvas.viewBoxY + Math.max(68, canvas.viewBoxHeight * 0.18);
   const groupNodeId = type.groupNodeId || 方形分组节点ID;
   const group = createContentGroup(doc, overlayGroup, groupNodeId);
+
+  // 间色比例：显示在方形矩阵正上方
+  append标题文本(
+    doc,
+    group,
+    build间色比例标题(type),
+    gridX + gridWidth / 2,
+    gridY - 18,
+  );
+
   const background = createSvgElement(doc, "rect");
   background.setAttribute("x", String(gridX));
   background.setAttribute("y", String(gridY));

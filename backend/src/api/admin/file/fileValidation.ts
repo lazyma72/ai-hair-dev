@@ -1,8 +1,5 @@
 import { z } from "zod"
-import {
-  假发类型,
-  type 沐茵丝假发成品稿提交,
-} from "../../../shared/db/Db沐茵丝假发成品稿"
+import { 假发类型, type 沐茵丝假发成品稿提交 } from "../../../shared/db/Db沐茵丝假发成品稿"
 
 const MAX_CUT_WEIGHT_ITEMS = 3
 const DML_DECIMAL_SCALE = 10
@@ -140,6 +137,7 @@ const 手织图Schema = z.object({
         M: 手织图比例项Schema.optional(),
         L: 手织图比例项Schema.optional(),
       }),
+      边长: z.number().positive("方形边长必须大于 0"),
     }),
     z.object({
       type: z.literal("特殊"),

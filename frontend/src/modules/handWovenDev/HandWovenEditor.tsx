@@ -2,6 +2,7 @@ import * as React from "react"
 import { message } from "antd"
 import {
   Field,
+  NumInput,
   OneDecimalInput,
   Section,
   TextInput,
@@ -43,6 +44,17 @@ type Props = {
 }
 
 function clone生成类型(type: 可生成类型): 可生成类型 {
+  if (type.type === "方形") {
+    return {
+      ...type,
+      边长: type.边长,
+      比值: {
+        D: { ...type.比值.D },
+        M: type.比值.M ? { ...type.比值.M } : undefined,
+        L: type.比值.L ? { ...type.比值.L } : undefined,
+      },
+    }
+  }
   return {
     ...type,
     比值: {
@@ -210,7 +222,14 @@ export default function HandWovenEditor({
 
   React.useEffect(() => {
     setData(value.svg || value.类型.type !== "特殊" ? value : createEmpty手织图())
-    setSelectedType(deriveSelectedType(value))
+    setSelectedType((prev) => {
+      const derived = deriveSelectedType(value)
+      // "特殊" 允许在未上传 SVG 时先被选中；只有显式切回空选项时才清空选择。
+      if (!derived && value.类型.type === "特殊" && prev === "特殊") {
+        return "特殊"
+      }
+      return derived
+    })
     setSourceSvg(deriveSourceSvg(value))
     setHasLoadedSvg(Boolean(value.svg.trim()))
   }, [value])
@@ -300,14 +319,19 @@ export default function HandWovenEditor({
         {
           ...data,
           svg: cleanSourceSvg,
-          类型: {
-            ...base,
-            type: nextType,
-            groupNodeId:
-              nextType === "横排"
-                ? "hand_woven_horizontal_group"
-                : "hand_woven_square_group",
-          },
+          类型:
+            nextType === "横排"
+              ? {
+                  type: "横排",
+                  groupNodeId: "hand_woven_horizontal_group",
+                  比值: base.比值,
+                }
+              : {
+                  type: "方形",
+                  groupNodeId: "hand_woven_square_group",
+                  比值: base.比值,
+                  边长: base.type === "方形" && base.边长 > 0 ? base.边长 : 1,
+                },
         },
         {
           sourceSvg: createEmpty手织图SourceSvg(),
@@ -443,6 +467,25 @@ export default function HandWovenEditor({
                 </div>
               ) : 当前生成类型 ? (
                 <>
+                  {当前生成类型.type === "方形" ? (
+                    <Field label="边长 (cm)">
+                      <NumInput
+                        value={当前生成类型.边长}
+                        step="0.1"
+                        onChange={(nextValue) =>
+                          update生成类型((draft) =>
+                            draft.type === "方形"
+                              ? {
+                                  ...draft,
+                                  边长: nextValue > 0 ? nextValue : 1,
+                                }
+                              : draft,
+                          )
+                        }
+                      />
+                    </Field>
+                  ) : null}
+
                   <Field label="比例组合">
                     <select
                       className={inputCls}

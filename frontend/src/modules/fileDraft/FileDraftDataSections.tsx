@@ -28,6 +28,7 @@ import {
   ExcelStyleMachineTable,
   ExcelStyleManualTable,
 } from "./ExcelStyleSpecTables";
+import { 格式化定位小数 } from "../../shared/models/数字格式化";
 import { 提取高针图上下分标记 } from "../../shared/models/上下分计算尺数";
 
 type HatMakingOption = {
@@ -401,7 +402,9 @@ function FileDraftReadonlySections({
                     {item.加减 >= 0 ? "+" : ""}
                     {item.加减}
                   </span>
-                  <span className="text-slate-900">{item.数值}g</span>
+                  <span className="text-slate-900">
+                    {`${格式化定位小数(item.数值, 2)}g`}
+                  </span>
                 </div>
               ))}
               <div className="flex items-center justify-between bg-slate-900 px-3 py-1.5 text-xs text-white">

@@ -210,6 +210,12 @@ function createSvgElement<K extends keyof SVGElementTagNameMap>(
   ) as SVGElementTagNameMap[K];
 }
 
+function createTextNodeId(): string {
+  return `svg_editor_text_${Date.now().toString(36)}_${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+}
+
 export default function OpenSourceSvgEditor({
   svg,
   title = "开源 SVG 编辑器",
@@ -311,6 +317,32 @@ export default function OpenSourceSvgEditor({
       .filter(Boolean) as TextBox[];
     setTextBoxes(nextBoxes);
   }, [groupNodeId, mode]);
+
+  const addTextNodeAtPoint = React.useCallback(
+    (point: { x: number; y: number }) => {
+      const root = rootRef.current;
+      if (!root) return;
+
+      const parent = getGroupNode(root, ROOT_CONTENT_GROUP_ID) ?? root;
+      const textNode = createSvgElement("text");
+      textNode.setAttribute("id", createTextNodeId());
+      textNode.setAttribute("x", String(point.x));
+      textNode.setAttribute("y", String(point.y));
+      textNode.setAttribute("fill", "#0f172a");
+      textNode.setAttribute("font-size", "16");
+      textNode.setAttribute("font-family", "Arial, sans-serif");
+      textNode.textContent = "新文本";
+      parent.appendChild(textNode);
+
+      nodesRef.current = [...nodesRef.current, textNode];
+      const nextIndex = nodesRef.current.length - 1;
+      setNodeCount(nodesRef.current.length);
+      setSelectedIndex(nextIndex);
+      refreshTextBoxes();
+      syncBack(root);
+    },
+    [refreshTextBoxes, syncBack],
+  );
 
   const refreshGroupBox = React.useCallback(() => {
     if (!groupNodeId || (mode !== "text" && mode !== "scale")) {
@@ -519,7 +551,15 @@ export default function OpenSourceSvgEditor({
       });
     });
 
-    const handleBackgroundClick = () => {
+    const handleBackgroundClick = (event: MouseEvent) => {
+      event.stopPropagation();
+      if (mode === "text") {
+        const point = clientToSvgPoint(event.clientX, event.clientY);
+        if (point) {
+          addTextNodeAtPoint(point);
+          return;
+        }
+      }
       setSelectedIndex(null);
       setSelectedLabel("");
     };
@@ -545,7 +585,16 @@ export default function OpenSourceSvgEditor({
       cleanupTasks.forEach((task) => task());
       container.innerHTML = "";
     };
-  }, [canEditNode, mode, refreshGroupBox, refreshScaleBoxes, refreshTextBoxes, svg, syncBack]);
+  }, [
+    addTextNodeAtPoint,
+    canEditNode,
+    mode,
+    refreshGroupBox,
+    refreshScaleBoxes,
+    refreshTextBoxes,
+    svg,
+    syncBack,
+  ]);
 
   React.useEffect(() => {
     const root = rootRef.current;

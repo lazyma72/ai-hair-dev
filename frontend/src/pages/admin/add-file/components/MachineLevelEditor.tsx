@@ -9,6 +9,10 @@ import {
   calc分档基础重量,
   get档位行系数,
 } from "../../../../shared/models/重量计算";
+import {
+  格式化可选最多一位小数,
+  格式化最多一位小数,
+} from "../../../../shared/models/数字格式化";
 import { 美容方向预置选项 } from "../../../../shared/models/美容方向预置列表";
 import { 轻重TS预置选项 } from "../../../../shared/models/形态预置列表";
 import {
@@ -59,17 +63,6 @@ function getT色HasL(dml?: 机器档位["DML比值"]): boolean {
   return dml?.L != null;
 }
 
-function fmtDML值(v: number | undefined): string {
-  if (v == null) return "?";
-  const rounded = Math.round(v * 10) / 10;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-}
-
-function fmtWeight(n: number): string {
-  const rounded = Math.round(n * 10) / 10;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-}
-
 function getMachineActiveWeightKeys(row: 机器档位, type: 假发类型): DMLKey[] {
   const dmlMode = getDMLMode(row.DML比值);
   const dmlKeys: DMLKey[] =
@@ -101,7 +94,6 @@ function shouldStoreMachineWeight(
   row: 机器档位,
   type: 假发类型,
   rowIndex: number,
-  totalRows: number,
   key: DMLKey,
   t色重量行: T色重量行Map = {},
 ): boolean {
@@ -178,7 +170,6 @@ function syncMachineWeights(
             row,
             type,
             rowIndex,
-            totalRows,
             key,
             t色重量行,
           )
@@ -259,7 +250,7 @@ function 裁断重量编辑器({
               key={k}
               className="flex h-[34px] items-center justify-center rounded border border-slate-100 bg-slate-50 px-1.5 text-sm text-slate-700"
             >
-              {fmtWeight(getWeight(row, i, value.length, k))}
+              {格式化最多一位小数(getWeight(row, i, value.length, k))}
             </div>
           ))}
           <DelBtn
@@ -485,7 +476,9 @@ export default function MachineLevelEditor({
             </div>
 
             <div className="flex flex-col justify-end pb-2 text-xs text-slate-500">
-              {`${dmlKeys.join(":")} = ${dmlKeys.map((k) => fmtDML值(dml?.[k])).join(":")}`}
+              {`${dmlKeys.join(":")} = ${dmlKeys
+                .map((k) => 格式化可选最多一位小数(dml?.[k], "?"))
+                .join(":")}`}
             </div>
 
             {dmlKeys.map((k) => (

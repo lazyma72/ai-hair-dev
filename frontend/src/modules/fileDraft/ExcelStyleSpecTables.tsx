@@ -14,6 +14,10 @@ import {
   QuarterFractionInput,
   TextInput,
 } from "../../pages/admin/add-file/components/ui";
+import {
+  格式化可选定位小数,
+  格式化四分之一分数,
+} from "../../shared/models/数字格式化";
 import { calc基础重量, calc分档基础重量 } from "../../shared/models/重量计算";
 import { 美容方向预置选项 } from "../../shared/models/美容方向预置列表";
 import { 轻重TS预置选项 } from "../../shared/models/形态预置列表";
@@ -26,22 +30,6 @@ const compactTableInputCls = "min-h-7 px-1.5 py-1 text-[11px] leading-tight";
 const compactTableFlexInputCls = `${compactTableInputCls} min-w-0 flex-1`;
 const compactTableTextareaCls =
   "min-h-[4.5rem] px-1.5 py-1.5 text-[11px] leading-tight text-left resize-y";
-
-function fmtNum(value: number | undefined) {
-  if (value == null) return "—";
-  return value.toFixed(2);
-}
-
-function fmtFrac(value: number | undefined) {
-  if (value == null) return "—";
-  const n = Math.round(value * 4) / 4;
-  const whole = Math.floor(n);
-  const frac = Math.round((n - whole) * 4);
-  const fracStr = ["", "\u00bc", "\u00bd", "\u00be"][frac] ?? "";
-  if (whole === 0 && !fracStr) return "0";
-  if (whole === 0) return fracStr;
-  return fracStr ? `${whole}${fracStr}` : String(whole);
-}
 
 function Cell({
   children,
@@ -781,7 +769,7 @@ function ExcelStyleMachineTableInner({
                       </button>
                     </div>
                   ) : (
-                    fmtNum(item.裁断)
+                    格式化可选定位小数(item.裁断, 2)
                   )}
                 </Cell>
                 {index === 0 ? (
@@ -799,7 +787,7 @@ function ExcelStyleMachineTableInner({
                           }
                         />
                       ) : (
-                        fmtFrac(row.整毛.拉尖)
+                        格式化四分之一分数(row.整毛.拉尖)
                       )}
                     </Cell>
                     {show对裁 ? (
@@ -817,7 +805,7 @@ function ExcelStyleMachineTableInner({
                             }
                           />
                         ) : (
-                          fmtFrac(row.整毛.对裁)
+                          格式化四分之一分数(row.整毛.对裁)
                         )}
                       </Cell>
                     ) : null}
@@ -832,7 +820,7 @@ function ExcelStyleMachineTableInner({
                   </>
                 ) : null}
                 <Cell narrow>
-                  {fmtNum(
+                  {格式化可选定位小数(
                     calcMachineWeight(
                       row,
                       type,
@@ -846,12 +834,13 @@ function ExcelStyleMachineTableInner({
                         hasL: hasGlobalL,
                       },
                     ),
+                    2
                   )}
                 </Cell>
                 {showWeightM ? (
                   <Cell narrow>
                     {activeWeightKeys.includes("M")
-                      ? fmtNum(
+                      ? 格式化可选定位小数(
                           calcMachineWeight(
                             row,
                             type,
@@ -865,6 +854,7 @@ function ExcelStyleMachineTableInner({
                               hasL: hasGlobalL,
                             },
                           ),
+                          2
                         )
                       : "—"}
                   </Cell>
@@ -872,7 +862,7 @@ function ExcelStyleMachineTableInner({
                 {showWeightL ? (
                   <Cell narrow>
                     {activeWeightKeys.includes("L")
-                      ? fmtNum(
+                      ? 格式化可选定位小数(
                           calcMachineWeight(
                             row,
                             type,
@@ -886,6 +876,7 @@ function ExcelStyleMachineTableInner({
                               hasL: hasGlobalL,
                             },
                           ),
+                          2
                         )
                       : "—"}
                   </Cell>
@@ -905,12 +896,12 @@ function ExcelStyleMachineTableInner({
                           }
                         />
                       ) : (
-                        fmtFrac(row.双针.毛长)
+                        格式化四分之一分数(row.双针.毛长)
                       )}
                     </Cell>
                     <Cell rowSpan={cutRows.length} narrow>
                       {is上下分只读尺数 ? (
-                        fmtNum(row.双针.尺数.D)
+                        格式化可选定位小数(row.双针.尺数.D, 2)
                       ) : editable ? (
                         <NumInput
                           value={row.双针.尺数.D}
@@ -926,13 +917,13 @@ function ExcelStyleMachineTableInner({
                           }
                         />
                       ) : (
-                        fmtNum(row.双针.尺数.D)
+                        格式化可选定位小数(row.双针.尺数.D, 2)
                       )}
                     </Cell>
                     {show尺数M ? (
                       <Cell rowSpan={cutRows.length} narrow>
                         {is上下分只读尺数 ? (
-                          fmtNum(row.双针.尺数.M)
+                          格式化可选定位小数(row.双针.尺数.M, 2)
                         ) : editable && type === 假发类型.上下分 && hasM尺数 ? (
                           <NumInput
                             value={row.双针.尺数.M ?? 0}
@@ -948,14 +939,14 @@ function ExcelStyleMachineTableInner({
                             }
                           />
                         ) : (
-                          fmtNum(row.双针.尺数.M)
+                          格式化可选定位小数(row.双针.尺数.M, 2)
                         )}
                       </Cell>
                     ) : null}
                     {show尺数L ? (
                       <Cell rowSpan={cutRows.length} narrow>
                         {is上下分只读尺数 ? (
-                          fmtNum(row.双针.尺数.L)
+                          格式化可选定位小数(row.双针.尺数.L, 2)
                         ) : editable && type === 假发类型.上下分 && hasL尺数 ? (
                           <NumInput
                             value={row.双针.尺数.L ?? 0}
@@ -971,7 +962,7 @@ function ExcelStyleMachineTableInner({
                             }
                           />
                         ) : (
-                          fmtNum(row.双针.尺数.L)
+                          格式化可选定位小数(row.双针.尺数.L, 2)
                         )}
                       </Cell>
                     ) : null}
@@ -988,7 +979,7 @@ function ExcelStyleMachineTableInner({
                           }
                         />
                       ) : (
-                        fmtNum(row.双针.密度)
+                        格式化可选定位小数(row.双针.密度, 2)
                       )}
                     </Cell>
                     <Cell rowSpan={cutRows.length}>
@@ -1022,7 +1013,7 @@ function ExcelStyleMachineTableInner({
                           }
                         />
                       ) : (
-                        fmtNum(row.美容.铝管)
+                        格式化可选定位小数(row.美容.铝管, 2)
                       )}
                     </Cell>
                     <Cell rowSpan={cutRows.length}>
@@ -1057,7 +1048,7 @@ function ExcelStyleMachineTableInner({
                           step="1"
                         />
                       ) : (
-                        fmtNum(row.美容.层数)
+                        格式化可选定位小数(row.美容.层数, 2)
                       )}
                     </Cell>
                     <Cell
@@ -1533,7 +1524,7 @@ function ExcelStyleManualTableInner({
                       </button>
                     </div>
                   ) : (
-                    fmtNum(item.裁断)
+                    格式化可选定位小数(item.裁断, 2)
                   )}
                 </Cell>
                 {index === 0 ? (
@@ -1551,7 +1542,7 @@ function ExcelStyleManualTableInner({
                           }
                         />
                       ) : (
-                        fmtFrac(row.整毛.拉尖)
+                        格式化四分之一分数(row.整毛.拉尖)
                       )}
                     </Cell>
                     {show对裁 ? (
@@ -1569,7 +1560,7 @@ function ExcelStyleManualTableInner({
                             }
                           />
                         ) : (
-                          fmtFrac(row.整毛.对裁)
+                          格式化四分之一分数(row.整毛.对裁)
                         )}
                       </Cell>
                     ) : null}
@@ -1605,7 +1596,7 @@ function ExcelStyleManualTableInner({
                       }
                     />
                   ) : (
-                    fmtNum(item.重量g?.D)
+                    格式化可选定位小数(item.重量g?.D, 2)
                   )}
                 </Cell>
                 {showWeightM ? (
@@ -1635,7 +1626,7 @@ function ExcelStyleManualTableInner({
                         />
                       ) : null
                     ) : activeWeightKeys.includes("M") ? (
-                      fmtNum(item.重量g?.M)
+                      格式化可选定位小数(item.重量g?.M, 2)
                     ) : (
                       "—"
                     )}
@@ -1668,7 +1659,7 @@ function ExcelStyleManualTableInner({
                         />
                       ) : null
                     ) : activeWeightKeys.includes("L") ? (
-                      fmtNum(item.重量g?.L)
+                      格式化可选定位小数(item.重量g?.L, 2)
                     ) : (
                       "—"
                     )}
@@ -1689,7 +1680,7 @@ function ExcelStyleManualTableInner({
                           }
                         />
                       ) : (
-                        fmtFrac(row.双针.毛长)
+                        格式化四分之一分数(row.双针.毛长)
                       )}
                     </Cell>
                     {show磅发 ? (
@@ -1730,7 +1721,7 @@ function ExcelStyleManualTableInner({
                             />
                           ) : null
                         ) : (
-                          fmtNum(row.双针.密度)
+                          格式化可选定位小数(row.双针.密度, 2)
                         )}
                       </Cell>
                     ) : null}
@@ -1765,7 +1756,7 @@ function ExcelStyleManualTableInner({
                           }
                         />
                       ) : (
-                        fmtNum(row.美容.铝管)
+                        格式化可选定位小数(row.美容.铝管, 2)
                       )}
                     </Cell>
                     <Cell

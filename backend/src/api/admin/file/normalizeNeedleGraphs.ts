@@ -125,21 +125,37 @@ export function normalize手织图(raw: unknown): 手织图 {
     type?: unknown
     groupNodeId?: unknown
     比值?: unknown
+    边长?: unknown
   }
 
-  if (raw类型.type === "横排" || raw类型.type === "方形") {
-    const 默认分组节点ID =
-      raw类型.type === "横排" ? "hand_woven_horizontal_group" : "hand_woven_square_group"
-
+  if (raw类型.type === "横排") {
     return {
       svg,
       类型: {
-        type: raw类型.type,
+        type: "横排",
         groupNodeId:
           typeof raw类型.groupNodeId === "string" && raw类型.groupNodeId.trim()
             ? raw类型.groupNodeId
-            : 默认分组节点ID,
+            : "hand_woven_horizontal_group",
         比值: normalize手织图比值(raw类型.比值),
+      },
+    }
+  }
+
+  if (raw类型.type === "方形") {
+    return {
+      svg,
+      类型: {
+        type: "方形",
+        groupNodeId:
+          typeof raw类型.groupNodeId === "string" && raw类型.groupNodeId.trim()
+            ? raw类型.groupNodeId
+            : "hand_woven_square_group",
+        比值: normalize手织图比值(raw类型.比值),
+        边长:
+          typeof raw类型.边长 === "number" && Number.isFinite(raw类型.边长) && raw类型.边长 > 0
+            ? raw类型.边长
+            : 1,
       },
     }
   }

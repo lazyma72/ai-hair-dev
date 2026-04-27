@@ -1,16 +1,15 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
+import {
+  格式化定位小数,
+  格式化最多一位小数,
+} from "../../../../shared/models/数字格式化";
 
 export const inputCls =
   "w-full rounded border border-slate-200 px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-slate-300";
 
 export const numInputCls =
   "w-full rounded border border-slate-200 px-1.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-slate-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
-
-function fmt最多一位小数(n: number): string {
-  const rounded = Math.round(n * 10) / 10;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-}
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -67,7 +66,7 @@ export function NumInput({
   className?: string;
 }) {
   const fmt = (n: number) =>
-    step === "1" ? String(Math.round(n)) : n.toFixed(2);
+    step === "1" ? String(Math.round(n)) : 格式化定位小数(n, 2);
   const [raw, setRaw] = useState(fmt(value));
 
   useEffect(() => {
@@ -106,12 +105,12 @@ export function OneDecimalInput({
   disabled?: boolean;
   className?: string;
 }) {
-  const [raw, setRaw] = useState(fmt最多一位小数(value));
+  const [raw, setRaw] = useState(格式化最多一位小数(value));
 
   useEffect(() => {
     const n = parseFloat(raw);
     if (isNaN(n) || Math.round(n * 10) / 10 !== Math.round(value * 10) / 10) {
-      setRaw(fmt最多一位小数(value));
+      setRaw(格式化最多一位小数(value));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
@@ -220,7 +219,7 @@ export function QuarterFractionInput({
     const normalized = Math.round(n * 4) / 4;
     return Number.isInteger(normalized)
       ? String(normalized)
-      : normalized.toFixed(2);
+      : 格式化定位小数(normalized, 2);
   };
   const isAllowedQuarter = (n: number) => {
     const normalized = Math.round(n * 100) / 100;

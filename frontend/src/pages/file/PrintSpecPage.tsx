@@ -22,24 +22,17 @@ import type {
   沐茵丝假发成品稿Frontend,
 } from "../../shared/frontend/model/model";
 import { buildPreviewSvg } from "../admin/add-file/components/DyeLevelEditor";
-import { 数字转分数字符串 } from "../../shared/models/分数转换";
+import {
+  格式化可选定位小数,
+  格式化定位小数,
+  格式化四分之一分数,
+} from "../../shared/models/数字格式化";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Row types
 // ─────────────────────────────────────────────────────────────────────────────
 type MachineRow = 制品规格书["机器规格清单"][number];
 type ManualRow = 制品规格书["人工规格清单"][number];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-function fmtNum(v: number | undefined): string {
-  return v == null ? "—" : v.toFixed(2);
-}
-
-function fmtFrac(v: number | undefined): string {
-  return v == null ? "—" : 数字转分数字符串(v);
-}
 
 function resolveImg(src: string): string {
   if (!src) return "";
@@ -294,31 +287,31 @@ function MachineTable({ rows }: { rows: MachineRow[] }) {
             return cuts.map((cut, ci) => (
               <tr key={`${ri}-${ci}`}>
                 {ci === 0 && <TD rs={cuts.length}>{row.档位}</TD>}
-                <TD>{fmtNum(cut.裁断)}</TD>
+                <TD>{格式化可选定位小数(cut.裁断, 2)}</TD>
                 {ci === 0 && (
                   <>
-                    <TD rs={cuts.length}>{fmtFrac(row.整毛.拉尖)}</TD>
+                    <TD rs={cuts.length}>{格式化四分之一分数(row.整毛.拉尖)}</TD>
                     {show对裁 && (
-                      <TD rs={cuts.length}>{fmtFrac(row.整毛.对裁)}</TD>
+                      <TD rs={cuts.length}>{格式化四分之一分数(row.整毛.对裁)}</TD>
                     )}
                   </>
                 )}
-                <TD>{fmtNum(cut.重量g?.D)}</TD>
-                {showM && <TD>{fmtNum(cut.重量g?.M)}</TD>}
-                <TD>{fmtNum(cut.重量g?.L)}</TD>
+                <TD>{格式化可选定位小数(cut.重量g?.D, 2)}</TD>
+                {showM && <TD>{格式化可选定位小数(cut.重量g?.M, 2)}</TD>}
+                <TD>{格式化可选定位小数(cut.重量g?.L, 2)}</TD>
                 {ci === 0 && (
                   <>
-                    <TD rs={cuts.length}>{fmtFrac(row.双针.毛长)}</TD>
-                    <TD rs={cuts.length}>{fmtNum(row.双针.尺数.D)}</TD>
+                    <TD rs={cuts.length}>{格式化四分之一分数(row.双针.毛长)}</TD>
+                    <TD rs={cuts.length}>{格式化可选定位小数(row.双针.尺数.D, 2)}</TD>
                     {showM && (
-                      <TD rs={cuts.length}>{fmtNum(row.双针.尺数.M)}</TD>
+                      <TD rs={cuts.length}>{格式化可选定位小数(row.双针.尺数.M, 2)}</TD>
                     )}
-                    <TD rs={cuts.length}>{fmtNum(row.双针.尺数.L)}</TD>
-                    <TD rs={cuts.length}>{fmtNum(row.双针.密度)}</TD>
+                    <TD rs={cuts.length}>{格式化可选定位小数(row.双针.尺数.L, 2)}</TD>
+                    <TD rs={cuts.length}>{格式化可选定位小数(row.双针.密度, 2)}</TD>
                     <TD rs={cuts.length}>{row.形态 ?? "—"}</TD>
-                    <TD rs={cuts.length}>{fmtNum(row.美容.铝管)}</TD>
+                    <TD rs={cuts.length}>{格式化可选定位小数(row.美容.铝管, 2)}</TD>
                     <TD rs={cuts.length}>{row.美容.方向 || "—"}</TD>
-                    <TD rs={cuts.length}>{fmtNum(row.美容.层数)}</TD>
+                    <TD rs={cuts.length}>{格式化可选定位小数(row.美容.层数, 2)}</TD>
                     <TD rs={cuts.length} left>
                       {row.备注 ?? "—"}
                     </TD>
@@ -401,27 +394,27 @@ function ManualTable({ rows }: { rows: ManualRow[] }) {
             return cuts.map((cut, ci) => (
               <tr key={`${ri}-${ci}`}>
                 {ci === 0 && <TD rs={cuts.length}>{row.档位}</TD>}
-                <TD>{fmtNum(cut.裁断)}</TD>
+                <TD>{格式化可选定位小数(cut.裁断, 2)}</TD>
                 {ci === 0 && (
                   <>
-                    <TD rs={cuts.length}>{fmtFrac(row.整毛.拉尖)}</TD>
+                    <TD rs={cuts.length}>{格式化四分之一分数(row.整毛.拉尖)}</TD>
                     {show对裁 && (
-                      <TD rs={cuts.length}>{fmtFrac(row.整毛.对裁)}</TD>
+                      <TD rs={cuts.length}>{格式化四分之一分数(row.整毛.对裁)}</TD>
                     )}
                   </>
                 )}
-                <TD>{fmtNum(cut.重量g?.D)}</TD>
-                {showM && <TD>{fmtNum(cut.重量g?.M)}</TD>}
-                <TD>{fmtNum(cut.重量g?.L)}</TD>
+                <TD>{格式化可选定位小数(cut.重量g?.D, 2)}</TD>
+                {showM && <TD>{格式化可选定位小数(cut.重量g?.M, 2)}</TD>}
+                <TD>{格式化可选定位小数(cut.重量g?.L, 2)}</TD>
                 {ci === 0 && (
                   <>
-                    <TD rs={cuts.length}>{fmtFrac(row.双针.毛长)}</TD>
+                    <TD rs={cuts.length}>{格式化四分之一分数(row.双针.毛长)}</TD>
                     <TD rs={cuts.length}>
                       {row.双针.磅发 != null ? `磅${row.双针.磅发}g/扎` : "—"}
                     </TD>
-                    <TD rs={cuts.length}>{fmtNum(row.双针.密度)}</TD>
+                    <TD rs={cuts.length}>{格式化可选定位小数(row.双针.密度, 2)}</TD>
                     <TD rs={cuts.length}>{row.形态 ?? "—"}</TD>
-                    <TD rs={cuts.length}>{fmtNum(row.美容.铝管)}</TD>
+                    <TD rs={cuts.length}>{格式化可选定位小数(row.美容.铝管, 2)}</TD>
                     <TD rs={cuts.length}>{row.位置 ?? "—"}</TD>
                     <TD rs={cuts.length} left>
                       {row.备注 ?? "—"}
@@ -778,7 +771,7 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={SECTION_HEADER}>工程重量（{data.当前重量}g）</div>
+          <div style={SECTION_HEADER}>工程重量（{格式化定位小数(data.当前重量, 2)}g）</div>
           <table style={{ width: "100%", borderCollapse: "collapse", height: "100%" }}>
             <thead>
               <tr>
@@ -795,7 +788,7 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
                     {item.加减 >= 0 ? "+" : ""}
                     {item.加减}
                   </TD>
-                  <TD>{item.数值}g</TD>
+                  <TD>{`${格式化定位小数(item.数值, 2)}g`}</TD>
                 </tr>
               ))}
               {工程重量.重量 ? (
@@ -1355,7 +1348,7 @@ function PrintHighNeedleTable({
           rows.map((row, idx) => (
             <tr key={`${row.档位}-${idx}`}>
               <TD>{row.档位 || "—"}</TD>
-              <TD>{fmtFrac(row.毛长)}</TD>
+              <TD>{格式化四分之一分数(row.毛长)}</TD>
               <TD>{row.长度.D ?? "—"}</TD>
               <TD>{row.长度.M ?? "—"}</TD>
               <TD>{row.长度.L ?? "—"}</TD>
@@ -1401,7 +1394,7 @@ function PrintHandWovenTable({
             <tr key={`${row.档位}-${idx}`}>
               <TD>{row.档位 || "—"}</TD>
               <TD>{row.整长 ?? "—"}</TD>
-              <TD>{fmtFrac(row.毛长)}</TD>
+              <TD>{格式化四分之一分数(row.毛长)}</TD>
               <TD>{row.重量.D ?? "—"}</TD>
               <TD>{row.重量.M ?? "—"}</TD>
               <TD>{row.重量.L ?? "—"}</TD>

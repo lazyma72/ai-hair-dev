@@ -17,6 +17,7 @@ import { ReqUpdate as ReqUpdate_1, ResUpdate as ResUpdate_1 } from './admin/rati
 import { ReqAdd as ReqAdd_3, ResAdd as ResAdd_3 } from './admin/user/PtlAdd';
 import { ReqDelete as ReqDelete_1, ResDelete as ResDelete_1 } from './admin/user/PtlDelete';
 import { ReqGetList as ReqGetList_4, ResGetList as ResGetList_4 } from './admin/user/PtlGetList';
+import { ReqCdrToSvg, ResCdrToSvg } from './PtlCdrToSvg';
 import { ReqLogin, ResLogin } from './PtlLogin';
 import { ReqMe, ResMe } from './PtlMe';
 import { ReqUpload, ResUpload } from './PtlUpload';
@@ -94,6 +95,10 @@ export interface ServiceType {
         "admin/user/GetList": {
             req: ReqGetList_4,
             res: ResGetList_4
+        },
+        "CdrToSvg": {
+            req: ReqCdrToSvg,
+            res: ResCdrToSvg
         },
         "Login": {
             req: ReqLogin,
@@ -221,6 +226,12 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 16,
             "name": "admin/user/GetList",
+            "type": "api",
+            "conf": {}
+        },
+        {
+            "id": 25,
+            "name": "CdrToSvg",
             "type": "api",
             "conf": {}
         },
@@ -2262,6 +2273,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                             "type": {
                                                 "type": "Reference",
                                                 "target": "../models/手织图/手织图比值"
+                                            }
+                                        },
+                                        {
+                                            "id": 3,
+                                            "name": "边长",
+                                            "type": {
+                                                "type": "Number"
                                             }
                                         }
                                     ]
@@ -4376,6 +4394,63 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 5,
                     "name": "updateTime",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "PtlCdrToSvg/ReqCdrToSvg": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "fileData",
+                    "type": {
+                        "type": "Buffer",
+                        "arrayType": "Uint8Array"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "fileName",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "dirName",
+                    "type": {
+                        "type": "String"
+                    }
+                }
+            ]
+        },
+        "PtlCdrToSvg/ResCdrToSvg": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "svg",
                     "type": {
                         "type": "String"
                     }

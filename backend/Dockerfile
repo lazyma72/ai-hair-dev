@@ -17,9 +17,14 @@ RUN rm -rf /app \
     && mv dist /app \
     && mv node_modules /app/ \
     && rm -rf /src
-
+# 2. 安装系统依赖 + uniconvertor（核心！）
+RUN apt-get update && \
+    apt-get install -y uniconvertor && \
+    command -v uniconvertor >/dev/null && \
+    rm -rf /var/lib/apt/lists/*
 # clean
 WORKDIR /app
+
 RUN npm prune --production
 
 ENV NODE_ENV production

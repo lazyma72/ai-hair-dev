@@ -96,6 +96,38 @@ function 深拷贝普通对象<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+function normalize手织图类型(type: unknown): "横排" | "方形" | "特殊" | "" {
+  if (type === "横排" || type === "方形" || type === "特殊") return type
+  return ""
+}
+
+function shouldOverride手织图类型(
+  aType: unknown,
+  bType: unknown
+): aType is "横排" | "方形" | "特殊" {
+  const a = normalize手织图类型(aType)
+  const b = normalize手织图类型(bType)
+  const isRowOrSquare = (t: string) => t === "横排" || t === "方形"
+  // Only handle the row/square swap case requested:
+  // B is 横排/方形 and A is 方形/横排 (opposite) -> use B.
+  return isRowOrSquare(a) && isRowOrSquare(b) && a !== b
+}
+
+function 获取C稿手织图(
+  fileA: 沐茵丝假发成品稿,
+  fileB: 沐茵丝假发成品稿
+): 沐茵丝假发成品稿["手织指示单"]["手织图"] {
+  const a = fileA.手织指示单?.手织图
+  const b = fileB.手织指示单?.手织图
+  if (!a || !b) return a ?? b
+
+  if (shouldOverride手织图类型(a.类型?.type, b.类型?.type)) {
+    // Keep C稿以A为底的原则不变，只在横排/方形互换时，用B稿手织图替换，避免类型不一致。
+    return 深拷贝普通对象(b)
+  }
+  return a
+}
+
 function normalizeLevelName(name: string): string {
   return String(name ?? "")
     .trim()
@@ -1071,6 +1103,7 @@ function 构建C稿公共底稿(fileA: 沐茵丝假发成品稿, fileB: 沐茵�
     fileA.假发类型 === 假发类型.间色
       ? strip高针图DML标注(fileA.高针指示单.高针图)
       : fileA.高针指示单.高针图
+  const next手织图 = 获取C稿手织图(fileA, fileB)
 
   return {
     ...fileA,
@@ -1083,6 +1116,10 @@ function 构建C稿公共底稿(fileA: 沐茵丝假发成品稿, fileB: 沐茵�
     高针指示单: {
       ...fileA.高针指示单,
       高针图: next高针图,
+    },
+    手织指示单: {
+      ...fileA.手织指示单,
+      手织图: next手织图,
     },
   }
 }
