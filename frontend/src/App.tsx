@@ -72,9 +72,13 @@ function App() {
   const routerMode =
     env?.VITE_ROUTER_MODE ?? (env?.MODE === "development" ? "browser" : "hash");
   const Router = routerMode === "hash" ? HashRouter : BrowserRouter;
+  // HashRouter parses routes from location.hash; passing a basename like "/pss"
+  // would require URLs like "/#/pss/..." and will otherwise warn + render nothing.
+  const routerBasename =
+    routerMode === "hash" || baseUrl === "/" ? undefined : baseUrl;
 
   return (
-    <Router basename={baseUrl === "/" ? undefined : baseUrl}>
+    <Router basename={routerBasename}>
       <Routes>
         {/* 登录页是公共页面；已登录则跳到首页 */}
         <Route

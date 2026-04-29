@@ -10,19 +10,36 @@ import PageShell from "../../components/PageShell";
 import PaginationBar from "../../components/PaginationBar";
 import { useApi } from "../../hooks/useApi";
 import type { 沐茵丝假发成品稿ListItem } from "../../shared/frontend/model/model";
+import type {
+  ReqGetList,
+  ResGetList,
+} from "../../shared/protocols/admin/file/PtlGetList";
+
+function fetchFileList(req: ReqGetList) {
+  return callApi("admin/file/GetList" as never, req as never) as Promise<
+    | { isSucc: true; res: ResGetList }
+    | { isSucc: false; err: { message: string } }
+  >;
+}
 
 export default function DesignDraftListPage() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
+  const [tagFilter, setTagFilter] = useState<"全部" | "成品稿" | "草稿">("全部");
   const [pageNum, setPageNum] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const requestFilter =
+    tagFilter === "全部"
+      ? undefined
+      : ({ tag: tagFilter } as unknown as ReqGetList["filter"]);
 
   const { data, loading, error, reload } = useApi(() =>
-    callApi("admin/file/GetList", {
+    fetchFileList({
       pageNum: 1,
       pageSize: 1000,
       orderSort: "desc",
+      filter: requestFilter,
     }),
   );
   const list = useMemo<沐茵丝假发成品稿ListItem[]>(() => data?.list ?? [], [data]);
@@ -41,6 +58,13 @@ export default function DesignDraftListPage() {
       setPageNum(totalPages);
     }
   }, [pageNum, totalPages]);
+
+  useEffect(() => {
+    // filter change -> refresh list + reset pagination
+    setPageNum(1);
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tagFilter]);
 
   async function handleDelete(id: string) {
     if (!window.confirm(`确认删除「${id}」？此操作不可恢复。`)) return;
@@ -62,13 +86,31 @@ export default function DesignDraftListPage() {
     <PageShell
       title="产品规格系统 · 成品稿管理"
       actions={
-        <button
-          type="button"
-          className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-          onClick={() => navigate("/designs/create")}
-        >
-          + 新建产品规格稿
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded border border-slate-200 bg-white p-0.5">
+            {(["全部", "成品稿", "草稿"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                className={`rounded px-2.5 py-1 text-xs font-medium ${
+                  tagFilter === v
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+                onClick={() => setTagFilter(v)}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+            onClick={() => navigate("/designs/create")}
+          >
+            + 新建产品规格稿
+          </button>
+        </div>
       }
     >
       <DraftCardListSection

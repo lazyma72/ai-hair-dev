@@ -60,6 +60,7 @@ function withNewId(file: FileDraftViewModel, id: string): FileDraftViewModel {
     ...(JSON.parse(JSON.stringify(file)) as FileDraftViewModel),
     _id: id,
     样品编号: file.样品编号 || id,
+    tag: "草稿",
   };
 }
 

@@ -18,7 +18,9 @@ export interface ReqGetList extends BaseRequest {
   /** 排序方式：asc/desc */
   orderSort?: "asc" | "desc"
 
-  filter?: Partial<Pick<沐茵丝假发成品稿, "客户编号" | "品名" | "原材料" | "假发类型" | "CAP">>
+  filter?: Partial<
+    Pick<沐茵丝假发成品稿, "客户编号" | "品名" | "原材料" | "假发类型" | "CAP" | "tag">
+  >
 }
 
 export interface ResGetList extends BaseResponse {

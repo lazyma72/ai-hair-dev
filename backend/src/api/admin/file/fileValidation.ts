@@ -153,6 +153,7 @@ const FileSchema = z
     CAP: z.string().trim().min(1, "CAP不能为空"),
     原材料: z.string().trim().min(1, "原材料不能为空"),
     假发类型: z.nativeEnum(假发类型),
+    tag: z.enum(["成品稿", "草稿"]).default("成品稿"),
     染色档位列表: z.array(DyeItemSchema),
     高针指示单: z.object({
       注意事项: z.string(),

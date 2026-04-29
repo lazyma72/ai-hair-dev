@@ -75,10 +75,12 @@ export default async function (call: ApiCall<ReqGetDetail, ResGetDetail>) {
     file: {
       _id: 稿._id.toHexString(),
       样品编号: 稿.样品编号,
+      tag: 稿.tag ?? "成品稿",
+      文件名称: 稿.文件名称,
       制品规格书: to制品规格书Frontend(稿, 胶丝比例, 制帽),
       高针指示单: to高针指示单Frontend(稿),
       手织指示单: to手织指示单Frontend(稿),
-    },
+    } as ResGetDetail["file"],
     rawFile,
   })
 }

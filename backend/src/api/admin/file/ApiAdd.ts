@@ -11,6 +11,7 @@ function getHatMakingIdFromCAP(cap: string): string {
 }
 
 export default async function (call: ApiCall<ReqAdd, ResAdd>) {
+  const now = new Date()
   const normalizedInput = {
     ...call.req.file,
     染色档位列表: normalize染色档位列表(call.req.file.染色档位列表),
@@ -74,6 +75,9 @@ export default async function (call: ApiCall<ReqAdd, ResAdd>) {
   const fileToInsert = {
     ...normalizedFile,
     _id: new ObjectId(),
+    tag: normalizedFile.tag ?? "成品稿",
+    createTime: now,
+    updateTime: now,
   }
 
   await col.insertOne(fileToInsert)

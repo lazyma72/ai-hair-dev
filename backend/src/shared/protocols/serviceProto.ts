@@ -119,7 +119,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 30,
+    "version": 32,
     "services": [
         {
             "id": 9,
@@ -527,6 +527,53 @@ export const serviceProto: ServiceProto<ServiceType> = {
                             "type": "String"
                         }
                     }
+                },
+                {
+                    "id": 14,
+                    "name": "tag",
+                    "type": {
+                        "type": "Union",
+                        "members": [
+                            {
+                                "id": 0,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "成品稿"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "草稿"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 15,
+                    "name": "文件名称",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 16,
+                    "name": "createTime",
+                    "type": {
+                        "type": "Date"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 17,
+                    "name": "updateTime",
+                    "type": {
+                        "type": "Date"
+                    },
+                    "optional": true
                 }
             ]
         },
@@ -2545,6 +2592,38 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
+                    "id": 6,
+                    "name": "tag",
+                    "type": {
+                        "type": "Union",
+                        "members": [
+                            {
+                                "id": 0,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "成品稿"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "草稿"
+                                }
+                            }
+                        ]
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 5,
+                    "name": "文件名称",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
                     "id": 1,
                     "name": "制品规格书",
                     "type": {
@@ -3386,7 +3465,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 "品名",
                                 "原材料",
                                 "假发类型",
-                                "CAP"
+                                "CAP",
+                                "tag"
                             ],
                             "type": "Pick"
                         }
@@ -3493,6 +3573,41 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "type": {
                         "type": "String"
                     }
+                },
+                {
+                    "id": 10,
+                    "name": "tag",
+                    "type": {
+                        "type": "Union",
+                        "members": [
+                            {
+                                "id": 0,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "成品稿"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "草稿"
+                                }
+                            }
+                        ]
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 11,
+                    "name": "规则摘要",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
+                        }
+                    },
+                    "optional": true
                 },
                 {
                     "id": 8,

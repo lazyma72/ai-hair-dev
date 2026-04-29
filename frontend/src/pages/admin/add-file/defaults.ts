@@ -59,6 +59,7 @@ export const emptyFile = (): FileDraftViewModel => ({
   原材料: "",
   CAP: "",
   头型图片: [],
+  tag: "草稿",
   染色档位列表: [],
   制品规格书: {
     机器规格清单: [],

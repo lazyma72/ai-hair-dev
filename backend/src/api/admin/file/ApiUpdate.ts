@@ -12,6 +12,7 @@ function getHatMakingIdFromCAP(cap: string): string {
 
 export default async function (call: ApiCall<ReqUpdate, ResUpdate>) {
   const { id, file } = call.req
+  const now = new Date()
   if (!ObjectId.isValid(id)) {
     return call.error("找不到对应的成品稿", { code: "NOT_FOUND" })
   }
@@ -81,9 +82,16 @@ export default async function (call: ApiCall<ReqUpdate, ResUpdate>) {
     return call.error("该样品编号 + 胶丝比例已存在", { code: "DUPLICATE_ID" })
   }
 
-  await col.replaceOne(
-    { _id: objectId },
-    normalizedFile
-  )
+  // ApiUpdate uses replaceOne; we must preserve server-managed fields,
+  // otherwise they would be overwritten / lost.
+  const fileToSave = {
+    ...normalizedFile,
+    tag: normalizedFile.tag ?? existing.tag ?? "成品稿",
+    文件名称: normalizedFile.文件名称 ?? existing.文件名称,
+    createTime: existing.createTime ?? now,
+    updateTime: now,
+  }
+
+  await col.replaceOne({ _id: objectId }, fileToSave)
   call.succ({ id })
 }
