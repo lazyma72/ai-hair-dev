@@ -17,10 +17,10 @@ RUN rm -rf /app \
     && mv dist /app \
     && mv node_modules /app/ \
     && rm -rf /src
-# 2. 安装系统依赖 + uniconvertor（核心！）
+# 2. 安装系统依赖 + inkscape（核心！）
 RUN apt-get update && \
-    apt-get install -y uniconvertor && \
-    command -v uniconvertor >/dev/null && \
+    apt-get install -y inkscape && \
+    command -v inkscape >/dev/null && \
     rm -rf /var/lib/apt/lists/*
 # clean
 WORKDIR /app

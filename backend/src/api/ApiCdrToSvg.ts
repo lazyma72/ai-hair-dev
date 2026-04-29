@@ -65,10 +65,14 @@ export default async function (call: ApiCall<ReqCdrToSvg, ResCdrToSvg>) {
     await fs.promises.writeFile(inputPath, fileData)
 
     try {
-      await execFileAsync("uniconvertor", [inputPath, outputPath], {
-        timeout: 60_000,
-        maxBuffer: 10 * 1024 * 1024,
-      })
+      await execFileAsync(
+        "inkscape",
+        [inputPath, "--export-type=svg", `--export-filename=${outputPath}`],
+        {
+          timeout: 60_000,
+          maxBuffer: 10 * 1024 * 1024,
+        }
+      )
     } catch (error) {
       const { code, detail } = getExecErrorDetail(error)
 
@@ -76,10 +80,10 @@ export default async function (call: ApiCall<ReqCdrToSvg, ResCdrToSvg>) {
         code === "ENOENT" ||
         detail.includes("ENOENT") ||
         detail.includes("not found") ||
-        detail.includes("spawn uniconvertor")
+        detail.includes("spawn inkscape")
       ) {
-        return call.error("服务器未安装 uniconvertor，无法转换 CDR", {
-          code: "UNICONVERTOR_NOT_FOUND",
+        return call.error("服务器未安装 inkscape，无法转换 CDR", {
+          code: "INKSCAPE_NOT_FOUND",
         })
       }
 
