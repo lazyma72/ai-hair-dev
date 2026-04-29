@@ -1,7 +1,10 @@
-import { Select } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { callApi } from "../../../api/callApi";
+import DraftCardListSection, {
+  DraftCard,
+  filterDraftList,
+} from "../../../components/DraftCardListSection";
 import PageShell from "../../../components/PageShell";
 import StatusView from "../../../components/StatusView";
 import { useApi } from "../../../hooks/useApi";
@@ -17,6 +20,9 @@ import DocumentTabs from "../../../modules/fileDraft/DocumentTabs";
 import FileDraftDataSections from "../../../modules/fileDraft/FileDraftDataSections";
 import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend";
 import { to高针指示单Frontend } from "../../../shared/frontend/converters/to高针指示单Frontend";
+import type {
+  ResGetList,
+} from "../../../shared/protocols/admin/file/PtlGetList";
 import 高针指示单View from "../../file/sections/高针指示单View";
 import 手织指示单View from "../../file/sections/手织指示单View";
 
@@ -64,11 +70,33 @@ function toPreviewFile(value: FileDraftViewModel): 沐茵丝假发成品稿 {
   } as unknown as 沐茵丝假发成品稿;
 }
 
+function fetchFileList(req: {
+  omitIdList?: string[];
+  pageNum?: number;
+  pageSize?: number;
+  keyword?: string;
+  orderSort?: "asc" | "desc";
+  filter?: {
+    客户编号?: string;
+    品名?: string;
+    原材料?: string;
+    假发类型?: 沐茵丝假发成品稿["假发类型"];
+    CAP?: string;
+  };
+}) {
+  return callApi("admin/file/GetList" as never, req as never) as Promise<
+    | { isSucc: true; res: ResGetList }
+    | { isSucc: false; err: { message: string } }
+  >;
+}
+
 export default function ABCreateWizardPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [aId, setAId] = useState<string>("");
   const [bId, setBId] = useState<string>("");
+  const [aKeyword, setAKeyword] = useState("");
+  const [bKeyword, setBKeyword] = useState("");
   const [previewTab, setPreviewTab] = useState<PreviewTabKey>("制品规格书");
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -77,26 +105,32 @@ export default function ABCreateWizardPage() {
   const [errorC, setErrorC] = useState("");
   const [cDraft, setCDraft] = useState<FileDraftViewModel | null>(null);
 
-  const listState = useApi(() =>
-    callApi("admin/file/GetList", {
+  const aListState = useApi(() =>
+    fetchFileList({
       pageNum: 1,
       pageSize: 1000,
       orderSort: "desc",
     }),
   );
-  const list = useMemo<沐茵丝假发成品稿ListItem[]>(
-    () => listState.data?.list ?? [],
-    [listState.data],
+  const bListState = useApi(() =>
+    fetchFileList({
+      omitIdList: aId ? [aId] : undefined,
+      pageNum: 1,
+      pageSize: 1000,
+      orderSort: "desc",
+    }),
   );
-
-  const options = useMemo(
-    () =>
-      list.map((x) => ({
-        value: x._id,
-        label: `${(x as any).样品编号 ?? x._id} · ${x.假发类型} · ${x.客户编号} · ${x.品名}`,
-      })),
-    [list],
+  const aList = useMemo<沐茵丝假发成品稿ListItem[]>(
+    () => aListState.data?.list ?? [],
+    [aListState.data],
   );
+  const bList = useMemo<沐茵丝假发成品稿ListItem[]>(
+    () => bListState.data?.list ?? [],
+    [bListState.data],
+  );
+  const reloadBList = bListState.reload;
+  const filteredAList = useMemo(() => filterDraftList(aList, aKeyword), [aKeyword, aList]);
+  const filteredBList = useMemo(() => filterDraftList(bList, bKeyword), [bKeyword, bList]);
 
   useEffect(() => {
     // A/B 变化时，清空 C 草稿，避免引用旧数据
@@ -104,6 +138,10 @@ export default function ABCreateWizardPage() {
     setErrorC("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aId, bId]);
+
+  useEffect(() => {
+    reloadBList();
+  }, [aId, reloadBList]);
 
   const canNext =
     (step === 0 && Boolean(aId)) ||
@@ -287,45 +325,47 @@ export default function ABCreateWizardPage() {
       <Stepper step={step} />
 
       {step === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="text-sm font-semibold text-slate-900">选择 A 稿</div>
-          <div className="mt-1 text-xs text-slate-500">
-            C 稿以 A 为基础（具体以接口规则为准）。
-          </div>
-          <div className="mt-3">
-            <Select
-              className="w-full"
-              value={aId || undefined}
-              options={options}
-              placeholder="选择 A 稿"
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              onChange={(v) => setAId(v ?? "")}
+        <DraftCardListSection
+          title="选择 A 稿"
+          description="C 稿以 A 为基础（具体以接口规则为准）。"
+          list={filteredAList}
+          keyword={aKeyword}
+          onKeywordChange={setAKeyword}
+          loading={aListState.loading}
+          error={aListState.error}
+          emptyText="暂无可选 A 稿"
+          summaryText={`共 ${filteredAList.length} 条${aId ? "，已选择 1 条" : ""}`}
+          renderCard={(item) => (
+            <DraftCard
+              item={item}
+              selected={item._id === aId}
+              badgeText={item._id === aId ? "已选择" : item.客户编号}
+              onClick={() => setAId((prev) => (prev === item._id ? "" : item._id))}
             />
-          </div>
-        </div>
+          )}
+        />
       ) : null}
 
       {step === 1 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="text-sm font-semibold text-slate-900">选择 B 稿</div>
-          <div className="mt-1 text-xs text-slate-500">
-            后端会按 B 的假发类型套用生成规则（纯色/间色/上下分/T色）。
-          </div>
-          <div className="mt-3">
-            <Select
-              className="w-full"
-              value={bId || undefined}
-              options={options}
-              placeholder="选择 B 稿"
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              onChange={(v) => setBId(v ?? "")}
+        <DraftCardListSection
+          title="选择 B 稿"
+          description="后端会按 B 的假发类型套用生成规则（纯色/间色/上下分/T色）。"
+          list={filteredBList}
+          keyword={bKeyword}
+          onKeywordChange={setBKeyword}
+          loading={bListState.loading}
+          error={bListState.error}
+          emptyText="暂无可选 B 稿"
+          summaryText={`共 ${filteredBList.length} 条${bId ? "，已选择 1 条" : ""}`}
+          renderCard={(item) => (
+            <DraftCard
+              item={item}
+              selected={item._id === bId}
+              badgeText={item._id === bId ? "已选择" : item.客户编号}
+              onClick={() => setBId((prev) => (prev === item._id ? "" : item._id))}
             />
-          </div>
-        </div>
+          )}
+        />
       ) : null}
     </PageShell>
   );

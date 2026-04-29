@@ -119,7 +119,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 29,
+    "version": 30,
     "services": [
         {
             "id": 9,
@@ -3312,6 +3312,17 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 }
             ],
             "properties": [
+                {
+                    "id": 5,
+                    "name": "omitIdList",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
+                        }
+                    },
+                    "optional": true
+                },
                 {
                     "id": 0,
                     "name": "pageNum",

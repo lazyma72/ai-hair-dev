@@ -1,11 +1,12 @@
 import { ApiCall } from "tsrpc"
 import { z } from "zod"
-import type { Filter, Sort } from "mongodb"
+import { ObjectId, type Filter, type Sort } from "mongodb"
 import { ReqGetList, ResGetList } from "../../../shared/protocols/admin/file/PtlGetList"
 import { Global } from "../../../models/Global"
 import { 假发类型, type 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿"
 
 const ReqSchema = z.object({
+  omitIdList: z.array(z.string()).optional().default([]),
   pageNum: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).default(20),
   keyword: z.string().optional(),
@@ -28,10 +29,14 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
     return
   }
 
-  const { pageNum, pageSize, keyword, orderSort, filter } = parsed.data
+  const { omitIdList, pageNum, pageSize, keyword, orderSort, filter } = parsed.data
   const col = Global.getCollection("沐茵丝假发成品稿")
 
   const mongoFilter: Filter<沐茵丝假发成品稿> = {}
+  const omitObjectIdList = omitIdList.filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id))
+  if (omitObjectIdList.length > 0) {
+    mongoFilter._id = { $nin: omitObjectIdList } as Filter<沐茵丝假发成品稿>["_id"]
+  }
   if (filter.客户编号) mongoFilter.客户编号 = filter.客户编号
   if (filter.品名) mongoFilter.品名 = filter.品名
   if (filter.原材料) mongoFilter.原材料 = filter.原材料

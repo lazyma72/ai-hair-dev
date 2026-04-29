@@ -3,6 +3,9 @@ import { 沐茵丝假发成品稿ListItem } from "../../../frontend/model/model"
 import { 沐茵丝假发成品稿 } from "../../../db/Db沐茵丝假发成品稿"
 
 export interface ReqGetList extends BaseRequest {
+  /* omit，排除_id */
+  omitIdList?: string[]
+
   /** 页码，从 1 开始 */
   pageNum?: number
 
