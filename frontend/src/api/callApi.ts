@@ -63,43 +63,7 @@ function closeErrorToast(toast: HTMLDivElement, timerId?: number) {
 }
 
 function showApiErrorModal(errorMessage: string) {
-  // #region debug-point C:show-error-start
-  fetch("http://127.0.0.1:7777/event", {
-    method: "POST",
-    body: JSON.stringify({
-      sessionId: "login-error-popup",
-      runId: "pre-fix",
-      hypothesisId: "C",
-      location: "callApi.ts:46",
-      msg: "[DEBUG] showApiErrorModal start",
-      data: {
-        errorMessage,
-        hasDocument: typeof document !== "undefined",
-        bodyChildCount:
-          typeof document === "undefined"
-            ? undefined
-            : document.body?.childElementCount,
-      },
-      ts: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
   if (typeof document === "undefined") {
-    // #region debug-point C:show-error-alert-fallback
-    fetch("http://127.0.0.1:7777/event", {
-      method: "POST",
-      body: JSON.stringify({
-        sessionId: "login-error-popup",
-        runId: "pre-fix",
-        hypothesisId: "C",
-        location: "callApi.ts:58",
-        msg: "[DEBUG] showApiErrorModal fallback alert",
-        data: { errorMessage },
-        ts: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     window.alert(errorMessage);
     return;
   }
@@ -153,25 +117,6 @@ function showApiErrorModal(errorMessage: string) {
   mask.onclick = () => closeErrorToast(mask, timerId);
   container.appendChild(mask);
   timerId = window.setTimeout(() => closeErrorToast(mask), 3200);
-  // #region debug-point C:show-error-mounted
-  fetch("http://127.0.0.1:7777/event", {
-    method: "POST",
-    body: JSON.stringify({
-      sessionId: "login-error-popup",
-      runId: "pre-fix",
-      hypothesisId: "C",
-      location: "callApi.ts:120",
-      msg: "[DEBUG] showApiErrorModal mounted",
-      data: {
-        errorMessage,
-        bodyChildCount: document.body.childElementCount,
-        stackedCount: container.childElementCount,
-        maskConnected: mask.isConnected,
-      },
-      ts: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 }
 
 function addFlows(c: HttpClient<ServiceType>) {
@@ -226,47 +171,12 @@ export async function callApi(
 > {
   const c = (apiName as string) === "Upload" ? uploadClient : client;
   const result = await c.callApi(apiName as any, req as never);
-  // #region debug-point B:callapi-result
-  fetch("http://127.0.0.1:7777/event", {
-    method: "POST",
-    body: JSON.stringify({
-      sessionId: "login-error-popup",
-      runId: "pre-fix",
-      hypothesisId: "B",
-      location: "callApi.ts:178",
-      msg: "[DEBUG] callApi result received",
-      data: {
-        apiName: String(apiName),
-        isSucc: result.isSucc,
-        errMessage: result.isSucc ? undefined : result.err?.message,
-        errCode: result.isSucc
-          ? undefined
-          : (result.err as { code?: string } | undefined)?.code,
-      },
-      ts: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   if (result.isSucc) {
     return { isSucc: true, res: result.res };
   }
   const message = result.err?.message ?? "请求失败";
   const code = (result.err as { code?: string } | undefined)?.code;
   if (code !== "NEED_LOGIN") {
-    // #region debug-point B:callapi-show-error-branch
-    fetch("http://127.0.0.1:7777/event", {
-      method: "POST",
-      body: JSON.stringify({
-        sessionId: "login-error-popup",
-        runId: "pre-fix",
-        hypothesisId: "B",
-        location: "callApi.ts:186",
-        msg: "[DEBUG] callApi entering error display branch",
-        data: { apiName: String(apiName), message, code },
-        ts: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     showApiErrorModal(message);
   }
   return { isSucc: false, err: { message } };
