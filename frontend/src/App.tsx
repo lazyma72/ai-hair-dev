@@ -20,7 +20,6 @@ import DesignDraftListPage from "./pages/design/DesignDraftListPage";
 import ABCreateWizardPage from "./pages/design/create/ABCreateWizardPage";
 import DesignCreateHubPage from "./pages/design/create/DesignCreateHubPage";
 import ManualCreateWizardPage from "./pages/design/create/ManualCreateWizardPage";
-import ImportExcelWizardPage from "./pages/design/create/ImportExcelWizardPage";
 import FileDetailPage from "./pages/file/FileDetailPage";
 import PrintSpecPage from "./pages/file/PrintSpecPage";
 import HatMakingDetailPage from "./pages/hatMaking/HatMakingDetailPage";
@@ -101,10 +100,6 @@ function App() {
             element={<ManualCreateWizardPage />}
           />
           <Route path="/designs/create/ab" element={<ABCreateWizardPage />} />
-          <Route
-            path="/designs/create/import"
-            element={<ImportExcelWizardPage />}
-          />
 
           <Route path="/hat-making" element={<HatMakingListPage />} />
           <Route path="/hat-making/:id" element={<HatMakingDetailPage />} />

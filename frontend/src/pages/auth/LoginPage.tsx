@@ -23,6 +23,9 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // #region debug-point A:login-submit-start
+    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"login-error-popup",runId:"pre-fix",hypothesisId:"A",location:"LoginPage.tsx:26",msg:"[DEBUG] login submit start",data:{usernameTrimmed:username.trim(),hasPassword:Boolean(password.trim())},ts:Date.now()})}).catch(()=>{});
+    // #endregion
 
     if (!username.trim() || !password.trim()) {
       message.error("请输入账号和密码");
@@ -34,10 +37,12 @@ export default function LoginPage() {
       username: username.trim(),
       password: await hashPassword(password),
     });
+    // #region debug-point A:login-submit-result
+    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"login-error-popup",runId:"pre-fix",hypothesisId:"A",location:"LoginPage.tsx:37",msg:"[DEBUG] login submit result",data:{isSucc:result.isSucc,errMessage:result.isSucc?undefined:result.err.message},ts:Date.now()})}).catch(()=>{});
+    // #endregion
     setLoading(false);
 
     if (!result.isSucc) {
-      message.error(result.err.message);
       return;
     }
 

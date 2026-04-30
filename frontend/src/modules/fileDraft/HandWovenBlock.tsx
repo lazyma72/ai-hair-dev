@@ -1,8 +1,6 @@
 import { useMemo, useState } from "react";
-import Row from "../../components/Row";
 import Section from "../../components/Section";
 import InlineSvg from "../../components/InlineSvg";
-import { ExcelStyleHandWovenImageTable } from "./ExcelStyleSpecTables";
 import HandWovenImportStep from "../../pages/design/create/components/HandWovenImportStep";
 import type { 手织指示单 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { 手织指示单Frontend } from "../../shared/frontend/model/model";
@@ -21,7 +19,7 @@ export default function HandWovenBlock({
   value,
   onChange,
   hideUploader = false,
-  previewData,
+  previewData: _previewData,
 }: Props) {
   const isEdit = mode === "edit";
   const [expanded, setExpanded] = useState(false);
@@ -36,29 +34,6 @@ export default function HandWovenBlock({
     const previewSvg = value.手织图?.svg?.trim() ?? "";
     return (
       <div className="space-y-5">
-        {previewData?.title ? (
-          <Section title="标题信息">
-            <div className="divide-y divide-slate-100">
-              <Row label="样品编号" value={previewData.title.样品编号} />
-              <Row label="客户编号" value={previewData.title.客户编号} />
-              <Row label="品名" value={previewData.title.品名} />
-              <Row label="CAP" value={previewData.title.CAP} />
-              <Row label="尺寸" value={`${previewData.title.尺寸}`} />
-              <Row label="重量" value={`${previewData.title.重量}g`} />
-              <Row label="原材料" value={previewData.title.原材料} />
-              <Row label="颜色编号" value={previewData.title.颜色编号} />
-            </div>
-          </Section>
-        ) : null}
-
-        {previewData ? (
-          <Section title="人工规格清单（手织图版）">
-            <ExcelStyleHandWovenImageTable
-              rows={previewData.人工规格清单_手织图}
-            />
-          </Section>
-        ) : null}
-
         <Section title="手织指示单">
           <div className="space-y-4 p-4">
             <div>

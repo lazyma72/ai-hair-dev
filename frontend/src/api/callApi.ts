@@ -14,10 +14,7 @@ import type {
   ReqGenerateByAB,
   ResGenerateByAB,
 } from "../shared/protocols/admin/file/PtlGenerateByAB";
-import type {
-  ReqCdrToSvg,
-  ResCdrToSvg,
-} from "../shared/protocols/PtlCdrToSvg";
+import type { ReqCdrToSvg, ResCdrToSvg } from "../shared/protocols/PtlCdrToSvg";
 import { getToken, clearToken } from "../auth";
 import { frontConfig } from "../frontConfig";
 
@@ -31,6 +28,151 @@ const uploadClient = new HttpClient(serviceProto, {
   server: frontConfig.prodServer,
   json: true,
 });
+
+let errorToastContainer: HTMLDivElement | null = null;
+
+function ensureErrorToastContainer() {
+  if (errorToastContainer) {
+    return errorToastContainer;
+  }
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.top = "14px";
+  container.style.left = "50%";
+  container.style.transform = "translateX(-50%)";
+  container.style.zIndex = "9999";
+  container.style.width = "min(420px, calc(100vw - 32px))";
+  container.style.display = "flex";
+  container.style.flexDirection = "column";
+  container.style.gap = "8px";
+  container.style.pointerEvents = "none";
+  document.body.appendChild(container);
+  errorToastContainer = container;
+  return container;
+}
+
+function closeErrorToast(toast: HTMLDivElement, timerId?: number) {
+  if (timerId !== undefined) {
+    window.clearTimeout(timerId);
+  }
+  toast.remove();
+  if (errorToastContainer && errorToastContainer.childElementCount === 0) {
+    errorToastContainer.remove();
+    errorToastContainer = null;
+  }
+}
+
+function showApiErrorModal(errorMessage: string) {
+  // #region debug-point C:show-error-start
+  fetch("http://127.0.0.1:7777/event", {
+    method: "POST",
+    body: JSON.stringify({
+      sessionId: "login-error-popup",
+      runId: "pre-fix",
+      hypothesisId: "C",
+      location: "callApi.ts:46",
+      msg: "[DEBUG] showApiErrorModal start",
+      data: {
+        errorMessage,
+        hasDocument: typeof document !== "undefined",
+        bodyChildCount:
+          typeof document === "undefined"
+            ? undefined
+            : document.body?.childElementCount,
+      },
+      ts: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+
+  if (typeof document === "undefined") {
+    // #region debug-point C:show-error-alert-fallback
+    fetch("http://127.0.0.1:7777/event", {
+      method: "POST",
+      body: JSON.stringify({
+        sessionId: "login-error-popup",
+        runId: "pre-fix",
+        hypothesisId: "C",
+        location: "callApi.ts:58",
+        msg: "[DEBUG] showApiErrorModal fallback alert",
+        data: { errorMessage },
+        ts: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    window.alert(errorMessage);
+    return;
+  }
+
+  const container = ensureErrorToastContainer();
+
+  const mask = document.createElement("div");
+  mask.setAttribute("role", "alert");
+  mask.setAttribute("aria-live", "assertive");
+  mask.style.width = "100%";
+  mask.style.pointerEvents = "auto";
+
+  const dialog = document.createElement("div");
+  dialog.style.display = "flex";
+  dialog.style.alignItems = "center";
+  dialog.style.gap = "8px";
+  dialog.style.width = "100%";
+  dialog.style.minHeight = "40px";
+  dialog.style.borderRadius = "8px";
+  dialog.style.background = "#ffffff";
+  dialog.style.boxShadow = "0 6px 16px rgba(0, 0, 0, 0.12)";
+  dialog.style.padding = "8px 12px";
+  dialog.style.color = "#262626";
+  dialog.style.cursor = "pointer";
+
+  const icon = document.createElement("div");
+  icon.textContent = "!";
+  icon.style.display = "inline-flex";
+  icon.style.alignItems = "center";
+  icon.style.justifyContent = "center";
+  icon.style.width = "14px";
+  icon.style.height = "14px";
+  icon.style.flex = "0 0 14px";
+  icon.style.borderRadius = "9999px";
+  icon.style.background = "#ff4d4f";
+  icon.style.color = "#ffffff";
+  icon.style.fontSize = "10px";
+  icon.style.fontWeight = "700";
+  icon.style.lineHeight = "1";
+
+  const content = document.createElement("div");
+  content.style.flex = "1";
+  content.textContent = errorMessage;
+  content.style.fontSize = "14px";
+  content.style.fontWeight = "400";
+  content.style.lineHeight = "1.4";
+  content.style.wordBreak = "break-word";
+  dialog.append(icon, content);
+  mask.appendChild(dialog);
+  let timerId = 0;
+  mask.onclick = () => closeErrorToast(mask, timerId);
+  container.appendChild(mask);
+  timerId = window.setTimeout(() => closeErrorToast(mask), 3200);
+  // #region debug-point C:show-error-mounted
+  fetch("http://127.0.0.1:7777/event", {
+    method: "POST",
+    body: JSON.stringify({
+      sessionId: "login-error-popup",
+      runId: "pre-fix",
+      hypothesisId: "C",
+      location: "callApi.ts:120",
+      msg: "[DEBUG] showApiErrorModal mounted",
+      data: {
+        errorMessage,
+        bodyChildCount: document.body.childElementCount,
+        stackedCount: container.childElementCount,
+        maskConnected: mask.isConnected,
+      },
+      ts: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+}
 
 function addFlows(c: HttpClient<ServiceType>) {
   c.flows.preCallApiFlow.push((v) => {
@@ -84,8 +226,48 @@ export async function callApi(
 > {
   const c = (apiName as string) === "Upload" ? uploadClient : client;
   const result = await c.callApi(apiName as any, req as never);
+  // #region debug-point B:callapi-result
+  fetch("http://127.0.0.1:7777/event", {
+    method: "POST",
+    body: JSON.stringify({
+      sessionId: "login-error-popup",
+      runId: "pre-fix",
+      hypothesisId: "B",
+      location: "callApi.ts:178",
+      msg: "[DEBUG] callApi result received",
+      data: {
+        apiName: String(apiName),
+        isSucc: result.isSucc,
+        errMessage: result.isSucc ? undefined : result.err?.message,
+        errCode: result.isSucc
+          ? undefined
+          : (result.err as { code?: string } | undefined)?.code,
+      },
+      ts: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   if (result.isSucc) {
     return { isSucc: true, res: result.res };
   }
-  return { isSucc: false, err: { message: result.err?.message ?? "请求失败" } };
+  const message = result.err?.message ?? "请求失败";
+  const code = (result.err as { code?: string } | undefined)?.code;
+  if (code !== "NEED_LOGIN") {
+    // #region debug-point B:callapi-show-error-branch
+    fetch("http://127.0.0.1:7777/event", {
+      method: "POST",
+      body: JSON.stringify({
+        sessionId: "login-error-popup",
+        runId: "pre-fix",
+        hypothesisId: "B",
+        location: "callApi.ts:186",
+        msg: "[DEBUG] callApi entering error display branch",
+        data: { apiName: String(apiName), message, code },
+        ts: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    showApiErrorModal(message);
+  }
+  return { isSucc: false, err: { message } };
 }

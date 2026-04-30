@@ -16,10 +16,6 @@ export default function EditFilePage() {
   const { data, loading, error } = useApi(() =>
     callApi("admin/file/GetDetail", { id: id! }),
   );
-    console.log("route id =", id);
-  console.log("loading =", loading);
-  console.log("error =", error);
-  console.log("data =", data);
 
   useEffect(() => {
     const rawFile = (data as { rawFile?: 沐茵丝假发成品稿 } | undefined)?.rawFile;

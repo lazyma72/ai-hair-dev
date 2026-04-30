@@ -13,12 +13,8 @@ import { to高针指示单Frontend } from "../../shared/frontend/converters/to�
 import type { FileDraftViewModel } from "../../shared/fileDraft/model";
 import { createTestFileDraft } from "../../pages/admin/add-file/defaults";
 import { validate染色档位列表 } from "../../pages/admin/add-file/components/DyeLevelEditor";
-import HandWovenSection from "../../pages/admin/add-file/sections/HandWovenSection";
-import HighNeedleSection from "../../pages/admin/add-file/sections/HighNeedleSection";
-import FileDraftDataSections from "./FileDraftDataSections";
-import DocumentTabs from "./DocumentTabs";
+import FileDraftDocumentSections from "./FileDraftDocumentSections";
 import {
-  toDbPayload,
   toPreviewDbFile,
 } from "../../shared/fileDraft/adapters/toDbPayload";
 import { 假发类型 } from "../../shared/db/Db沐茵丝假发成品稿";
@@ -29,12 +25,6 @@ import {
 } from "../../shared/models/上下分计算尺数";
 
 const MAX_CUT_WEIGHT_ITEMS = 3;
-const EDITOR_TABS = [
-  { key: "制品规格书", label: "制品规格书" },
-  { key: "高针指示单", label: "高针指示单" },
-  { key: "手织指示单", label: "手织指示单" },
-] as const;
-type EditorTabKey = (typeof EDITOR_TABS)[number]["key"];
 type HatMakingOption = {
   _id: string;
   名称?: string;
@@ -81,7 +71,6 @@ export default function FileEditorPage({
   enableSplitDmlSizing = false,
 }: Props) {
   const [form, setForm] = useState<FileDraftViewModel | null>(initialValue);
-  const [activeTab, setActiveTab] = useState<EditorTabKey>("制品规格书");
   const [ratioList, setRatioList] = useState<胶丝比例ListItem[]>([]);
   const [currentRatioDetail, setCurrentRatioDetail] = useState<胶丝比例Frontend | null>(null);
   const [hatMakingList, setHatMakingList] = useState<HatMakingOption[]>([]);
@@ -102,6 +91,11 @@ export default function FileEditorPage({
       loadedDraftIdRef.current = nextId;
     }
   }, [form, initialValue]);
+
+  // `useApi` may set `loading=true` on the next tick, which can cause a brief
+  // empty-state flash when `initialValue` is still null in edit mode.
+  const effectiveLoading =
+    loading || (mode === "edit" && !initialValue && !error);
 
   useEffect(() => {
     if (!form) return;
@@ -265,6 +259,10 @@ export default function FileEditorPage({
     message.success("已填充测试数据");
   }
 
+  function importExcelData(_file: File) {
+    fillTestData();
+  }
+
   async function handleSubmit() {
     if (!form) return;
 
@@ -281,7 +279,6 @@ export default function FileEditorPage({
         const msg = `${f.name}不能为空`;
         setSubmitError(msg);
         message.error(msg);
-        setActiveTab("制品规格书");
         return;
       }
     }
@@ -290,7 +287,6 @@ export default function FileEditorPage({
     if (!dyeCheck.ok) {
       setSubmitError(dyeCheck.message);
       message.error(dyeCheck.message);
-      setActiveTab("制品规格书");
       return;
     }
 
@@ -303,7 +299,6 @@ export default function FileEditorPage({
       const msg = `裁断重量项最多 ${MAX_CUT_WEIGHT_ITEMS} 个`;
       setSubmitError(msg);
       message.error(msg);
-      setActiveTab("制品规格书");
       return;
     }
 
@@ -311,7 +306,6 @@ export default function FileEditorPage({
       const msg = "请先选择高针图 SVG 并完成标注";
       setSubmitError(msg);
       message.error(msg);
-      setActiveTab("高针指示单");
       return;
     }
 
@@ -319,7 +313,6 @@ export default function FileEditorPage({
       const msg = "请先选择手织图 SVG 并完成标注";
       setSubmitError(msg);
       message.error(msg);
-      setActiveTab("手织指示单");
       return;
     }
 
@@ -361,13 +354,6 @@ export default function FileEditorPage({
       actions={actions}
       compact
     >
-      <DocumentTabs
-        items={EDITOR_TABS}
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        compact
-      />
-
       {submitError ? (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
           {submitError}
@@ -375,69 +361,29 @@ export default function FileEditorPage({
       ) : null}
 
       <StatusView
-        loading={loading}
+        loading={effectiveLoading}
         error={error ?? ""}
-        empty={!form}
+        empty={!form && !effectiveLoading}
         emptyText={mode === "add" ? "暂无初始稿件数据" : "暂无稿件数据"}
       >
         {form ? (
-          <div className="space-y-3">
-            {activeTab === "制品规格书" ? (
-              <>
-                {allowTestData ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-amber-900">
-                          测试快捷入口
-                        </div>
-                        <div className="mt-0.5 text-xs text-amber-700">
-                          一键填充制品规格书数据，方便联调与验收。不会自动生成高针图/手织图。
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="rounded bg-amber-500 px-3 py-1 text-sm font-medium text-white hover:bg-amber-400"
-                        onClick={fillTestData}
-                      >
-                        一键填充测试数据
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                <FileDraftDataSections
-                  mode="edit"
-                  value={form}
-                  enableSplitDmlSizing={enableSplitDmlSizing}
-                  onChange={updateForm}
-                  customerList={customerList}
-                hatMakingList={hatMakingList}
-                  当前胶丝比例详情={currentRatioDetail}
-                  发丝种类选项={发丝种类选项}
-                  颜色编号选项={当前发丝种类颜色编号列表}
-                  全部档位名={全部档位名}
-                />
-              </>
-            ) : null}
-
-            {activeTab === "高针指示单" ? (
-              <HighNeedleSection
-                value={form.高针指示单}
-                onChange={(v) => updateForm((prev) => ({ ...prev, 高针指示单: v }))}
-                showJsonImporter={false}
-                previewData={高针数据}
-              />
-            ) : null}
-
-            {activeTab === "手织指示单" ? (
-              <HandWovenSection
-                value={form.手织指示单}
-                onChange={(v) => updateForm((prev) => ({ ...prev, 手织指示单: v }))}
-                previewData={手织数据}
-              />
-            ) : null}
-          </div>
+          <FileDraftDocumentSections
+            mode="edit"
+            value={form}
+            enableSplitDmlSizing={enableSplitDmlSizing}
+            onChange={updateForm}
+            customerList={customerList}
+            hatMakingList={hatMakingList}
+            当前胶丝比例详情={currentRatioDetail}
+            发丝种类选项={发丝种类选项}
+            颜色编号选项={当前发丝种类颜色编号列表}
+            全部档位名={全部档位名}
+            allowTestData={allowTestData}
+            onFillTestData={fillTestData}
+            onImportExcelData={importExcelData}
+            高针数据={高针数据}
+            手织数据={手织数据}
+          />
         ) : null}
       </StatusView>
     </PageShell>
