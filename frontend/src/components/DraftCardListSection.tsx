@@ -10,7 +10,7 @@ export function filterDraftList(
   const kw = keyword.trim().toLowerCase();
   if (!kw) return list;
   return list.filter((item) =>
-    `${item.样品编号} ${item._id} ${item.客户编号} ${item.品名} ${item.CAP} ${item.颜色编号 ?? ""} ${item.发丝种类 ?? ""} ${item.假发类型}`
+    `${item.样品编号} ${item.文件名称 ?? ""} ${item._id} ${item.客户编号} ${item.品名} ${item.CAP} ${item.颜色编号 ?? ""} ${item.发丝种类 ?? ""} ${item.假发类型}`
       .toLowerCase()
       .includes(kw),
   );
@@ -48,6 +48,7 @@ export function DraftCard({
             样品编号：{item.样品编号}
           </div>
           <div className="mt-1 space-y-0.5 text-xs text-slate-500">
+            <div>文件名称：{item.文件名称 || "—"}</div>
             <div>品名：{item.品名}</div>
             <div>原材料：{item.原材料 || "—"}</div>
             <div>颜色编号：{item.颜色编号 || "—"}</div>
@@ -111,7 +112,7 @@ export default function DraftCardListSection({
   emptyText,
   summaryText,
   renderCard,
-  searchPlaceholder = "支持：样品编号 / 客户编号 / 品名 / CAP / 颜色编号 / 发丝种类",
+  searchPlaceholder = "支持：样品编号 / 文件名称 / 客户编号 / 品名 / CAP / 颜色编号 / 发丝种类",
 }: {
   title?: string;
   description?: string;

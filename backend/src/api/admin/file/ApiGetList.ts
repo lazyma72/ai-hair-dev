@@ -186,6 +186,7 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
         projection: {
           _id: 1,
           样品编号: 1,
+          文件名称: 1,
           客户编号: 1,
           品名: 1,
           原材料: 1,
@@ -208,6 +209,7 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
     list: list.map(doc => ({
       _id: doc._id.toHexString(),
       样品编号: doc.样品编号,
+      文件名称: doc.文件名称,
       客户编号: doc.客户编号,
       品名: doc.品名,
       原材料: doc.原材料,

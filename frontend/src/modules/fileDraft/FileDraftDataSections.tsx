@@ -363,6 +363,8 @@ function FileDraftReadonlySections({
         <Section title="基本信息" compact>
           <div>
             <ReadonlyRow label="样品编号" value={value.样品编号} />
+            <ReadonlyRow label="文件名称" value={value.文件名称 || "—"} />
+            <ReadonlyRow label="标签" value={value.tag || "成品稿"} />
             <ReadonlyRow label="假发类型" value={value.假发类型} />
             <ReadonlyRow label="客户编号" value={value.客户编号} />
             <ReadonlyRow label="品名" value={value.品名} />
@@ -695,6 +697,32 @@ function FileDraftEditSections({
                   onChange((prev) => ({ ...prev, 样品编号: e.target.value }));
                 }}
               />
+            </EditableRow>
+            <EditableRow label="文件名称">
+              <input
+                type="text"
+                className={inputCls}
+                value={value.文件名称 ?? ""}
+                placeholder="可选，例如：XM-6190(L).ai"
+                onChange={(e) => {
+                  onChange((prev) => ({ ...prev, 文件名称: e.target.value }));
+                }}
+              />
+            </EditableRow>
+            <EditableRow label="标签">
+              <select
+                className={inputCls}
+                value={value.tag ?? "成品稿"}
+                onChange={(e) => {
+                  onChange((prev) => ({
+                    ...prev,
+                    tag: e.target.value as FileDraftViewModel["tag"],
+                  }));
+                }}
+              >
+                <option value="成品稿">成品稿</option>
+                <option value="草稿">草稿</option>
+              </select>
             </EditableRow>
             <EditableRow label="假发类型">
               <select

@@ -119,7 +119,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 32,
+    "version": 33,
     "services": [
         {
             "id": 9,
@@ -3537,6 +3537,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "type": {
                         "type": "String"
                     }
+                },
+                {
+                    "id": 12,
+                    "name": "文件名称",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
                 },
                 {
                     "id": 5,

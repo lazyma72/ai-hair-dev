@@ -82,6 +82,19 @@ export default function FileDetailPage() {
             </button>
             <button
               type="button"
+              className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() => {
+                navigate("/designs/create/manual", {
+                  state: {
+                    copyFromId: id,
+                  },
+                });
+              }}
+            >
+              另存为
+            </button>
+            <button
+              type="button"
               className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
               onClick={() => navigate(`/designs/${id}/edit`)}
             >

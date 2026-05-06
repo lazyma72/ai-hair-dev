@@ -13,6 +13,7 @@ import EditFilePage from "./pages/admin/EditFilePage";
 import LoginPage from "./pages/auth/LoginPage";
 import CdrToSvgPage from "./pages/dev/CdrToSvgPage";
 import HandWovenAnnotatorPage from "./pages/dev/HandWovenAnnotatorPage";
+import HandWovenInstructionTestPage from "./pages/dev/HandWovenInstructionTestPage";
 import HighNeedleAnnotatorDemoPage from "./pages/dev/HighNeedleAnnotatorDemo";
 import HighNeedlePreviewPage from "./pages/dev/HighNeedlePreviewPage";
 import TestPagesHome from "./pages/dev/TestPagesHome";
@@ -120,6 +121,10 @@ function App() {
           <Route
             path="/test/hand-woven-annotator"
             element={<HandWovenAnnotatorPage />}
+          />
+          <Route
+            path="/test/hand-woven-instruction"
+            element={<HandWovenInstructionTestPage />}
           />
           <Route
             path="/test/high-needle-annotator"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import { useApi } from "../../hooks/useApi";
@@ -6,21 +6,18 @@ import FileEditorPage from "../../modules/fileDraft/FileEditorPage";
 import { fromDbToFileDraftViewModel } from "../../shared/fileDraft/adapters/fromDbToFileDraftViewModel";
 import { toDbPayload } from "../../shared/fileDraft/adapters/toDbPayload";
 import type { 沐茵丝假发成品稿 } from "../../shared/db/Db沐茵丝假发成品稿";
-import type { FileDraftViewModel } from "../../shared/fileDraft/model";
 
 export default function EditFilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [form, setForm] = useState<FileDraftViewModel | null>(null);
 
   const { data, loading, error } = useApi(() =>
     callApi("admin/file/GetDetail", { id: id! }),
   );
 
-  useEffect(() => {
+  const form = useMemo(() => {
     const rawFile = (data as { rawFile?: 沐茵丝假发成品稿 } | undefined)?.rawFile;
-    if (!rawFile) return;
-    setForm(fromDbToFileDraftViewModel(rawFile));
+    return rawFile ? fromDbToFileDraftViewModel(rawFile) : null;
   }, [data]);
 
   return (

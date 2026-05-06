@@ -42,6 +42,11 @@ export default function TestPagesHome() {
           to="/test/hand-woven-annotator"
         />
         <TestEntryCard
+          title="手织指示单测试页面"
+          desc="按手织指示单结构分开编辑整张 SVG 与横排/方形类型生成列表。"
+          to="/test/hand-woven-instruction"
+        />
+        <TestEntryCard
           title="高针标注 Demo"
           desc="导入 SVG 后在页面内完成高针图标注流程。"
           to="/test/high-needle-annotator"
