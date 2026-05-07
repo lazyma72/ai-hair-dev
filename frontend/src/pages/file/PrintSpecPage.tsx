@@ -48,7 +48,9 @@ function resolveImg(src: string): string {
 function getSvgAspectRatio(svg: string): number {
   if (!svg.trim()) return 3;
 
-  const viewBoxMatch = svg.match(/viewBox=["']\s*([-\d.]+)[ ,]+([-\d.]+)[ ,]+([-\d.]+)[ ,]+([-\d.]+)\s*["']/i);
+  const viewBoxMatch = svg.match(
+    /viewBox=["']\s*([-\d.]+)[ ,]+([-\d.]+)[ ,]+([-\d.]+)[ ,]+([-\d.]+)\s*["']/i,
+  );
   if (viewBoxMatch) {
     const width = Number(viewBoxMatch[3]);
     const height = Number(viewBoxMatch[4]);
@@ -291,9 +293,13 @@ function MachineTable({ rows }: { rows: MachineRow[] }) {
                 <TD>{格式化可选定位小数(cut.裁断, 2)}</TD>
                 {ci === 0 && (
                   <>
-                    <TD rs={cuts.length}>{格式化四分之一分数(row.整毛.拉尖)}</TD>
+                    <TD rs={cuts.length}>
+                      {格式化四分之一分数(row.整毛.拉尖)}
+                    </TD>
                     {show对裁 && (
-                      <TD rs={cuts.length}>{格式化四分之一分数(row.整毛.对裁)}</TD>
+                      <TD rs={cuts.length}>
+                        {格式化四分之一分数(row.整毛.对裁)}
+                      </TD>
                     )}
                   </>
                 )}
@@ -302,17 +308,31 @@ function MachineTable({ rows }: { rows: MachineRow[] }) {
                 <TD>{格式化可选定位小数(cut.重量g?.L, 2)}</TD>
                 {ci === 0 && (
                   <>
-                    <TD rs={cuts.length}>{格式化四分之一分数(row.双针.毛长)}</TD>
-                    <TD rs={cuts.length}>{格式化可选定位小数(row.双针.尺数.D, 2)}</TD>
+                    <TD rs={cuts.length}>
+                      {格式化四分之一分数(row.双针.毛长)}
+                    </TD>
+                    <TD rs={cuts.length}>
+                      {格式化可选定位小数(row.双针.尺数.D, 2)}
+                    </TD>
                     {showM && (
-                      <TD rs={cuts.length}>{格式化可选定位小数(row.双针.尺数.M, 2)}</TD>
+                      <TD rs={cuts.length}>
+                        {格式化可选定位小数(row.双针.尺数.M, 2)}
+                      </TD>
                     )}
-                    <TD rs={cuts.length}>{格式化可选定位小数(row.双针.尺数.L, 2)}</TD>
-                    <TD rs={cuts.length}>{格式化可选定位小数(row.双针.密度, 2)}</TD>
+                    <TD rs={cuts.length}>
+                      {格式化可选定位小数(row.双针.尺数.L, 2)}
+                    </TD>
+                    <TD rs={cuts.length}>
+                      {格式化可选定位小数(row.双针.密度, 2)}
+                    </TD>
                     <TD rs={cuts.length}>{row.形态 ?? "—"}</TD>
-                    <TD rs={cuts.length}>{格式化可选定位小数(row.美容.铝管, 2)}</TD>
+                    <TD rs={cuts.length}>
+                      {格式化可选定位小数(row.美容.铝管, 2)}
+                    </TD>
                     <TD rs={cuts.length}>{row.美容.方向 || "—"}</TD>
-                    <TD rs={cuts.length}>{格式化可选定位小数(row.美容.层数, 2)}</TD>
+                    <TD rs={cuts.length}>
+                      {格式化可选定位小数(row.美容.层数, 2)}
+                    </TD>
                     <TD rs={cuts.length} left>
                       {row.备注 ?? "—"}
                     </TD>
@@ -398,9 +418,13 @@ function ManualTable({ rows }: { rows: ManualRow[] }) {
                 <TD>{格式化可选定位小数(cut.裁断, 2)}</TD>
                 {ci === 0 && (
                   <>
-                    <TD rs={cuts.length}>{格式化四分之一分数(row.整毛.拉尖)}</TD>
+                    <TD rs={cuts.length}>
+                      {格式化四分之一分数(row.整毛.拉尖)}
+                    </TD>
                     {show对裁 && (
-                      <TD rs={cuts.length}>{格式化四分之一分数(row.整毛.对裁)}</TD>
+                      <TD rs={cuts.length}>
+                        {格式化四分之一分数(row.整毛.对裁)}
+                      </TD>
                     )}
                   </>
                 )}
@@ -409,13 +433,19 @@ function ManualTable({ rows }: { rows: ManualRow[] }) {
                 <TD>{格式化可选定位小数(cut.重量g?.L, 2)}</TD>
                 {ci === 0 && (
                   <>
-                    <TD rs={cuts.length}>{格式化四分之一分数(row.双针.毛长)}</TD>
+                    <TD rs={cuts.length}>
+                      {格式化四分之一分数(row.双针.毛长)}
+                    </TD>
                     <TD rs={cuts.length}>
                       {row.双针.磅发 != null ? `磅${row.双针.磅发}g/扎` : "—"}
                     </TD>
-                    <TD rs={cuts.length}>{格式化可选定位小数(row.双针.密度, 2)}</TD>
+                    <TD rs={cuts.length}>
+                      {格式化可选定位小数(row.双针.密度, 2)}
+                    </TD>
                     <TD rs={cuts.length}>{row.形态 ?? "—"}</TD>
-                    <TD rs={cuts.length}>{格式化可选定位小数(row.美容.铝管, 2)}</TD>
+                    <TD rs={cuts.length}>
+                      {格式化可选定位小数(row.美容.铝管, 2)}
+                    </TD>
                     <TD rs={cuts.length}>{row.位置 ?? "—"}</TD>
                     <TD rs={cuts.length} left>
                       {row.备注 ?? "—"}
@@ -469,7 +499,12 @@ function DyeRatioSection({ data }: { data: 制品规格书Frontend }) {
           <tbody>
             {rows.map((r, i) => {
               // 兼容“发丝”或“发丝种类”字段
-              const hair = (r as any).发丝 ?? (r as any)["发丝"] ?? (r as any).发丝种类 ?? (r as any)["发丝种类"] ?? "—";
+              const hair =
+                (r as any).发丝 ??
+                (r as any)["发丝"] ??
+                (r as any).发丝种类 ??
+                (r as any)["发丝种类"] ??
+                "—";
               return (
                 <tr key={i}>
                   <TD>{hair}</TD>
@@ -589,15 +624,35 @@ function getRectsBottom(rects: FloatRect[]): number {
 
 function BottomSection({ data }: { data: 制品规格书Frontend }) {
   const { 工艺说明, 工程重量, 发型图片, 染色档位列表, 制帽 } = data;
+  const imageCanvasHeight = 140;
+  const svgCanvasHeight = useMemo(
+    () =>
+      Math.max(
+        80,
+        getRectsBottom(
+          layoutFloatRects((染色档位列表 ?? []).length, (index) => {
+            const svg = buildPreviewSvg(染色档位列表[index]);
+            const state = createInitialSvgState(svg || "");
+            return { w: state.w, h: state.h };
+          }),
+        ),
+      ),
+    [染色档位列表],
+  );
 
-  const weightRows: { key: (typeof WEIGHT_KEYS)[number]; item: WeightItem }[] = WEIGHT_KEYS
-    .map((key) => {
+  const weightRows: { key: (typeof WEIGHT_KEYS)[number]; item: WeightItem }[] =
+    WEIGHT_KEYS.map((key) => {
       const item = (工程重量 as Record<string, unknown>)[key];
-      return typeof item === "object" && item !== null && "加减" in item && "数值" in item
+      return typeof item === "object" &&
+        item !== null &&
+        "加减" in item &&
+        "数值" in item
         ? { key, item: item as WeightItem }
         : null;
-    })
-    .filter((x): x is { key: (typeof WEIGHT_KEYS)[number]; item: WeightItem } => x !== null);
+    }).filter(
+      (x): x is { key: (typeof WEIGHT_KEYS)[number]; item: WeightItem } =>
+        x !== null,
+    );
 
   const 工艺条目 = Object.entries(工艺说明 ?? {});
 
@@ -621,7 +676,10 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
 
   React.useEffect(() => {
     setImgStates(
-      layoutFloatRects(Math.min(发型图片.length, 2), () => ({ w: 120, h: 120 })),
+      layoutFloatRects(Math.min(发型图片.length, 2), () => ({
+        w: 120,
+        h: 120,
+      })),
     );
   }, [发型图片]);
 
@@ -676,13 +734,17 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
       if (type === "img") {
         setImgStates((prev) =>
           prev.map((s, i) =>
-            i === idx ? { ...s, w: Math.max(40, w + dw), h: Math.max(40, h + dh) } : s,
+            i === idx
+              ? { ...s, w: Math.max(40, w + dw), h: Math.max(40, h + dh) }
+              : s,
           ),
         );
       } else {
         setSvgStates((prev) =>
           prev.map((s, i) =>
-            i === idx ? { ...s, w: Math.max(40, w + dw), h: Math.max(20, h + dh) } : s,
+            i === idx
+              ? { ...s, w: Math.max(40, w + dw), h: Math.max(20, h + dh) }
+              : s,
           ),
         );
       }
@@ -707,7 +769,13 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
       >
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={SECTION_HEADER}>制帽</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", height: "100%" }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              height: "100%",
+            }}
+          >
             <tbody>
               {制帽行.map(({ label, value }) => (
                 <tr key={label}>
@@ -741,7 +809,13 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
 
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={SECTION_HEADER}>工艺说明</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", height: "100%" }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              height: "100%",
+            }}
+          >
             <tbody>
               {工艺条目.map(([key, val]) => (
                 <tr key={key}>
@@ -772,8 +846,16 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={SECTION_HEADER}>工程重量（{格式化定位小数(data.当前重量, 2)}g）</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", height: "100%" }}>
+          <div style={SECTION_HEADER}>
+            工程重量（{格式化定位小数(data.当前重量, 2)}g）
+          </div>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              height: "100%",
+            }}
+          >
             <thead>
               <tr>
                 <TH>工序</TH>
@@ -816,7 +898,9 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
           style={{
             display: "grid",
             gridTemplateColumns:
-              发型图片.length > 0 && 染色档位列表.length > 0 ? "1fr 1fr" : "1fr",
+              发型图片.length > 0 && 染色档位列表.length > 0
+                ? "1fr 1fr"
+                : "1fr",
             gap: "4px",
             alignItems: "start",
           }}
@@ -828,7 +912,8 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
                 style={{
                   position: "relative",
                   width: "100%",
-                  minHeight: Math.max(140, getRectsBottom(imgStates)),
+                  height: imageCanvasHeight,
+                  overflow: "hidden",
                 }}
               >
                 {发型图片.slice(0, 2).map((src, i) => {
@@ -852,8 +937,14 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
                         zIndex: 10 + i,
                       }}
                       onMouseDown={(e) => {
-                        const rect = (e.target as HTMLElement).getBoundingClientRect();
-                        if (e.clientX > rect.right - 18 && e.clientY > rect.bottom - 18) return;
+                        const rect = (
+                          e.target as HTMLElement
+                        ).getBoundingClientRect();
+                        if (
+                          e.clientX > rect.right - 18 &&
+                          e.clientY > rect.bottom - 18
+                        )
+                          return;
                         startDrag("img", i, e);
                       }}
                     >
@@ -885,7 +976,13 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
                         title="拖动缩放图片"
                       >
                         <div
-                          style={{ width: 12, height: 12, background: "#aab", borderRadius: 3, opacity: 0.7 }}
+                          style={{
+                            width: 12,
+                            height: 12,
+                            background: "#aab",
+                            borderRadius: 3,
+                            opacity: 0.7,
+                          }}
                         />
                       </div>
                     </div>
@@ -902,7 +999,8 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
                 style={{
                   position: "relative",
                   width: "100%",
-                  minHeight: Math.max(80, getRectsBottom(svgStates)),
+                  height: svgCanvasHeight,
+                  overflow: "hidden",
                 }}
               >
                 {染色档位列表.map((item, i) => {
@@ -929,8 +1027,14 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
                         zIndex: 10 + i,
                       }}
                       onMouseDown={(e) => {
-                        const rect = (e.target as HTMLElement).getBoundingClientRect();
-                        if (e.clientX > rect.right - 18 && e.clientY > rect.bottom - 18) return;
+                        const rect = (
+                          e.target as HTMLElement
+                        ).getBoundingClientRect();
+                        if (
+                          e.clientX > rect.right - 18 &&
+                          e.clientY > rect.bottom - 18
+                        )
+                          return;
                         startDrag("svg", i, e);
                       }}
                     >
@@ -955,7 +1059,13 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
                         title="拖动缩放染色档位图"
                       >
                         <div
-                          style={{ width: 12, height: 12, background: "#aab", borderRadius: 3, opacity: 0.7 }}
+                          style={{
+                            width: 12,
+                            height: 12,
+                            background: "#aab",
+                            borderRadius: 3,
+                            opacity: 0.7,
+                          }}
                         />
                       </div>
                     </div>
@@ -1020,7 +1130,7 @@ function PaperPreviewCard({
       className="psp-print-doc"
       style={{
         width: `${A4_W_MM * zoom}mm`,
-        minHeight: `${A4_H_MM * zoom}mm`,
+        height: `${A4_H_MM * zoom}mm`,
         margin: "0 auto 24px",
       }}
     >
@@ -1069,14 +1179,14 @@ function PaperPreviewCard({
         style={{
           position: "relative",
           width: `${A4_W_MM * zoom}mm`,
-          minHeight: `${A4_H_MM * zoom}mm`,
+          height: `${A4_H_MM * zoom}mm`,
         }}
       >
         <div
           className="psp-a4-page"
           style={{
             width: "210mm",
-            minHeight: "297mm",
+            height: "297mm",
             background: "white",
             transform: `scale(${zoom})`,
             transformOrigin: "top left",
@@ -1087,7 +1197,7 @@ function PaperPreviewCard({
             boxSizing: "border-box",
             borderRadius: "3px",
             border: "1px solid rgba(15,23,42,0.08)",
-            overflow: "visible",
+            overflow: "hidden",
           }}
         >
           <div
@@ -1115,12 +1225,13 @@ function PaperPreviewCard({
           <div
             style={{
               border: "1.5px solid #000",
-              minHeight: "calc(297mm - 18mm)",
+              height: "calc(297mm - 18mm)",
               boxSizing: "border-box",
               padding: "3mm 3mm 3.5mm",
               display: "flex",
               flexDirection: "column",
               background: "#fff",
+              overflow: "hidden",
             }}
           >
             {children}
@@ -1144,34 +1255,38 @@ function PaperPreviewCard({
   );
 }
 
-const PRINT_INFO_TH: React.CSSProperties = {
-  ...TH_STYLE,
-  width: "58px",
-  whiteSpace: "nowrap",
-  textAlign: "center",
+type PrintTitleField = {
+  label: string;
+  value: React.ReactNode;
+  cs?: number;
+  labelStyle?: React.CSSProperties;
+  valueStyle?: React.CSSProperties;
 };
 
-function PrintInfoTable({
-  rows,
-}: {
-  rows: Array<{ label: string; value: React.ReactNode }>;
-}) {
+function PrintTitleSection({ rows }: { rows: PrintTitleField[][] }) {
+  const defaultLabelWidth = "52px";
   return (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <tbody>
-        {rows.map(({ label, value }) => (
-          <tr key={label}>
-            <th style={PRINT_INFO_TH}>{label}</th>
-            <td
-              style={{
-                ...BASE_CELL,
-                textAlign: "left",
-                padding: "2px 4px",
-                wordBreak: "break-all",
-              }}
-            >
-              {value || "—"}
-            </td>
+        {rows.map((row, rowIndex) => (
+          <tr key={rowIndex}>
+            {row.map(({ label, value, cs, labelStyle, valueStyle }) => (
+              <React.Fragment key={`${rowIndex}-${label}`}>
+                <TH style={{ width: defaultLabelWidth, ...labelStyle }}>
+                  {label}
+                </TH>
+                <TD
+                  left
+                  cs={cs}
+                  style={{
+                    wordBreak: "break-all",
+                    ...valueStyle,
+                  }}
+                >
+                  {value}
+                </TD>
+              </React.Fragment>
+            ))}
           </tr>
         ))}
       </tbody>
@@ -1262,10 +1377,11 @@ function PrintNeedleFigure({
         style={{
           border: boxed ? "1px solid #000" : "none",
           padding: boxed ? "2mm" : 0,
-          minHeight: `${Math.max(figureHeight, rect.y + rect.h)}px`,
+          height: figureHeight,
           boxSizing: "border-box",
           background: "#fff",
           position: "relative",
+          overflow: "hidden",
         }}
       >
         {previewSvg ? (
@@ -1317,7 +1433,9 @@ function PrintNeedleFigure({
             </div>
           </div>
         ) : (
-          <div style={{ color: "#888", fontSize: "10pt", padding: "8px" }}>暂无图示</div>
+          <div style={{ color: "#888", fontSize: "10pt", padding: "8px" }}>
+            暂无图示
+          </div>
         )}
       </div>
     </div>
@@ -1356,7 +1474,9 @@ function PrintHighNeedleTable({
               <TD>{row.形态 || "—"}</TD>
               <TD>{row.管径 ?? "—"}</TD>
               <TD>{row.方向 || "—"}</TD>
-              <TD style={{ ...BASE_CELL, textAlign: "left", padding: "2px 4px" }}>
+              <TD
+                style={{ ...BASE_CELL, textAlign: "left", padding: "2px 4px" }}
+              >
                 {row.备注 || "—"}
               </TD>
             </tr>
@@ -1399,7 +1519,9 @@ function PrintHandWovenTable({
               <TD>{row.重量.D ?? "—"}</TD>
               <TD>{row.重量.M ?? "—"}</TD>
               <TD>{row.重量.L ?? "—"}</TD>
-              <TD style={{ ...BASE_CELL, textAlign: "left", padding: "2px 4px" }}>
+              <TD
+                style={{ ...BASE_CELL, textAlign: "left", padding: "2px 4px" }}
+              >
                 {row.位置 || "—"}
               </TD>
             </tr>
@@ -1415,8 +1537,13 @@ function PrintHandWovenTable({
 }
 
 function PrintHighNeedleDoc({ data }: { data: 高针指示单Frontend }) {
+  const weightText =
+    data.title.重量 == null ? "—" : `${格式化定位小数(data.title.重量, 2)}g`;
+
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+    <div
+      style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}
+    >
       <div
         style={{
           textAlign: "center",
@@ -1430,21 +1557,50 @@ function PrintHighNeedleDoc({ data }: { data: 高针指示单Frontend }) {
       >
         高针指示单
       </div>
-      <PrintInfoTable
+      <PrintTitleSection
         rows={[
-          { label: "样品编号", value: data.title.样品编号 },
-          { label: "客户编号", value: data.title.客户编号 },
-          { label: "品名", value: data.title.品名 },
-          { label: "尺寸", value: data.title.尺寸 },
-          { label: "原料", value: data.title.原料 },
-          { label: "CAP", value: data.title.CAP },
-          {
-            label: "重量",
-            value:
-              data.title.重量 == null
-                ? "—"
-                : `${格式化定位小数(data.title.重量, 2)}g`,
-          },
+          [
+            {
+              label: "样品编号",
+              value: data.title.样品编号,
+              valueStyle: { width: "14%" },
+            },
+            {
+              label: "客户编号",
+              value: data.title.客户编号,
+              valueStyle: { width: "10%" },
+            },
+            {
+              label: "品名",
+              value: data.title.品名,
+              cs: 3,
+              labelStyle: { width: "36px" },
+            },
+            {
+              label: "尺寸",
+              value: data.title.尺寸,
+              labelStyle: { width: "36px" },
+              valueStyle: { width: "14%" },
+            },
+          ],
+          [
+            {
+              label: "原料",
+              value: data.title.原料,
+              cs: 5,
+            },
+            {
+              label: "CAP",
+              value: data.title.CAP,
+              labelStyle: { width: "40px" },
+            },
+            {
+              label: "重量",
+              value: weightText,
+              labelStyle: { width: "40px" },
+              valueStyle: { width: "14%" },
+            },
+          ],
         ]}
       />
       <div style={SECTION_HEADER}>机器规格清单（高针图版）</div>
@@ -1476,7 +1632,9 @@ function PrintHandWovenDoc({ data }: { data: 手织指示单Frontend }) {
   }, [data.手织图]);
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+    <div
+      style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}
+    >
       <div
         style={{
           textAlign: "center",
@@ -1490,16 +1648,55 @@ function PrintHandWovenDoc({ data }: { data: 手织指示单Frontend }) {
       >
         手织指示单
       </div>
-      <PrintInfoTable
+      <PrintTitleSection
         rows={[
-          { label: "样品编号", value: data.title.样品编号 },
-          { label: "客户编号", value: data.title.客户编号 },
-          { label: "品名", value: data.title.品名 },
-          { label: "尺寸", value: data.title.尺寸 },
-          { label: "原材料", value: data.title.原材料 },
-          { label: "颜色编号", value: data.title.颜色编号 },
-          { label: "CAP", value: data.title.CAP },
-          { label: "重量", value: `${data.title.重量}g` },
+          [
+            {
+              label: "样品编号",
+              value: data.title.样品编号,
+              valueStyle: { width: "14%" },
+            },
+            {
+              label: "客户编号",
+              value: data.title.客户编号,
+              valueStyle: { width: "10%" },
+            },
+            {
+              label: "品名",
+              value: data.title.品名,
+              cs: 3,
+              labelStyle: { width: "36px" },
+            },
+            {
+              label: "尺寸",
+              value: data.title.尺寸,
+              labelStyle: { width: "36px" },
+              valueStyle: { width: "14%" },
+            },
+          ],
+          [
+            {
+              label: "原材料",
+              value: data.title.原材料,
+              cs: 3,
+            },
+            {
+              label: "颜色编号",
+              value: data.title.颜色编号,
+              labelStyle: { width: "52px" },
+            },
+            {
+              label: "CAP",
+              value: data.title.CAP,
+              labelStyle: { width: "40px" },
+            },
+            {
+              label: "重量",
+              value: `${data.title.重量}g`,
+              labelStyle: { width: "40px" },
+              valueStyle: { width: "14%" },
+            },
+          ],
         ]}
       />
       <div style={SECTION_HEADER}>人工规格清单（手织图版）</div>
@@ -1508,15 +1705,14 @@ function PrintHandWovenDoc({ data }: { data: 手织指示单Frontend }) {
         <div>
           <div style={SECTION_HEADER}>间色比例</div>
           <div style={{ border: "1px solid #000", padding: "2mm" }}>
-            <InlineSvg svg={ratioPreviewSvg} style={{ width: "100%", height: "auto" }} />
+            <InlineSvg
+              svg={ratioPreviewSvg}
+              style={{ width: "100%", height: "auto" }}
+            />
           </div>
         </div>
       )}
-      <PrintNeedleFigure
-        title="手织图"
-        svg={data.手织图片}
-        boxed={false}
-      />
+      <PrintNeedleFigure title="手织图" svg={data.手织图片} boxed={false} />
     </div>
   );
 }
@@ -1677,7 +1873,9 @@ export default function PrintSpecPage() {
           ← 返回
         </button>
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span style={{ fontWeight: 700, letterSpacing: "0.04em" }}>打印预览</span>
+          <span style={{ fontWeight: 700, letterSpacing: "0.04em" }}>
+            打印预览
+          </span>
           <span style={{ color: "#9ca3af", fontSize: "12px" }}>
             A4 竖版 · 8mm 页边距 · 拖动手柄调整区块顺序
           </span>

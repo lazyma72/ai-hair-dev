@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import DownloadSvgButton from "../../components/DownloadSvgButton";
 import Section from "../../components/Section";
-import EmbeddedHighNeedleEditor from "../../pages/editor/EmbeddedHighNeedleEditor";
 import type { 高针指示单 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { 高针指示单Frontend } from "../../shared/frontend/model/model";
 import { inputCls } from "../../pages/admin/add-file/components/ui";
@@ -11,6 +10,7 @@ type Props = {
   mode: "edit" | "readonly";
   value: 高针指示单;
   onChange?: (v: 高针指示单) => void;
+  onOpenSvgEditor?: () => void;
   previewData?: 高针指示单Frontend | null;
   showJsonImporter?: boolean;
   hideUploader?: boolean;
@@ -20,27 +20,14 @@ export default function HighNeedleBlock({
   mode,
   value,
   onChange,
+  onOpenSvgEditor,
   previewData,
 }: Props) {
   const isEdit = mode === "edit";
-  const [expanded, setExpanded] = useState(false);
   const fileName = useMemo(() => {
     const svg = value.高针图?.svg?.trim() ?? "";
     return svg ? "已导入 SVG" : null;
   }, [value.高针图?.svg]);
-
-  useEffect(() => {
-    if (!expanded) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setExpanded(false);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [expanded]);
 
   if (!isEdit) {
     const preview = previewData?.高针图数据 ?? value.高针图;
@@ -107,6 +94,12 @@ export default function HighNeedleBlock({
     );
   }
 
+  const preview = previewData?.高针图数据 ?? value.高针图;
+  const downloadSvg = previewData?.高针图svg || preview?.svg || "";
+  const downloadFilename = `${
+    previewData?.title?.样品编号 || "high-needle"
+  }-high-needle.svg`;
+
   return (
     <div className="space-y-5">
       <Section title="高针指示单">
@@ -128,32 +121,56 @@ export default function HighNeedleBlock({
 
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs text-slate-500">
-              {fileName
-                ? `当前：${fileName}`
-                : "请在编辑器内的文件菜单导入高针图 SVG"}
+              {fileName ? `当前：${fileName}` : "当前仅展示已导入的高针图 SVG"}
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
-                onClick={() => setExpanded(true)}
+                className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!onOpenSvgEditor}
+                onClick={onOpenSvgEditor}
               >
-                放大标注
+                {preview?.svg?.trim() ? "进入 SVG 编辑器" : "导入并编辑 SVG"}
               </button>
+              {preview?.svg?.trim() ? (
+                <>
+                  <button
+                    type="button"
+                    className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!preview}
+                    onClick={() => {
+                      if (!preview) return;
+                      const blob = new Blob([JSON.stringify(preview, null, 2)], {
+                        type: "application/json;charset=utf-8",
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${
+                        previewData?.title?.样品编号 || "high-needle"
+                      }-high-needle.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    导出 JSON
+                  </button>
+                  <DownloadSvgButton
+                    svg={downloadSvg}
+                    filename={downloadFilename}
+                  />
+                </>
+              ) : null}
             </div>
           </div>
 
-          {/* 单实例编辑器：通过 CSS 切换展开/收起，避免条件渲染引起的重挂载和 SVG 重导入 */}
-          <div className={expanded ? "fixed inset-0 z-[90] bg-white" : ""}>
-            <EmbeddedHighNeedleEditor
-              heightClassName={
-                expanded ? "h-full min-h-0" : "h-[60vh] min-h-[520px]"
-              }
-              value={value.高针图}
-              onChange={(v) => onChange?.({ ...value, 高针图: v })}
-              fileName={fileName}
-            />
-          </div>
+          {preview?.svg?.trim() ? (
+            <HighNeedlePreview value={preview} />
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+              暂无高针图 SVG，可在数据源中导入后在此预览。
+            </div>
+          )}
         </div>
       </Section>
     </div>

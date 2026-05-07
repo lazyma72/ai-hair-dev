@@ -31,6 +31,8 @@ export type 手织图间色比例 =
     }
 
 export interface 手织图 {
+  /** 编辑器文档 JSON，优先作为编辑真源使用 */
+  json: string
   /** 手织图原始 SVG 字符串 */
   svg: string
   间色比例: 手织图间色比例

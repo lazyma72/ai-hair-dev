@@ -17,16 +17,24 @@ export default async function (call: ApiCall<ReqUpdate, ResUpdate>) {
     return call.error("找不到对应的成品稿", { code: "NOT_FOUND" })
   }
   const objectId = new ObjectId(id)
+  const {
+    createTime: _ignoredCreateTime,
+    updateTime: _ignoredUpdateTime,
+    ...clientFile
+  } = file as typeof file & {
+    createTime?: Date
+    updateTime?: Date
+  }
   const normalizedInput = {
-    ...file,
-    染色档位列表: normalize染色档位列表(file.染色档位列表),
+    ...clientFile,
+    染色档位列表: normalize染色档位列表(clientFile.染色档位列表),
     高针指示单: {
-      ...file.高针指示单,
-      高针图: normalize高针图(file.高针指示单?.高针图),
+      ...clientFile.高针指示单,
+      高针图: normalize高针图(clientFile.高针指示单?.高针图),
     },
     手织指示单: {
-      ...file.手织指示单,
-      手织图: normalize手织图(file.手织指示单?.手织图),
+      ...clientFile.手织指示单,
+      手织图: normalize手织图(clientFile.手织指示单?.手织图),
     },
   }
 

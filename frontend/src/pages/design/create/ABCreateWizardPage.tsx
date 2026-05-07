@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { callApi } from "../../../api/callApi";
 import DraftCardListSection, {
   DraftCard,
@@ -27,6 +27,7 @@ import type {
 } from "../../../shared/protocols/admin/file/PtlGetList";
 import 高针指示单View from "../../file/sections/高针指示单View";
 import 手织指示单View from "../../file/sections/手织指示单View";
+import { loadFileDraftSession } from "../../../modules/fileDraft/fileDraftSessionBridge";
 
 const STEPS = ["选择A稿", "选择B稿", "预览C稿"] as const;
 const PREVIEW_TABS = [
@@ -88,6 +89,7 @@ function fetchFileList(req: {
 
 export default function ABCreateWizardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState(0);
   const [aId, setAId] = useState<string>("");
   const [bId, setBId] = useState<string>("");
@@ -100,6 +102,11 @@ export default function ABCreateWizardPage() {
   const [loadingC, setLoadingC] = useState(false);
   const [errorC, setErrorC] = useState("");
   const [cDraft, setCDraft] = useState<FileDraftViewModel | null>(null);
+  const [restoredFromSession, setRestoredFromSession] = useState(false);
+  const draftKey = useMemo(
+    () => new URLSearchParams(location.search).get("draftKey")?.trim() ?? "",
+    [location.search],
+  );
 
   const aListState = useApi(() =>
     fetchFileList({
@@ -129,11 +136,25 @@ export default function ABCreateWizardPage() {
   const filteredBList = useMemo(() => filterDraftList(bList, bKeyword), [bKeyword, bList]);
 
   useEffect(() => {
+    if (!draftKey) return;
+    const restoredDraft = loadFileDraftSession(draftKey);
+    if (!restoredDraft) return;
+    setCDraft(restoredDraft);
+    setEditing(true);
+    setStep(2);
+    setRestoredFromSession(true);
+  }, [draftKey]);
+
+  useEffect(() => {
     // A/B 变化时，清空 C 草稿，避免引用旧数据
+    if (restoredFromSession && !aId && !bId) return;
     setCDraft(null);
     setErrorC("");
+    if (restoredFromSession) {
+      setRestoredFromSession(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aId, bId]);
+  }, [aId, bId, restoredFromSession]);
 
   useEffect(() => {
     reloadBList();

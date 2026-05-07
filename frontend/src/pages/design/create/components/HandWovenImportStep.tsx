@@ -18,7 +18,7 @@ type Props = {
 
 export default function HandWovenImportStep({
   title = "导入手织图",
-  description = "请选择手织图类型并上传 SVG，在当前页面完成生成与编辑。",
+  description = "请选择手织图类型并上传 SVG，在当前页面完成生成与预览。",
   value,
   onChange,
   fileName,

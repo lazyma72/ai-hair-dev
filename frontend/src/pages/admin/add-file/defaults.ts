@@ -70,6 +70,7 @@ export const emptyFile = (): FileDraftViewModel => ({
   高针指示单: {
     注意事项: "",
     高针图: {
+      json: "",
       svg: "",
       车线: [],
       标注样式: {},

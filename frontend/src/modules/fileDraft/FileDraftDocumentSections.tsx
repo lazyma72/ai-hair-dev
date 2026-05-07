@@ -11,10 +11,10 @@ import type {
 } from "../../shared/frontend/model/model";
 import Section from "../../components/Section";
 import FileDraftDataSections from "./FileDraftDataSections";
-import HighNeedleSection from "../../pages/admin/add-file/sections/HighNeedleSection";
 import HandWovenSection from "../../pages/admin/add-file/sections/HandWovenSection";
 import 高针指示单View from "../../pages/file/sections/高针指示单View";
 import 手织指示单View from "../../pages/file/sections/手织指示单View";
+import HighNeedleBlock from "./HighNeedleBlock";
 
 type HatMakingOption = {
   _id: string;
@@ -40,6 +40,8 @@ type EditProps = CommonProps & {
   mode: "edit";
   enableSplitDmlSizing?: boolean;
   onChange: React.Dispatch<React.SetStateAction<FileDraftViewModel>>;
+  onOpenHighNeedleSvgEditor?: () => void;
+  onOpenHandWovenSvgEditor?: () => void;
   customerList: DbCustomer[];
   当前胶丝比例详情?: 胶丝比例Frontend | null;
   发丝种类选项?: string[];
@@ -150,12 +152,13 @@ export default function FileDraftDocumentSections(props: Props) {
       </Section>
 
       {props.mode === "edit" ? (
-        <HighNeedleSection
+        <HighNeedleBlock
+          mode="edit"
           value={props.value.高针指示单}
           onChange={(v) =>
             props.onChange((prev) => ({ ...prev, 高针指示单: v }))
           }
-          showJsonImporter={false}
+          onOpenSvgEditor={props.onOpenHighNeedleSvgEditor}
           previewData={props.高针数据}
         />
       ) : props.高针数据 ? (
@@ -168,6 +171,7 @@ export default function FileDraftDocumentSections(props: Props) {
           onChange={(v) =>
             props.onChange((prev) => ({ ...prev, 手织指示单: v }))
           }
+          onOpenSvgEditor={props.onOpenHandWovenSvgEditor}
           previewData={props.手织数据}
         />
       ) : props.手织数据 ? (

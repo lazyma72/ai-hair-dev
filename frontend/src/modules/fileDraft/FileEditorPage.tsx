@@ -1,5 +1,6 @@
 import { message } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import PageShell from "../../components/PageShell";
 import StatusView from "../../components/StatusView";
@@ -23,6 +24,26 @@ import {
   按高针图回算机器规格清单上下分尺数,
   提取高针图上下分标记,
 } from "../../shared/models/上下分计算尺数";
+import {
+  clearFileDraftSession,
+  clearFileDraftSessionSnapshot,
+  createFileDraftSessionKey,
+  loadFileDraftSession,
+  saveFileDraftSession,
+  saveFileDraftSessionSnapshot,
+} from "./fileDraftSessionBridge";
+import {
+  clearHighNeedleEditorDocument,
+  clearHighNeedleEditorDocumentSnapshot,
+  loadHighNeedleEditorDocument,
+  saveHighNeedleEditorDocumentSnapshot,
+} from "../svgEditor/highNeedleEditorSessionBridge";
+import {
+  clearHandWovenEditorDocument,
+  clearHandWovenEditorDocumentSnapshot,
+  loadHandWovenEditorDocument,
+  saveHandWovenEditorDocumentSnapshot,
+} from "../svgEditor/handWovenEditorSessionBridge";
 
 const MAX_CUT_WEIGHT_ITEMS = 3;
 type HatMakingOption = {
@@ -70,19 +91,39 @@ export default function FileEditorPage({
   extraActions,
   enableSplitDmlSizing = false,
 }: Props) {
-  const [form, setForm] = useState<FileDraftViewModel | null>(initialValue);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const draftKey = useMemo(
+    () => new URLSearchParams(location.search).get("draftKey")?.trim() ?? "",
+    [location.search],
+  );
+  const restoredSessionDraft = useMemo(
+    () => (draftKey ? loadFileDraftSession(draftKey) : null),
+    [draftKey],
+  );
+  const [form, setForm] = useState<FileDraftViewModel | null>(
+    restoredSessionDraft ?? initialValue,
+  );
   const [ratioList, setRatioList] = useState<胶丝比例ListItem[]>([]);
   const [currentRatioDetail, setCurrentRatioDetail] = useState<胶丝比例Frontend | null>(null);
   const [hatMakingList, setHatMakingList] = useState<HatMakingOption[]>([]);
   const [customerList, setCustomerList] = useState<DbCustomer[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const loadedDraftIdRef = useRef<string | null>(initialValue?._id ?? null);
+  const loadedDraftIdRef = useRef<string | null>(
+    restoredSessionDraft?._id ?? initialValue?._id ?? null,
+  );
 
   useEffect(() => {
+    if (restoredSessionDraft) {
+      setForm(restoredSessionDraft);
+      loadedDraftIdRef.current = restoredSessionDraft._id ?? null;
+      return;
+    }
+
     const nextId = initialValue?._id ?? null;
-    if (form == null) {
-      setForm(initialValue);
+    if (loadedDraftIdRef.current == null) {
+      setForm((prev) => prev ?? initialValue);
       loadedDraftIdRef.current = nextId;
       return;
     }
@@ -90,7 +131,7 @@ export default function FileEditorPage({
       setForm(initialValue);
       loadedDraftIdRef.current = nextId;
     }
-  }, [form, initialValue]);
+  }, [initialValue, restoredSessionDraft]);
 
   // `useApi` may set `loading=true` on the next tick, which can cause a brief
   // empty-state flash when `initialValue` is still null in edit mode.
@@ -263,6 +304,56 @@ export default function FileEditorPage({
     fillTestData();
   }
 
+  function openHighNeedleSvgEditor() {
+    if (!form) return;
+    const nextDraftKey = draftKey || createFileDraftSessionKey();
+    saveFileDraftSessionSnapshot(nextDraftKey, form);
+    saveFileDraftSession(nextDraftKey, form);
+    const currentEditorDocument = loadHighNeedleEditorDocument(nextDraftKey);
+    if (currentEditorDocument) {
+      saveHighNeedleEditorDocumentSnapshot(nextDraftKey, currentEditorDocument);
+    } else {
+      clearHighNeedleEditorDocumentSnapshot(nextDraftKey);
+    }
+
+    const returnParams = new URLSearchParams(location.search);
+    returnParams.set("draftKey", nextDraftKey);
+    const returnTo = `${location.pathname}${
+      returnParams.toString() ? `?${returnParams.toString()}` : ""
+    }`;
+
+    const editorParams = new URLSearchParams({
+      draftKey: nextDraftKey,
+      returnTo,
+    });
+    navigate(`/high-needle-svg-editor?${editorParams.toString()}`);
+  }
+
+  function openHandWovenSvgEditor() {
+    if (!form) return;
+    const nextDraftKey = draftKey || createFileDraftSessionKey();
+    saveFileDraftSessionSnapshot(nextDraftKey, form);
+    saveFileDraftSession(nextDraftKey, form);
+    const currentEditorDocument = loadHandWovenEditorDocument(nextDraftKey);
+    if (currentEditorDocument) {
+      saveHandWovenEditorDocumentSnapshot(nextDraftKey, currentEditorDocument);
+    } else {
+      clearHandWovenEditorDocumentSnapshot(nextDraftKey);
+    }
+
+    const returnParams = new URLSearchParams(location.search);
+    returnParams.set("draftKey", nextDraftKey);
+    const returnTo = `${location.pathname}${
+      returnParams.toString() ? `?${returnParams.toString()}` : ""
+    }`;
+
+    const editorParams = new URLSearchParams({
+      draftKey: nextDraftKey,
+      returnTo,
+    });
+    navigate(`/hand-woven-svg-editor?${editorParams.toString()}`);
+  }
+
   async function handleSubmit() {
     if (!form) return;
 
@@ -303,14 +394,14 @@ export default function FileEditorPage({
     }
 
     if (!form.高针指示单.高针图.svg.trim()) {
-      const msg = "请先选择高针图 SVG 并完成标注";
+      const msg = "请先导入高针图 SVG";
       setSubmitError(msg);
       message.error(msg);
       return;
     }
 
     if (!form.手织指示单.手织图.svg.trim()) {
-      const msg = "请先选择手织图 SVG 并完成标注";
+      const msg = "请先导入手织图 SVG";
       setSubmitError(msg);
       message.error(msg);
       return;
@@ -320,6 +411,14 @@ export default function FileEditorPage({
     setSubmitting(true);
     try {
       const res = await onSubmit(form);
+      if (draftKey) {
+        clearFileDraftSession(draftKey);
+        clearFileDraftSessionSnapshot(draftKey);
+        clearHighNeedleEditorDocument(draftKey);
+        clearHighNeedleEditorDocumentSnapshot(draftKey);
+        clearHandWovenEditorDocument(draftKey);
+        clearHandWovenEditorDocumentSnapshot(draftKey);
+      }
       message.success(mode === "add" ? "保存成功" : "更新成功");
       onSubmitted(res.id, form);
     } catch (e) {
@@ -381,6 +480,8 @@ export default function FileEditorPage({
             allowTestData={allowTestData}
             onFillTestData={fillTestData}
             onImportExcelData={importExcelData}
+            onOpenHighNeedleSvgEditor={openHighNeedleSvgEditor}
+            onOpenHandWovenSvgEditor={openHandWovenSvgEditor}
             高针数据={高针数据}
             手织数据={手织数据}
           />

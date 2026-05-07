@@ -4,7 +4,7 @@ import { callApi } from "../../api/callApi";
 import { useApi } from "../../hooks/useApi";
 import FileEditorPage from "../../modules/fileDraft/FileEditorPage";
 import { fromDbToFileDraftViewModel } from "../../shared/fileDraft/adapters/fromDbToFileDraftViewModel";
-import { toDbPayload } from "../../shared/fileDraft/adapters/toDbPayload";
+import { toUpdateDbPayload } from "../../shared/fileDraft/adapters/toDbPayload";
 import type { 沐茵丝假发成品稿 } from "../../shared/db/Db沐茵丝假发成品稿";
 
 export default function EditFilePage() {
@@ -36,7 +36,7 @@ export default function EditFilePage() {
         }
         const r = (await callApi("admin/file/Update", {
           id,
-          file: toDbPayload(nextForm),
+          file: toUpdateDbPayload(nextForm),
         } )) as
           | { isSucc: true; res: { id: string } }
           | { isSucc: false; err: { message: string } };

@@ -119,7 +119,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 36,
+    "version": 38,
     "services": [
         {
             "id": 9,
@@ -1757,6 +1757,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "type": "Interface",
             "properties": [
                 {
+                    "id": 6,
+                    "name": "json",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
                     "id": 2,
                     "name": "svg",
                     "type": {
@@ -2223,6 +2230,13 @@ export const serviceProto: ServiceProto<ServiceType> = {
         "../models/手织图/手织图": {
             "type": "Interface",
             "properties": [
+                {
+                    "id": 5,
+                    "name": "json",
+                    "type": {
+                        "type": "String"
+                    }
+                },
                 {
                     "id": 2,
                     "name": "svg",
@@ -3630,10 +3644,21 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "file",
                     "type": {
                         "type": "Reference",
-                        "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿提交"
+                        "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿更新提交"
                     }
                 }
             ]
+        },
+        "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿更新提交": {
+            "target": {
+                "type": "Reference",
+                "target": "../db/Db沐茵丝假发成品稿/沐茵丝假发成品稿提交"
+            },
+            "keys": [
+                "createTime",
+                "updateTime"
+            ],
+            "type": "Omit"
         },
         "admin/file/PtlUpdate/ResUpdate": {
             "type": "Interface",

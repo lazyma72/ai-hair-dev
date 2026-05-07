@@ -3,8 +3,9 @@ import type { 手织图 } from "../src/shared/models/手织图"
 
 async function main() {
   const 空手织图: 手织图 = {
+    json: "",
     svg: "",
-    类型: {
+    间色比例: {
       type: "特殊",
     },
   }

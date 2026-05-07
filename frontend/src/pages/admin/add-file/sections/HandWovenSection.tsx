@@ -5,6 +5,7 @@ import HandWovenBlock from "../../../../modules/fileDraft/HandWovenBlock";
 type Props = {
   value: 手织指示单;
   onChange: (v: 手织指示单) => void;
+  onOpenSvgEditor?: () => void;
   hideUploader?: boolean;
   previewData?: 手织指示单Frontend | null;
 };
@@ -12,6 +13,7 @@ type Props = {
 export default function HandWovenSection({
   value,
   onChange,
+  onOpenSvgEditor,
   hideUploader,
   previewData,
 }: Props) {
@@ -20,6 +22,7 @@ export default function HandWovenSection({
       mode="edit"
       value={value}
       onChange={onChange}
+      onOpenSvgEditor={onOpenSvgEditor}
       hideUploader={hideUploader}
       previewData={previewData}
     />

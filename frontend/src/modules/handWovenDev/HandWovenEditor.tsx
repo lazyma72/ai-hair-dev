@@ -1,5 +1,6 @@
 import * as React from "react";
 import { message } from "antd";
+import FileUploadButton from "../../components/FileUploadButton";
 import InlineSvg from "../../components/InlineSvg";
 import {
   Field,
@@ -14,13 +15,11 @@ import type {
   手织图比例键,
   手织图类型,
 } from "../../shared/models/手织图";
-import type { 高针图 } from "../../shared/models/高针图";
 import {
   build手织图间色比例预览Svg,
   createEmpty手织图,
   get有效排序,
 } from "./svgBuilder";
-import EmbeddedHighNeedleEditor from "../../pages/editor/EmbeddedHighNeedleEditor";
 
 const 比例键列表: 手织图比例键[] = ["D", "M", "L"];
 const 比例组合列表 = ["D:M", "D:L", "D:M:L"] as const;
@@ -81,6 +80,7 @@ type 可生成类型 = Extract<本地间色比例, { type: "横排" | "方形" }
 type 比例组合 = (typeof 比例组合列表)[number];
 
 type 本地手织图 = {
+  json: string;
   svg: string;
   间色比例: 本地间色比例;
 };
@@ -98,6 +98,7 @@ type Props = {
   embed?: boolean;
   heightClassName?: string;
   showUploader?: boolean;
+  svgMode?: "embedded" | "external";
 };
 
 function get间色比例(value: 手织图 | 本地手织图): 本地间色比例 {
@@ -289,20 +290,22 @@ function deriveSelectedType(value: 本地手织图): 手织图类型 | "" {
 
 export default function HandWovenEditor({
   title = "手织图编辑",
-  description = "间色比例与手织图 SVG 分开展示和编辑。",
+  description = "间色比例与手织图 SVG 分开展示；当前仅支持导入与预览，不支持编辑。",
   value,
   onChange,
   fileName,
-  onFileNameChange: _onFileNameChange,
+  onFileNameChange,
   emptyText: _emptyText = "请先上传一份手织图 SVG 文件。",
   showJsonActions = true,
   fullscreen = false,
   embed = false,
   heightClassName,
-  showUploader: _showUploader = true,
+  showUploader = true,
+  svgMode = "embedded",
 }: Props) {
   const normalizedValue = React.useMemo<本地手织图>(
     () => ({
+      json: (value as 手织图 & { json?: string })?.json ?? "",
       svg: value?.svg ?? "",
       间色比例: get间色比例(value),
     }),
@@ -311,7 +314,6 @@ export default function HandWovenEditor({
   const [selectedType, setSelectedType] = React.useState<手织图类型 | "">(() =>
     deriveSelectedType(normalizedValue),
   );
-  const [expanded, setExpanded] = React.useState(false);
   const [data, setData] = React.useState<本地手织图>(() =>
     normalizedValue.svg || normalizedValue.间色比例.type !== "特殊"
       ? normalizedValue
@@ -337,19 +339,6 @@ export default function HandWovenEditor({
     });
   }, [normalizedValue]);
 
-  React.useEffect(() => {
-    if (!expanded) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setExpanded(false);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [expanded]);
-
   const 当前生成类型 =
     selectedType && data.间色比例.type !== "特殊" ? data.间色比例 : null;
   const 有效排序 = get有效排序(to外部手织图(data));
@@ -373,10 +362,28 @@ export default function HandWovenEditor({
   function syncSvg(nextSvg: string, options?: { silent?: boolean }) {
     commit({
       ...data,
+      json: data.json,
       svg: nextSvg,
     });
     if (!options?.silent) {
       message.success("已更新手织图 SVG");
+    }
+  }
+
+  async function importSvgFile(file: File) {
+    try {
+      const nextSvg = await file.text();
+      if (!nextSvg.trim()) {
+        message.error("SVG 文件内容为空");
+        return;
+      }
+      syncSvg(nextSvg, { silent: true });
+      onFileNameChange?.(file.name);
+      message.success("已导入手织图 SVG");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "导入手织图 SVG 失败";
+      message.error(errorMessage);
     }
   }
 
@@ -414,15 +421,6 @@ export default function HandWovenEditor({
               边长: base.type === "方形" && base.边长 > 0 ? base.边长 : 1,
             },
     });
-  }
-
-  function toHandWovenSvgEditorValue(value: 本地手织图): 高针图 {
-    return {
-      svg: value.svg,
-      车线: [],
-      标注样式: {},
-      自动修改器: [],
-    };
   }
 
   const content = (
@@ -736,73 +734,71 @@ export default function HandWovenEditor({
           </div>
         </Section>
 
-        <Section
-          title="手织图 SVG"
-          action={
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
-                onClick={() => setExpanded(true)}
-              >
-                放大标注
-              </button>
-              <span className="text-xs text-slate-500">
-                {hasLoadedSvg
-                  ? "已导入，可直接在编辑器中修改"
-                  : "请在编辑器内的文件菜单导入手织图 SVG"}
-              </span>
-            </div>
-          }
-        >
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="text-xs text-slate-500">
-                {fileName
-                  ? `当前 SVG：${fileName}`
-                  : hasLoadedSvg
-                    ? "当前 SVG：已导入"
-                    : "请在编辑器内的文件菜单导入手织图 SVG"}
+        {svgMode === "embedded" ? (
+          <Section
+            title="手织图 SVG"
+            action={
+              <div className="flex items-center gap-2">
+                {showUploader ? (
+                  <FileUploadButton
+                    text={hasLoadedSvg ? "重新导入 SVG" : "导入 SVG"}
+                    accept=".svg,image/svg+xml"
+                    className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+                    onSelect={(file) => {
+                      void importSvgFile(file);
+                    }}
+                  />
+                ) : null}
+                <span className="text-xs text-slate-500">
+                  当前仅支持导入与预览，不支持在线编辑
+                </span>
               </div>
-            </div>
+            }
+          >
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs text-slate-500">
+                  {fileName
+                    ? `当前 SVG：${fileName}`
+                    : hasLoadedSvg
+                      ? "当前 SVG：已导入"
+                      : _emptyText}
+                </div>
+                {hasLoadedSvg ? (
+                  <button
+                    type="button"
+                    className="rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                    onClick={() =>
+                      downloadTextFile("hand-woven.svg", data.svg, "image/svg+xml")
+                    }
+                  >
+                    下载当前 SVG
+                  </button>
+                ) : null}
+              </div>
 
-            {/* 单实例编辑器：通过 CSS 切换展开/收起，避免双实例并存导致 SVG 重导入 */}
-            <div
-              className={
-                expanded ? "fixed inset-0 z-[90] bg-white flex flex-col" : ""
-              }
-            >
-              <EmbeddedHighNeedleEditor
-                heightClassName={
-                  expanded
-                    ? "h-full min-h-0"
-                    : embed
-                      ? (heightClassName ?? "h-[60vh] min-h-[520px]")
-                      : "h-[70vh] min-h-[560px]"
-                }
-                value={toHandWovenSvgEditorValue(data)}
-                onChange={(nextValue) => {
-                  if (!data.svg.trim() && nextValue.svg.trim()) {
-                    message.success("已导入手织图 SVG");
-                  }
-                  syncSvg(nextValue.svg, { silent: true });
-                }}
-                fileName={fileName ?? "手织图"}
-                headerRight={
-                  expanded ? (
-                    <button
-                      type="button"
-                      className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-                      onClick={() => setExpanded(false)}
-                    >
-                      退出放大
-                    </button>
-                  ) : undefined
-                }
-              />
+              {hasLoadedSvg ? (
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+                  <InlineSvg
+                    svg={data.svg}
+                    className="w-full overflow-auto bg-white"
+                    height="auto"
+                  />
+                </div>
+              ) : (
+                <div
+                  className={`rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500 ${
+                    embed
+                      ? (heightClassName ?? "min-h-[320px]")
+                      : "min-h-[360px]"
+                  }`}
+                >
+                  {_emptyText}
+                </div>
+              )}
             </div>
-          </div>
-        </Section>
+          </Section>
+        ) : null}
       </div>
     </section>
   );

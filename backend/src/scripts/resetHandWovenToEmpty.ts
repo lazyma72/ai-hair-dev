@@ -5,6 +5,7 @@ async function main() {
   await Global.init()
 
   const 空手织图: 手织图 = {
+    json: "",
     svg: "",
     间色比例: {
       type: "特殊",

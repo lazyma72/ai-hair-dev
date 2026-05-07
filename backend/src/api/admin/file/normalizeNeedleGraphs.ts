@@ -174,6 +174,7 @@ function normalize手织图比值(raw: unknown): 手织图比值 {
 
 export function normalize高针图(raw: unknown): 高针图 {
   return {
+    json: typeof (raw as any)?.json === "string" ? (raw as any).json : "",
     svg: typeof (raw as any)?.svg === "string" ? (raw as any).svg : "",
     车线: normalize车线((raw as any)?.车线),
     标注样式: normalize标注样式((raw as any)?.标注样式),
@@ -183,6 +184,7 @@ export function normalize高针图(raw: unknown): 高针图 {
 
 export function normalize手织图(raw: unknown): 手织图 {
   const src = (raw ?? {}) as any
+  const json = typeof src?.json === "string" ? src.json : ""
   const svg = typeof src?.svg === "string" ? src.svg : ""
   const raw间色比例 = (src?.间色比例 ?? src?.类型 ?? {}) as {
     type?: unknown
@@ -192,6 +194,7 @@ export function normalize手织图(raw: unknown): 手织图 {
 
   if (raw间色比例.type === "横排") {
     return {
+      json,
       svg,
       间色比例: {
         type: "横排",
@@ -202,6 +205,7 @@ export function normalize手织图(raw: unknown): 手织图 {
 
   if (raw间色比例.type === "方形") {
     return {
+      json,
       svg,
       间色比例: {
         type: "方形",
@@ -217,6 +221,7 @@ export function normalize手织图(raw: unknown): 手织图 {
   }
 
   return {
+    json,
     svg,
     间色比例: { type: "特殊" },
   }

@@ -24,6 +24,24 @@ export function toDbPayload(value: FileDraftViewModel): 沐茵丝假发成品稿
   return payload;
 }
 
+type 沐茵丝假发成品稿更新提交 = Omit<
+  沐茵丝假发成品稿提交,
+  "createTime" | "updateTime"
+>;
+
+export function toUpdateDbPayload(
+  value: FileDraftViewModel,
+): 沐茵丝假发成品稿更新提交 {
+  const {
+    _id: _ignored,
+    createTime: _ignoredCreateTime,
+    updateTime: _ignoredUpdateTime,
+    ...rest
+  } = value;
+  const payload: 沐茵丝假发成品稿更新提交 = structuredClone(rest);
+  return payload;
+}
+
 export function toPreviewDbFile(
   value: FileDraftViewModel,
 ): FileDraftPreviewDbShape {

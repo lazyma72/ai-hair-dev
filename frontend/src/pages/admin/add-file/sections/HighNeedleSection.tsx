@@ -5,6 +5,7 @@ import HighNeedleBlock from "../../../../modules/fileDraft/HighNeedleBlock";
 type Props = {
   value: 高针指示单;
   onChange: (v: 高针指示单) => void;
+  onOpenSvgEditor?: () => void;
   showJsonImporter?: boolean;
   previewData?: 高针指示单Frontend | null;
   hideUploader?: boolean;
@@ -13,6 +14,7 @@ type Props = {
 export default function HighNeedleSection({
   value,
   onChange,
+  onOpenSvgEditor,
   showJsonImporter = true,
   previewData,
   hideUploader,
@@ -22,6 +24,7 @@ export default function HighNeedleSection({
       mode="edit"
       value={value}
       onChange={onChange}
+      onOpenSvgEditor={onOpenSvgEditor}
       showJsonImporter={showJsonImporter}
       previewData={previewData}
       hideUploader={hideUploader}
