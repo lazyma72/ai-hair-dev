@@ -8,20 +8,12 @@ import React, {
 } from "react";
 import {
   EditorProvider,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/app/EditorContext";
-import {
   EditorShell,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/view/EditorShell";
-import {
-  createEditor,
-  type Editor,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/kernel/createEditor";
-import {
   buildExportSvg,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/view/FabricStage";
-import {
+  createEditor,
   DEFAULT_VIEW_STATE,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/view/viewState";
+  type Editor,
+} from "./externalSvgEditor";
 import type { DocumentState, SvgDocumentValue } from "./svgEditorDocument";
 import {
   buildDocumentFromSvgValue,
@@ -43,6 +35,11 @@ type Props<TValue extends SvgDocumentValue> = {
     value: TValue,
     fileName?: string | null,
   ) => Promise<DocumentState>;
+  resolveDocumentFromJson?: (
+    document: DocumentState,
+    value: TValue,
+    fileName?: string | null,
+  ) => DocumentState;
   toValue: (document: DocumentState, svg: string, previous: TValue) => TValue;
 };
 
@@ -55,6 +52,22 @@ export type SvgEditorCanvasHandle<TValue extends SvgDocumentValue> = {
   };
 };
 
+async function waitForDocumentFontsReady() {
+  const fonts = globalThis.document?.fonts;
+  if (!fonts?.ready) return;
+
+  try {
+    await Promise.race([
+      fonts.ready,
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 1500);
+      }),
+    ]);
+  } catch {
+    // Ignore font loading failures and continue with the best available metrics.
+  }
+}
+
 function SvgEditorCanvasInner<TValue extends SvgDocumentValue>(
   {
     value,
@@ -65,6 +78,7 @@ function SvgEditorCanvasInner<TValue extends SvgDocumentValue>(
     headerRight,
     createDocumentFromValue,
     buildDocumentFromValue,
+    resolveDocumentFromJson,
     toValue,
   }: Props<TValue>,
   ref: React.ForwardedRef<SvgEditorCanvasHandle<TValue>>,
@@ -116,29 +130,35 @@ function SvgEditorCanvasInner<TValue extends SvgDocumentValue>(
   useEffect(() => {
     let cancelled = false;
     const editor = editorRef.current!;
-    const documentFromJson = parseDocumentJson(value.json);
-    const loadDocument = initialDocument
-      ? Promise.resolve(initialDocument)
-      : documentFromJson
-        ? Promise.resolve(documentFromJson)
-        : (buildDocumentFromValue?.(value, fileName) ??
-          buildDocumentFromSvgValue(
-            createDocumentFromValue(value, fileName),
-            value,
-          ));
 
-    void loadDocument
-      .then((nextDoc) => {
+    void (async () => {
+      try {
+        await waitForDocumentFontsReady();
+        if (cancelled) return;
+
+        const documentFromJson = parseDocumentJson(value.json);
+        const nextDoc = initialDocument
+          ? initialDocument
+          : documentFromJson
+            ? (resolveDocumentFromJson?.(documentFromJson, value, fileName) ??
+              documentFromJson)
+            : await (buildDocumentFromValue?.(value, fileName) ??
+                buildDocumentFromSvgValue(
+                  createDocumentFromValue(value, fileName),
+                  value,
+                ));
+
         if (cancelled) return;
         editor.data.setState(nextDoc);
         latestDocumentRef.current = nextDoc;
         latestValueRef.current = value;
         setImportError("");
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return;
         setImportError(err instanceof Error ? err.message : String(err));
-      });
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
@@ -147,6 +167,7 @@ function SvgEditorCanvasInner<TValue extends SvgDocumentValue>(
     createDocumentFromValue,
     fileName,
     initialDocument,
+    resolveDocumentFromJson,
     sourceFingerprint,
     value,
   ]);
@@ -163,7 +184,7 @@ function SvgEditorCanvasInner<TValue extends SvgDocumentValue>(
         <EditorProvider editor={editorRef.current}>
           <EditorShell
             headerRight={headerRight}
-            onDocumentStateChange={(document) => {
+            onDocumentStateChange={(document: DocumentState) => {
               latestDocumentRef.current = document;
               onDocumentStateChange?.(document);
             }}

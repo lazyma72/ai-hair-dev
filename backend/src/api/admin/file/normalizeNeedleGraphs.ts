@@ -5,7 +5,7 @@ function normalizeDmlValue(raw: unknown): 高针图["车线"][number]["DML"] {
   const v = String(raw ?? "")
     .trim()
     .toUpperCase()
-  return v === "M" || v === "L" ? v : "D"
+  return v === "D" || v === "M" || v === "L" ? v : undefined
 }
 
 function clamp01(raw: unknown): number {
@@ -23,10 +23,10 @@ function normalize标注NodeId(raw: unknown): 高针图["车线"][number]["标�
     DML?: unknown
   }
   return {
-    车线编号: String(item.车线编号 ?? "").trim(),
-    档位: String(item.档位 ?? "").trim(),
-    单双: String(item.单双 ?? "").trim(),
-    DML: String(item.DML ?? "").trim(),
+    车线编号: String(item.车线编号 ?? "").trim() || undefined,
+    档位: String(item.档位 ?? "").trim() || undefined,
+    单双: String(item.单双 ?? "").trim() || undefined,
+    DML: String(item.DML ?? "").trim() || undefined,
   }
 }
 
@@ -45,17 +45,18 @@ function normalize车线(raw: unknown): 高针图["车线"] {
         是双数?: unknown
         标注NodeId?: unknown
       }
-      const 编号 = typeof item.编号 === "number" ? item.编号 : Number(item.编号 ?? 0)
       const 尺数 = typeof item.尺数 === "number" ? item.尺数 : Number(item.尺数 ?? 0)
+      const legacy编号 =
+        typeof item.编号 === "number" && Number.isFinite(item.编号) ? String(item.编号) : ""
+      const 车线编号 = String(item.车线编号 ?? legacy编号).trim()
       return {
         id: String(item.id ?? "").trim(),
-        编号: Number.isFinite(编号) ? 编号 : 0,
         区域: String(item.区域 ?? "").trim(),
-        车线编号: String(item.车线编号 ?? "").trim(),
+        车线编号,
         尺数: Number.isFinite(尺数) ? 尺数 : 0,
         档位: String(item.档位 ?? "").trim(),
         DML: normalizeDmlValue(item.DML),
-        是双数: Boolean(item.是双数),
+        是双数: typeof item.是双数 === "boolean" ? item.是双数 : undefined,
         标注NodeId: normalize标注NodeId(item.标注NodeId),
       }
     })
@@ -99,9 +100,8 @@ function normalize自动修改器(raw: unknown): 高针图["自动修改器"] {
       ? item.规律.map(x => String(x ?? "").trim()).filter(Boolean)
       : []
 
-    const base: { 规律: string[]; id?: string; 启用?: boolean } = { 规律 }
-    if (typeof item.id === "string" && item.id.trim()) base.id = item.id.trim()
-    if (typeof item.启用 === "boolean") base.启用 = item.启用
+    if (typeof item.id !== "string" || !item.id.trim()) return
+    const base = { 规律, id: item.id.trim() }
 
     if (type === "按区域自动标注DML") {
       const 范围 = Array.isArray(item.范围)
@@ -176,7 +176,6 @@ function normalize手织图比值(raw: unknown): 手织图比值 {
 export function normalize高针图(raw: unknown): 高针图 {
   return {
     json: typeof (raw as any)?.json === "string" ? (raw as any).json : "",
-    svg: typeof (raw as any)?.svg === "string" ? (raw as any).svg : "",
     车线: normalize车线((raw as any)?.车线),
     标注样式: normalize标注样式((raw as any)?.标注样式),
     自动修改器: normalize自动修改器((raw as any)?.自动修改器),
@@ -186,7 +185,6 @@ export function normalize高针图(raw: unknown): 高针图 {
 export function normalize手织图(raw: unknown): 手织图 {
   const src = (raw ?? {}) as any
   const json = typeof src?.json === "string" ? src.json : ""
-  const svg = typeof src?.svg === "string" ? src.svg : ""
   const raw间色比例 = (src?.间色比例 ?? src?.类型 ?? {}) as {
     type?: unknown
     比值?: unknown
@@ -196,7 +194,6 @@ export function normalize手织图(raw: unknown): 手织图 {
   if (raw间色比例.type === "横排") {
     return {
       json,
-      svg,
       间色比例: {
         type: "横排",
         比值: normalize手织图比值(raw间色比例.比值),
@@ -207,7 +204,6 @@ export function normalize手织图(raw: unknown): 手织图 {
   if (raw间色比例.type === "方形") {
     return {
       json,
-      svg,
       间色比例: {
         type: "方形",
         比值: normalize手织图比值(raw间色比例.比值),
@@ -223,7 +219,6 @@ export function normalize手织图(raw: unknown): 手织图 {
 
   return {
     json,
-    svg,
     间色比例: { type: "特殊" },
   }
 }

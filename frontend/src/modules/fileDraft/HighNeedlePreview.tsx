@@ -1,16 +1,13 @@
 import { useMemo, useState } from "react";
 import InlineSvg from "../../components/InlineSvg";
 import type { 高针图 } from "../../shared/models/高针图";
-import type {
-  DocumentState,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/data/types";
 import {
   buildExportSvg,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/view/FabricStage";
-import {
   DEFAULT_VIEW_STATE,
   type ViewState,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/view/viewState";
+} from "../svgEditor/externalSvgEditor";
+import type { DocumentState } from "../svgEditor/externalSvgEditor";
+import { parseDocumentJson } from "../svgEditor/svgEditorDocument";
 
 type Props = {
   value: 高针图;
@@ -30,16 +27,6 @@ const DEFAULT_VISIBILITY: PreviewVisibility = {
   DML: true,
 };
 
-function parseDocumentJson(json: string): DocumentState | null {
-  const raw = json.trim();
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as DocumentState;
-  } catch {
-    return null;
-  }
-}
-
 function toPreviewViewState(visibility: PreviewVisibility): ViewState {
   return {
     ...DEFAULT_VIEW_STATE,
@@ -53,19 +40,30 @@ function toPreviewViewState(visibility: PreviewVisibility): ViewState {
   };
 }
 
-function buildPreviewSvg(value: 高针图, visibility: PreviewVisibility): string {
+export function buildHighNeedlePreviewSvg(
+  value: 高针图,
+  visibility: PreviewVisibility = DEFAULT_VISIBILITY,
+): string {
   const document = parseDocumentJson(value.json);
   if (document) {
-    return buildExportSvg(document, toPreviewViewState(visibility));
+    const nextDocument: DocumentState = {
+      ...document,
+      domain: {
+        ...document.domain,
+        车线: value.车线 ?? [],
+        标注样式: value.标注样式 ?? {},
+        自动修改器: value.自动修改器 ?? [],
+      } as unknown as DocumentState["domain"],
+    };
+    return buildExportSvg(nextDocument, toPreviewViewState(visibility));
   }
-
-  return value.svg?.trim() ?? "";
+  return "";
 }
 
 export default function HighNeedlePreview({ value }: Props) {
   const [visibility, setVisibility] = useState<PreviewVisibility>(DEFAULT_VISIBILITY);
   const previewSvg = useMemo(
-    () => buildPreviewSvg(value, visibility),
+    () => buildHighNeedlePreviewSvg(value, visibility),
     [value, visibility],
   );
 

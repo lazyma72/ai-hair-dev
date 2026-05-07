@@ -1,9 +1,14 @@
-import type { DocumentState } from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/data/types";
-import { buildDocumentFromSvgImport } from "../../../../../../personal_test/svg_editor/edit/exported-react-component/rendering/fabric/fabricImportExport";
+import type { DocumentState } from "./externalSvgEditor";
+import {
+  buildDocumentFromSvgImport,
+  buildExportSvg,
+  DEFAULT_VIEW_STATE,
+  type ViewState,
+} from "./externalSvgEditor";
 
 export type SvgDocumentValue = {
   json: string;
-  svg: string;
+  svg?: string;
 };
 
 export type { DocumentState };
@@ -18,6 +23,15 @@ export function parseDocumentJson(
   } catch {
     return null;
   }
+}
+
+export function renderSvgFromDocumentJson(
+  json: string | undefined,
+  viewState: ViewState = DEFAULT_VIEW_STATE,
+): string {
+  const document = parseDocumentJson(json);
+  if (!document) return "";
+  return buildExportSvg(document, viewState);
 }
 
 export function createBaseSvgDocument(params: {

@@ -25,7 +25,6 @@ import {
 import { ObjectId } from "mongodb"
 import type { DML值, 高针图 } from "../../../shared/models/高针图"
 import { 高针图系统预置区域列表 } from "../../../shared/models/高针图"
-import { load } from "cheerio"
 
 type DML比值 = {
   D: number
@@ -85,6 +84,35 @@ function clamp01(value: unknown): number {
   return Math.max(0, Math.min(1, normalized))
 }
 
+function parse车线排序值(value: unknown): number | null {
+  const raw = String(value ?? "").trim()
+  if (!raw) return null
+  const normalized = raw.replace(/[^0-9.+-]/g, "")
+  if (!normalized) return null
+  const num = Number(normalized)
+  return Number.isFinite(num) ? num : null
+}
+
+function compare车线顺序(
+  a: Pick<高针图["车线"][number], "车线编号" | "id">,
+  b: Pick<高针图["车线"][number], "车线编号" | "id">
+): number {
+  const numA = parse车线排序值(a.车线编号)
+  const numB = parse车线排序值(b.车线编号)
+  if (numA != null && numB != null && numA !== numB) {
+    return numA - numB
+  }
+  if (numA != null && numB == null) return -1
+  if (numA == null && numB != null) return 1
+
+  const codeCompare = String(a.车线编号 ?? "").localeCompare(String(b.车线编号 ?? ""), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  })
+  if (codeCompare !== 0) return codeCompare
+  return String(a.id ?? "").localeCompare(String(b.id ?? ""))
+}
+
 function isValidDmlValue(value: unknown): value is DML值 {
   return value === "D" || value === "M" || value === "L"
 }
@@ -118,7 +146,7 @@ function buildRegionOrderHint(graph: 高针图): string[] {
 }
 
 function orderCarlinesInRegion(graph: 高针图, region: string): 高针图["车线"] {
-  return graph.车线.filter(c => c.区域 === region).sort((a, b) => a.编号 - b.编号)
+  return graph.车线.filter(c => c.区域 === region).sort(compare车线顺序)
 }
 
 function orderCarlinesByRegionAndNumber(graph: 高针图): 高针图["车线"] {
@@ -128,26 +156,22 @@ function orderCarlinesByRegionAndNumber(graph: 高针图): 高针图["车线"] {
     const ra = rank.get(a.区域) ?? 9999
     const rb = rank.get(b.区域) ?? 9999
     if (ra !== rb) return ra - rb
-    return a.编号 - b.编号
+    return compare车线顺序(a, b)
   })
 }
 
-function selectByPercent<T extends { 编号: number }>(
-  items: T[],
-  start: unknown,
-  end: unknown
-): T[] {
+function selectByPercent<T>(items: T[], start: unknown, end: unknown): T[] {
   if (items.length === 0) return []
   const from = Math.min(clamp01(start), clamp01(end))
   const to = Math.max(clamp01(start), clamp01(end))
-  const numbers = items.map(item => item.编号).filter(value => Number.isFinite(value))
-  if (numbers.length === 0) return []
-  const minNumber = Math.min(...numbers)
-  const maxNumber = Math.max(...numbers)
-  if (maxNumber <= minNumber) return items
-  const startNumber = minNumber + (maxNumber - minNumber) * from
-  const endNumber = minNumber + (maxNumber - minNumber) * to
-  return items.filter(item => item.编号 >= startNumber && item.编号 <= endNumber)
+  if (from === to) {
+    return [items[Math.min(items.length - 1, Math.floor(from * items.length))]]
+  }
+  return items.filter((_, index) => {
+    const itemStart = index / items.length
+    const itemEnd = (index + 1) / items.length
+    return itemStart < to && itemEnd > from
+  })
 }
 
 function build档位区域覆盖映射(graph: 高针图): Map<string, Map<string, 区域覆盖段[]>> {
@@ -291,7 +315,7 @@ function compileDmlAssignments(graph: 高针图): Map<string, DML值> {
   }
 
   ;(graph.自动修改器 ?? []).forEach(mod => {
-    if (!mod || mod.启用 === false) return
+    if (!mod) return
     const pattern = normalizePattern(mod.规律)
     if (pattern.length === 0) return
 
@@ -322,48 +346,31 @@ function compileDmlAssignments(graph: 高针图): Map<string, DML值> {
   return result
 }
 
-function 将DML标记写回高针图SVG(graph: 高针图, 记录日志?: 调试日志函数): 高针图 {
+function 将DML标记写回高针图数据(graph: 高针图, 记录日志?: 调试日志函数): 高针图 {
   const dmlAssignments = compileDmlAssignments(graph)
-  const $ = load(graph.svg ?? "", { xmlMode: true })
-  const svgRoot = $("svg").first()
-  if (svgRoot.length === 0) {
-    记录日志?.("高针图DML写回SVG失败", { reason: "svg-root-missing" })
-    return graph
-  }
-
   let written = 0
   let skippedNoNodeId = 0
-  let skippedNotFound = 0
 
-  graph.车线.forEach(carline => {
-    const nodeId = String(carline.标注NodeId?.DML ?? "").trim()
-    if (!nodeId) {
-      skippedNoNodeId++
-      return
-    }
-
-    const selector = `[id="${nodeId.replace(/"/g, '\\"')}"]`
-    const node = $(selector).first()
-    if (node.length === 0) {
-      skippedNotFound++
-      return
-    }
-
+  const 车线 = graph.车线.map(carline => {
     const dml = dmlAssignments.get(carline.id) ?? (isValidDmlValue(carline.DML) ? carline.DML : "D")
-    const tspan = node.find("tspan").first()
-    if (tspan.length > 0) tspan.text(dml)
-    else node.text(dml)
-    written++
+    if (String(carline.标注NodeId?.DML ?? "").trim()) {
+      written++
+    } else {
+      skippedNoNodeId++
+    }
+    return {
+      ...carline,
+      DML: dml,
+    }
   })
 
-  记录日志?.("高针图DML写回SVG摘要", {
+  记录日志?.("高针图DML写回数据摘要", {
     assignmentCount: dmlAssignments.size,
     writtenCount: written,
     skippedNoNodeId,
-    skippedNotFound,
   })
 
-  return { ...graph, svg: $.xml() }
+  return { ...graph, 车线 }
 }
 
 function 转换按档位范围为区域范围(
@@ -419,13 +426,12 @@ function 映射B稿自动修改器到A稿并转为按区域(
   const out: 高针图["自动修改器"] = []
 
   ;(sourceGraph.自动修改器 ?? []).forEach(mod => {
-    if (!mod || mod.启用 === false) return
+    if (!mod) return
     const pattern = normalizePattern(mod.规律)
     if (pattern.length === 0) return
 
     const base = {
       id: createRuleId("ab_auto"),
-      启用: true,
       规律: pattern,
     }
 
@@ -534,7 +540,7 @@ function 生成上下分图稿(
     b稿.高针指示单.高针图 as unknown as 高针图,
     记录日志
   )
-  const 高针图 = 将DML标记写回高针图SVG(
+  const 高针图 = 将DML标记写回高针图数据(
     {
       ...(c稿.高针指示单.高针图 as unknown as 高针图),
       自动修改器: mappedAutoModifiers,

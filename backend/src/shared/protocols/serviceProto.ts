@@ -119,7 +119,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 38,
+    "version": 40,
     "services": [
         {
             "id": 9,
@@ -1764,13 +1764,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 2,
-                    "name": "svg",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
                     "id": 3,
                     "name": "车线",
                     "type": {
@@ -1783,13 +1776,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                     "name": "id",
                                     "type": {
                                         "type": "String"
-                                    }
-                                },
-                                {
-                                    "id": 1,
-                                    "name": "编号",
-                                    "type": {
-                                        "type": "Number"
                                     }
                                 },
                                 {
@@ -1826,14 +1812,16 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                     "type": {
                                         "type": "Reference",
                                         "target": "../models/高针图/DML值"
-                                    }
+                                    },
+                                    "optional": true
                                 },
                                 {
                                     "id": 7,
                                     "name": "是双数",
                                     "type": {
                                         "type": "Boolean"
-                                    }
+                                    },
+                                    "optional": true
                                 },
                                 {
                                     "id": 8,
@@ -1846,28 +1834,32 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                                 "name": "车线编号",
                                                 "type": {
                                                     "type": "String"
-                                                }
+                                                },
+                                                "optional": true
                                             },
                                             {
                                                 "id": 1,
                                                 "name": "档位",
                                                 "type": {
                                                     "type": "String"
-                                                }
+                                                },
+                                                "optional": true
                                             },
                                             {
                                                 "id": 2,
                                                 "name": "单双",
                                                 "type": {
                                                     "type": "String"
-                                                }
+                                                },
+                                                "optional": true
                                             },
                                             {
                                                 "id": 3,
                                                 "name": "DML",
                                                 "type": {
                                                     "type": "String"
-                                                }
+                                                },
+                                                "optional": true
                                             }
                                         ]
                                     }
@@ -1906,7 +1898,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                     "type": {
                                         "type": "Reference",
                                         "target": "../models/高针图/标注样式"
-                                    }
+                                    },
+                                    "optional": true
                                 },
                                 {
                                     "id": 3,
@@ -1914,7 +1907,8 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                     "type": {
                                         "type": "Reference",
                                         "target": "../models/高针图/标注样式"
-                                    }
+                                    },
+                                    "optional": true
                                 }
                             ]
                         }
@@ -2184,16 +2178,7 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "id",
                     "type": {
                         "type": "String"
-                    },
-                    "optional": true
-                },
-                {
-                    "id": 1,
-                    "name": "启用",
-                    "type": {
-                        "type": "Boolean"
-                    },
-                    "optional": true
+                    }
                 },
                 {
                     "id": 2,
@@ -2233,13 +2218,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 5,
                     "name": "json",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 2,
-                    "name": "svg",
                     "type": {
                         "type": "String"
                     }
@@ -3076,13 +3054,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 1,
-                    "name": "高针图svg",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
                     "id": 5,
                     "name": "高针图数据",
                     "type": {
@@ -3345,13 +3316,6 @@ export const serviceProto: ServiceProto<ServiceType> = {
                                 }
                             ]
                         }
-                    }
-                },
-                {
-                    "id": 2,
-                    "name": "手织图片",
-                    "type": {
-                        "type": "String"
                     }
                 },
                 {

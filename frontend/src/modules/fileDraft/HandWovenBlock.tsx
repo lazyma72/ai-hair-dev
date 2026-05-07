@@ -7,15 +7,11 @@ import type { 手织指示单Frontend } from "../../shared/frontend/model/model"
 import { inputCls } from "../../pages/admin/add-file/components/ui";
 import { build手织图间色比例预览Svg } from "../handWovenDev/svgBuilder";
 import HandWovenEditor from "../handWovenDev/HandWovenEditor";
-import type {
-  DocumentState,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/data/types";
 import {
   buildExportSvg,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/view/FabricStage";
-import {
   DEFAULT_VIEW_STATE,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/view/viewState";
+} from "../svgEditor/externalSvgEditor";
+import type { DocumentState } from "../svgEditor/externalSvgEditor";
 
 type Props = {
   mode: "edit" | "readonly";
@@ -36,12 +32,10 @@ function parseDocumentJson(json: string | undefined): DocumentState | null {
   }
 }
 
-function buildHandWovenPreviewSvg(svg: string | undefined, json: string | undefined) {
+function buildHandWovenPreviewSvg(json: string | undefined) {
   const document = parseDocumentJson(json);
-  if (document) {
-    return buildExportSvg(document, DEFAULT_VIEW_STATE);
-  }
-  return String(svg ?? "").trim();
+  if (!document) return "";
+  return buildExportSvg(document, DEFAULT_VIEW_STATE);
 }
 
 function getHandWovenJson(value: 手织指示单["手织图"]): string {
@@ -58,7 +52,7 @@ export default function HandWovenBlock({
 }: Props) {
   const isEdit = mode === "edit";
   const previewSvg = useMemo(
-    () => buildHandWovenPreviewSvg(value.手织图?.svg, getHandWovenJson(value.手织图)),
+    () => buildHandWovenPreviewSvg(getHandWovenJson(value.手织图)),
     [value.手织图],
   );
   const hasSvg = Boolean(previewSvg);

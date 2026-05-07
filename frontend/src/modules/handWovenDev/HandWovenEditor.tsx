@@ -15,6 +15,11 @@ import type {
   手织图比例键,
   手织图类型,
 } from "../../shared/models/手织图";
+import { buildDocumentFromSvgImport } from "../svgEditor/externalSvgEditor";
+import {
+  createBaseSvgDocument,
+  renderSvgFromDocumentJson,
+} from "../svgEditor/svgEditorDocument";
 import {
   build手织图间色比例预览Svg,
   createEmpty手织图,
@@ -81,7 +86,6 @@ type 比例组合 = (typeof 比例组合列表)[number];
 
 type 本地手织图 = {
   json: string;
-  svg: string;
   间色比例: 本地间色比例;
 };
 
@@ -284,7 +288,6 @@ function downloadTextFile(filename: string, content: string, type: string) {
 
 function deriveSelectedType(value: 本地手织图): 手织图类型 | "" {
   const 间色比例 = get间色比例(value);
-  if (value.svg.trim()) return 间色比例.type;
   return 间色比例.type === "特殊" ? "" : 间色比例.type;
 }
 
@@ -306,7 +309,6 @@ export default function HandWovenEditor({
   const normalizedValue = React.useMemo<本地手织图>(
     () => ({
       json: (value as 手织图 & { json?: string })?.json ?? "",
-      svg: value?.svg ?? "",
       间色比例: get间色比例(value),
     }),
     [value],
@@ -315,14 +317,14 @@ export default function HandWovenEditor({
     deriveSelectedType(normalizedValue),
   );
   const [data, setData] = React.useState<本地手织图>(() =>
-    normalizedValue.svg || normalizedValue.间色比例.type !== "特殊"
+    normalizedValue.json.trim() || normalizedValue.间色比例.type !== "特殊"
       ? normalizedValue
       : (createEmpty手织图() as unknown as 本地手织图),
   );
 
   React.useEffect(() => {
     setData(
-      normalizedValue.svg || normalizedValue.间色比例.type !== "特殊"
+      normalizedValue.json.trim() || normalizedValue.间色比例.type !== "特殊"
         ? normalizedValue
         : (createEmpty手织图() as unknown as 本地手织图),
     );
@@ -344,7 +346,11 @@ export default function HandWovenEditor({
   const 有效排序 = get有效排序(to外部手织图(data));
   const 当前比例组合 = 当前生成类型 ? get比例组合(当前生成类型) : "D:M:L";
   const 当前组合键列表 = 当前生成类型 ? get组合键列表(当前比例组合) : [];
-  const hasLoadedSvg = Boolean(data.svg.trim());
+  const 当前手织图预览Svg = React.useMemo(
+    () => renderSvgFromDocumentJson(data.json),
+    [data.json],
+  );
+  const hasLoadedSvg = Boolean(当前手织图预览Svg.trim());
   const 间色比例预览Svg = React.useMemo(
     () => build手织图间色比例预览Svg(data),
     [data],
@@ -359,11 +365,16 @@ export default function HandWovenEditor({
     onChange(to外部手织图(nextData));
   }
 
-  function syncSvg(nextSvg: string, options?: { silent?: boolean }) {
+  async function syncSvg(nextSvg: string, nextFileName?: string | null, options?: { silent?: boolean }) {
+    const baseDocument = createBaseSvgDocument({
+      name: nextFileName?.trim() || fileName?.trim() || "手织图",
+      svg: nextSvg,
+      sourceName: nextFileName ?? fileName,
+    });
+    const document = await buildDocumentFromSvgImport(baseDocument, nextSvg);
     commit({
       ...data,
-      json: data.json,
-      svg: nextSvg,
+      json: JSON.stringify(document),
     });
     if (!options?.silent) {
       message.success("已更新手织图 SVG");
@@ -377,7 +388,7 @@ export default function HandWovenEditor({
         message.error("SVG 文件内容为空");
         return;
       }
-      syncSvg(nextSvg, { silent: true });
+      await syncSvg(nextSvg, file.name, { silent: true });
       onFileNameChange?.(file.name);
       message.success("已导入手织图 SVG");
     } catch (error) {
@@ -770,7 +781,7 @@ export default function HandWovenEditor({
                     type="button"
                     className="rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
                     onClick={() =>
-                      downloadTextFile("hand-woven.svg", data.svg, "image/svg+xml")
+                      downloadTextFile("hand-woven.svg", 当前手织图预览Svg, "image/svg+xml")
                     }
                   >
                     下载当前 SVG
@@ -781,7 +792,7 @@ export default function HandWovenEditor({
               {hasLoadedSvg ? (
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
                   <InlineSvg
-                    svg={data.svg}
+                    svg={当前手织图预览Svg}
                     className="w-full overflow-auto bg-white"
                     height="auto"
                     fitWidth

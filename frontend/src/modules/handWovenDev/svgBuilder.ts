@@ -39,7 +39,6 @@ type 预览区块 = {
 export function createEmpty手织图(): 手织图 {
   return {
     json: "",
-    svg: "",
     间色比例: {
       type: "特殊",
     },

@@ -94,23 +94,21 @@ const DyeItemSchema = z
 
 const 高针图Schema = z.object({
   json: z.string(),
-  svg: z.string(),
   车线: z.array(
     z
       .object({
         id: z.string().trim().min(1, "高针图车线缺少 id"),
-        编号: z.number(),
         区域: z.string(),
         车线编号: z.string(),
         尺数: z.number(),
         档位: z.string(),
-        DML: z.enum(["D", "M", "L"]),
-        是双数: z.boolean(),
+        DML: z.enum(["D", "M", "L"]).optional(),
+        是双数: z.boolean().optional(),
         标注NodeId: z.object({
-          车线编号: z.string(),
-          档位: z.string(),
-          单双: z.string(),
-          DML: z.string(),
+          车线编号: z.string().optional(),
+          档位: z.string().optional(),
+          单双: z.string().optional(),
+          DML: z.string().optional(),
         }),
       })
       .passthrough()
@@ -129,8 +127,7 @@ const 高针图Schema = z.object({
               结束: z.number(),
             })
           ),
-          id: z.string().optional(),
-          启用: z.boolean().optional(),
+          id: z.string().trim().min(1, "高针图自动修改器缺少 id"),
         }),
         z.object({
           type: z.literal("按档位自动标注DML"),
@@ -142,8 +139,7 @@ const 高针图Schema = z.object({
               结束: z.number(),
             })
           ),
-          id: z.string().optional(),
-          启用: z.boolean().optional(),
+          id: z.string().trim().min(1, "高针图自动修改器缺少 id"),
         }),
       ])
     )
@@ -159,7 +155,6 @@ const 手织图比例项Schema = z.object({
 
 const 手织图Schema = z.object({
   json: z.string(),
-  svg: z.string(),
   间色比例: z.discriminatedUnion("type", [
     z.object({
       type: z.literal("横排"),
@@ -280,6 +275,7 @@ export const ErrorCodeByMessage: Record<string, string> = {
   "染色尺寸标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
   "长尺寸标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
   "短尺寸标注缺少 textNodeId": "INVALID_DYE_TEMPLATE",
+  "高针图自动修改器缺少 id": "INVALID_GRAPH_TEMPLATE",
   Required: "INVALID_GRAPH_TEMPLATE",
   "非间色/T色假发的机器规格清单中不允许设置 DML比值": "INVALID_DML",
   裁断重量项最多3个: "INVALID_CUT_WEIGHT_COUNT",

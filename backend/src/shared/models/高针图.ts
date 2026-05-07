@@ -10,44 +10,37 @@ export interface 标注边框样式 {
 export interface 高针图 {
   /** 编辑器文档 JSON，优先作为编辑真源使用 */
   json: string
-  // 纯渲染，编辑器无关，可以自由替换通用 SVG Editor
-  // 所有车线标注文本都已经生成到 SVG 上
-  svg: string
 
   车线: {
     id: string
-    编号: number
     区域: string
     车线编号: string
     尺数: number
     档位: string
-    DML: DML值
-    是双数: boolean
+    DML?: DML值
+    是双数?: boolean
     // 设置的方法：划线，在相交处自动创建新文本（删除旧的）
     // 改位置：直接拖 SVG
     标注NodeId: {
-      车线编号: string
-      档位: string
-      单双: string
-      DML: string
+      车线编号?: string
+      档位?: string
+      单双?: string
+      DML?: string
     }
   }[]
 
   标注样式: Partial<{
     车线编号: 标注样式
     档位: 标注样式
-    单双: 标注样式
-    DML: 标注样式
+    单双?: 标注样式
+    DML?: 标注样式
   }>
 
   自动修改器: 自动修改器配置[]
 }
 
 type 自动修改器公共字段 = {
-  /** 可选：编辑器侧生成，用于稳定渲染/编辑 */
-  id?: string
-  /** 可选：未设置时视为启用 */
-  启用?: boolean
+  id: string
   /**
    * DML 规律，如 ["D","M","L"]。
    * 注意：当前约定按区域/按档位的范围都是 0~1 百分比区间（含端点）。

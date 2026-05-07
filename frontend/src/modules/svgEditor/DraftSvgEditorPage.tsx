@@ -196,7 +196,7 @@ export default function DraftSvgEditorPage<TValue extends SvgDocumentValue>({
               value={getValue(draft)}
               initialDocument={initialDocument}
               heightClassName="h-screen"
-              fileName={getValue(draft).svg?.trim() ? "已导入 SVG" : undefined}
+              fileName={getValue(draft).json?.trim() ? "已导入 SVG" : undefined}
               onDocumentStateChange={(document) => {
                 saveEditorDocument(draftKey, document);
               }}

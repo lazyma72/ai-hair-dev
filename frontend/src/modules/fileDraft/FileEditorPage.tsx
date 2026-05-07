@@ -393,14 +393,14 @@ export default function FileEditorPage({
       return;
     }
 
-    if (!form.高针指示单.高针图.svg.trim()) {
+    if (!form.高针指示单.高针图.json.trim()) {
       const msg = "请先导入高针图 SVG";
       setSubmitError(msg);
       message.error(msg);
       return;
     }
 
-    if (!form.手织指示单.手织图.svg.trim()) {
+    if (!form.手织指示单.手织图.json.trim()) {
       const msg = "请先导入手织图 SVG";
       setSubmitError(msg);
       message.error(msg);

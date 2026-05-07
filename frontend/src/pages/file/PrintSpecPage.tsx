@@ -14,6 +14,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import InlineSvg from "../../components/InlineSvg";
 import { callApi } from "../../api/callApi";
 import { frontConfig } from "../../frontConfig";
+import { buildHighNeedlePreviewSvg } from "../../modules/fileDraft/HighNeedlePreview";
 import type { 制品规格书 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type {
   制品规格书Frontend,
@@ -23,6 +24,7 @@ import type {
 } from "../../shared/frontend/model/model";
 import { buildPreviewSvg } from "../admin/add-file/components/DyeLevelEditor";
 import { build手织图间色比例预览Svg } from "../../modules/handWovenDev/svgBuilder";
+import { renderSvgFromDocumentJson } from "../../modules/svgEditor/svgEditorDocument";
 import {
   格式化可选定位小数,
   格式化定位小数,
@@ -1539,6 +1541,9 @@ function PrintHandWovenTable({
 function PrintHighNeedleDoc({ data }: { data: 高针指示单Frontend }) {
   const weightText =
     data.title.重量 == null ? "—" : `${格式化定位小数(data.title.重量, 2)}g`;
+  const highNeedleSvg = useMemo(() => {
+    return buildHighNeedlePreviewSvg(data.高针图数据);
+  }, [data.高针图数据]);
 
   return (
     <div
@@ -1620,7 +1625,7 @@ function PrintHighNeedleDoc({ data }: { data: 高针指示单Frontend }) {
       </div>
       <PrintNeedleFigure
         title="高针图"
-        svg={data.高针图svg || data.高针图数据?.svg || ""}
+        svg={highNeedleSvg}
       />
     </div>
   );
@@ -1629,6 +1634,9 @@ function PrintHighNeedleDoc({ data }: { data: 高针指示单Frontend }) {
 function PrintHandWovenDoc({ data }: { data: 手织指示单Frontend }) {
   const ratioPreviewSvg = useMemo(() => {
     return build手织图间色比例预览Svg(data.手织图);
+  }, [data.手织图]);
+  const handWovenSvg = useMemo(() => {
+    return renderSvgFromDocumentJson(data.手织图?.json);
   }, [data.手织图]);
 
   return (
@@ -1712,7 +1720,7 @@ function PrintHandWovenDoc({ data }: { data: 手织指示单Frontend }) {
           </div>
         </div>
       )}
-      <PrintNeedleFigure title="手织图" svg={data.手织图片} boxed={false} />
+      <PrintNeedleFigure title="手织图" svg={handWovenSvg} boxed={false} />
     </div>
   );
 }

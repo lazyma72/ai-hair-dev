@@ -4,7 +4,7 @@ import Section from "../../components/Section";
 import type { 高针指示单 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { 高针指示单Frontend } from "../../shared/frontend/model/model";
 import { inputCls } from "../../pages/admin/add-file/components/ui";
-import HighNeedlePreview from "./HighNeedlePreview";
+import HighNeedlePreview, { buildHighNeedlePreviewSvg } from "./HighNeedlePreview";
 
 type Props = {
   mode: "edit" | "readonly";
@@ -24,14 +24,16 @@ export default function HighNeedleBlock({
   previewData,
 }: Props) {
   const isEdit = mode === "edit";
+  const preview = previewData?.高针图数据 ?? value.高针图;
+  const previewSvg = useMemo(() => {
+    return preview ? buildHighNeedlePreviewSvg(preview) : "";
+  }, [preview]);
+  const hasPreviewSvg = Boolean(previewSvg.trim());
   const fileName = useMemo(() => {
-    const svg = value.高针图?.svg?.trim() ?? "";
-    return svg ? "已导入 SVG" : null;
-  }, [value.高针图?.svg]);
+    return hasPreviewSvg ? "已导入 SVG" : null;
+  }, [hasPreviewSvg]);
 
   if (!isEdit) {
-    const preview = previewData?.高针图数据 ?? value.高针图;
-    const downloadSvg = previewData?.高针图svg || preview?.svg || "";
     const downloadFilename = `${
       previewData?.title?.样品编号 || "high-needle"
     }-high-needle.svg`;
@@ -48,7 +50,7 @@ export default function HighNeedleBlock({
               </div>
             </div>
 
-            {preview?.svg?.trim() ? (
+            {hasPreviewSvg ? (
               <div>
                 <div className="mb-1 flex items-center justify-between gap-3">
                   <div className="text-xs font-medium text-slate-700">
@@ -80,7 +82,7 @@ export default function HighNeedleBlock({
                       导出 JSON
                     </button>
                     <DownloadSvgButton
-                      svg={downloadSvg}
+                      svg={previewSvg}
                       filename={downloadFilename}
                     />
                   </div>
@@ -94,8 +96,6 @@ export default function HighNeedleBlock({
     );
   }
 
-  const preview = previewData?.高针图数据 ?? value.高针图;
-  const downloadSvg = previewData?.高针图svg || preview?.svg || "";
   const downloadFilename = `${
     previewData?.title?.样品编号 || "high-needle"
   }-high-needle.svg`;
@@ -130,9 +130,9 @@ export default function HighNeedleBlock({
                 disabled={!onOpenSvgEditor}
                 onClick={onOpenSvgEditor}
               >
-                {preview?.svg?.trim() ? "进入 SVG 编辑器" : "导入并编辑 SVG"}
+                {hasPreviewSvg ? "进入 SVG 编辑器" : "导入并编辑 SVG"}
               </button>
-              {preview?.svg?.trim() ? (
+              {hasPreviewSvg ? (
                 <>
                   <button
                     type="button"
@@ -156,7 +156,7 @@ export default function HighNeedleBlock({
                     导出 JSON
                   </button>
                   <DownloadSvgButton
-                    svg={downloadSvg}
+                    svg={previewSvg}
                     filename={downloadFilename}
                   />
                 </>
@@ -164,7 +164,7 @@ export default function HighNeedleBlock({
             </div>
           </div>
 
-          {preview?.svg?.trim() ? (
+          {hasPreviewSvg ? (
             <HighNeedlePreview value={preview} />
           ) : (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">

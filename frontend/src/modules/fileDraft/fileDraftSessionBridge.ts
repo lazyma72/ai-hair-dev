@@ -1,5 +1,5 @@
 import type { FileDraftViewModel } from "../../shared/fileDraft/model";
-import { serializeDocument } from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/data/serialization";
+import { serializeDocument } from "../svgEditor/externalSvgEditor";
 import { loadHandWovenEditorDocument } from "../svgEditor/handWovenEditorSessionBridge";
 import { loadHighNeedleEditorDocument } from "../svgEditor/highNeedleEditorSessionBridge";
 
@@ -14,27 +14,7 @@ type FileDraftSessionPayload = {
 function stripHeavySvgEditorFields(
   form: FileDraftViewModel,
 ): FileDraftViewModel {
-  const handWovenSvg = form.手织指示单.手织图.svg.trim();
-  const highNeedleSvg = form.高针指示单.高针图.svg.trim();
-  return {
-    ...form,
-    手织指示单: {
-      ...form.手织指示单,
-      手织图: {
-        ...form.手织指示单.手织图,
-        // 编辑器文档已单独存一份，这里保留 svg 供预览/提交使用即可。
-        json: handWovenSvg ? "" : form.手织指示单.手织图.json,
-      },
-    },
-    高针指示单: {
-      ...form.高针指示单,
-      高针图: {
-        ...form.高针指示单.高针图,
-        // 避免在草稿会话里重复存储整份 DocumentState。
-        json: highNeedleSvg ? "" : form.高针指示单.高针图.json,
-      },
-    },
-  };
+  return form;
 }
 
 function hydrateSvgEditorJson(

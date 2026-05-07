@@ -105,8 +105,6 @@ export interface 高针指示单Frontend {
     CAP: string;
     样品编号: string;
   };
-  /* 全部的svg信息 */
-  高针图svg: string;
   高针图数据: 高针图;
   /*----   机器规格清单_高针图版本 ----
   每个档位对应一条记录
@@ -156,7 +154,5 @@ export interface 手织指示单Frontend {
     };
     位置?: string;
   }[];
-
-  手织图片: string;
   手织图: 手织图;
 }

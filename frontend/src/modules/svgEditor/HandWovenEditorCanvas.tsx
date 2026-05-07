@@ -1,12 +1,12 @@
 import React from "react";
-import type {
-  DocumentState,
-} from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/data/types";
 import type { 手织图 } from "../../shared/models/手织图";
 import SvgEditorCanvas, {
   type SvgEditorCanvasHandle,
 } from "./SvgEditorCanvas";
-import { createBaseSvgDocument } from "./svgEditorDocument";
+import {
+  createBaseSvgDocument,
+  type DocumentState,
+} from "./svgEditorDocument";
 
 type Props = {
   value: 手织图;
@@ -19,7 +19,6 @@ type Props = {
 
 export type HandWovenSvgValue = 手织图 & {
   json: string;
-  svg: string;
 };
 
 export type HandWovenEditorCanvasHandle = SvgEditorCanvasHandle<HandWovenSvgValue>;
@@ -29,19 +28,18 @@ function createEditorDocumentName(fileName?: string | null) {
 }
 
 function createDocumentFromHandWoven(
-  value: HandWovenSvgValue,
+  _value: HandWovenSvgValue,
   fileName?: string | null,
 ): DocumentState {
   return createBaseSvgDocument({
     name: createEditorDocumentName(fileName),
-    svg: value.svg,
     sourceName: fileName,
   });
 }
 
 function toHandWovenValue(
   document: DocumentState,
-  svg: string,
+  _svg: string,
   previous: HandWovenSvgValue,
 ): HandWovenSvgValue {
   const persisted: DocumentState = {
@@ -55,7 +53,6 @@ function toHandWovenValue(
   return {
     ...previous,
     json: JSON.stringify(persisted),
-    svg,
   };
 }
 
