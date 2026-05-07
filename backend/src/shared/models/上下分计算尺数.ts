@@ -86,6 +86,9 @@ function orderCarlinesInRegion(graph: 高针图, region: string): 高针图["车
 function compileDmlAssignments(graph: 高针图): Map<string, DML值> {
   const result = new Map<string, DML值>()
   const orderedByRegion = orderCarlinesByRegionAndNumber(graph)
+  const applyPattern = (items: 高针图["车线"], pattern: DML值[]) => {
+    items.forEach((c, i) => result.set(c.id, pattern[i % pattern.length]))
+  }
 
   ;(graph.自动修改器 ?? []).forEach(mod => {
     if (!mod || mod.启用 === false) return
@@ -100,19 +103,19 @@ function compileDmlAssignments(graph: 高针图): Map<string, DML值> {
         const regionItems = orderCarlinesInRegion(graph, region)
         selected.push(...selectByPercent(regionItems, seg.开始, seg.结束))
       })
-      selected.forEach((c, i) => result.set(c.id, pattern[i % pattern.length]))
+      applyPattern(selected, pattern)
       return
     }
 
     if (mod.type === "按档位自动标注DML") {
-      // 先按区域顺序拼出该档位的全局序列，再按百分比切片。
+      const selected: 高针图["车线"] = []
       ;(mod.范围 ?? []).forEach(seg => {
         const gear = normalizeLevelName(String(seg.档位 ?? ""))
         if (!gear) return
         const gearItems = orderedByRegion.filter(c => normalizeLevelName(c.档位) === gear)
-        const selected = selectByPercent(gearItems, seg.开始, seg.结束)
-        selected.forEach((c, i) => result.set(c.id, pattern[i % pattern.length]))
+        selected.push(...selectByPercent(gearItems, seg.开始, seg.结束))
       })
+      applyPattern(selected, pattern)
     }
   })
 
