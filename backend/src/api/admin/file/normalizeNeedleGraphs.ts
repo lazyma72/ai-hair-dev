@@ -1,69 +1,136 @@
-import { 空DML规则命令列表, type DML规则命令列表 } from "../../../shared/models/DML规则"
 import type { 高针图 } from "../../../shared/models/高针图"
 import type { 手织图, 手织图比例项, 手织图比值 } from "../../../shared/models/手织图"
 
-function normalize高针区域线条(raw: unknown): 高针图["底图"]["区域线条"] {
-  const items = Array.isArray(raw) ? raw : []
-  return items
-    .map((rawItem, itemIndex) => {
-      const item = (rawItem ?? {}) as {
-        区域名?: unknown
-        sortNodeId?: unknown
-        lineNodeId?: unknown
-        lineLength?: unknown
-        区域内位置占比?: unknown
-        sort?: unknown
-        textNodeIds?: unknown
-      }
-      const 区域名 = String(item.区域名 ?? "").trim()
-      const sortNodeId =
-        String(item.sortNodeId ?? "").trim() ||
-        (Array.isArray(item.textNodeIds) ? String(item.textNodeIds[0] ?? "").trim() : "")
-      const lineLength = typeof item.lineLength === "number" ? item.lineLength : 0
-      const ratio =
-        typeof item.区域内位置占比 === "number"
-          ? item.区域内位置占比
-          : Number(item.区域内位置占比 ?? 0)
-      const 区域内位置占比 = Number.isFinite(ratio) ? ratio : 0
-      const explicitLineNodeId = String(item.lineNodeId ?? "").trim()
-      const explicitSort =
-        typeof item.sort === "number" && Number.isFinite(item.sort) && item.sort > 0
-          ? Math.floor(item.sort)
-          : null
-
-      return {
-        区域名,
-        sortNodeId,
-        lineNodeId: explicitLineNodeId,
-        lineLength,
-        区域内位置占比,
-        sort: explicitSort ?? itemIndex + 1,
-      }
-    })
-    .filter(item => item.lineNodeId)
-    .map((item, index) => ({
-      item,
-      sort:
-        typeof item.sort === "number" && Number.isFinite(item.sort) && item.sort > 0
-          ? item.sort
-          : index + 1,
-      index,
-    }))
-    .sort((left, right) => left.sort - right.sort || left.index - right.index)
-    .map(({ item }, index) => ({
-      ...item,
-      sort: index + 1,
-    }))
+function normalizeDmlValue(raw: unknown): 高针图["车线"][number]["DML"] {
+  const v = String(raw ?? "")
+    .trim()
+    .toUpperCase()
+  return v === "M" || v === "L" ? v : "D"
 }
 
-function normalize高针底图(raw: any): 高针图["底图"] {
-  return {
-    svg: typeof raw?.svg === "string" ? raw.svg : "",
-    区域名: Array.isArray(raw?.区域名) ? raw.区域名 : [],
-    区域线条: normalize高针区域线条(raw?.区域线条),
-    档位标注: Array.isArray(raw?.档位标注) ? raw.档位标注 : [],
-    文本节点: raw?.文本节点 && typeof raw.文本节点 === "object" ? raw.文本节点 : {},
+function clamp01(raw: unknown): number {
+  const n = typeof raw === "number" ? raw : Number(raw)
+  if (!Number.isFinite(n)) return 0
+  return Math.max(0, Math.min(1, n))
+}
+
+function normalize标注NodeId(raw: unknown): 高针图["车线"][number]["标注NodeId"] {
+  const item = (raw ?? {}) as {
+    车线编号?: unknown
+    档位?: unknown
+    单双?: unknown
+    DML?: unknown
   }
+  return {
+    车线编号: String(item.车线编号 ?? "").trim(),
+    档位: String(item.档位 ?? "").trim(),
+    单双: String(item.单双 ?? "").trim(),
+    DML: String(item.DML ?? "").trim(),
+  }
+}
+
+function normalize车线(raw: unknown): 高针图["车线"] {
+  const items = Array.isArray(raw) ? raw : []
+  return items
+    .map(rawItem => {
+      const item = (rawItem ?? {}) as {
+        id?: unknown
+        编号?: unknown
+        区域?: unknown
+        车线编号?: unknown
+        尺数?: unknown
+        档位?: unknown
+        DML?: unknown
+        是双数?: unknown
+        标注NodeId?: unknown
+      }
+      const 编号 = typeof item.编号 === "number" ? item.编号 : Number(item.编号 ?? 0)
+      const 尺数 = typeof item.尺数 === "number" ? item.尺数 : Number(item.尺数 ?? 0)
+      return {
+        id: String(item.id ?? "").trim(),
+        编号: Number.isFinite(编号) ? 编号 : 0,
+        区域: String(item.区域 ?? "").trim(),
+        车线编号: String(item.车线编号 ?? "").trim(),
+        尺数: Number.isFinite(尺数) ? 尺数 : 0,
+        档位: String(item.档位 ?? "").trim(),
+        DML: normalizeDmlValue(item.DML),
+        是双数: Boolean(item.是双数),
+        标注NodeId: normalize标注NodeId(item.标注NodeId),
+      }
+    })
+    .filter(item => item.id)
+}
+
+function normalize标注样式(raw: unknown): 高针图["标注样式"] {
+  const src = (raw ?? {}) as Record<string, unknown>
+  const out: any = {}
+  const keys = ["车线编号", "档位", "单双", "DML"] as const
+  for (const key of keys) {
+    const item = (src as any)[key] as any
+    if (!item || typeof item !== "object") continue
+    const 字号 = typeof item.字号 === "number" ? item.字号 : Number(item.字号 ?? 0)
+    out[key] = {
+      字体: typeof item.字体 === "string" ? item.字体 : "",
+      字号: Number.isFinite(字号) ? 字号 : 0,
+      字色: typeof item.字色 === "string" ? item.字色 : "",
+      有边框:
+        item.有边框 && typeof item.有边框 === "object"
+          ? {
+              边框形状: item.有边框.边框形状 === "圆形" ? "圆形" : "方形",
+              边框颜色: typeof item.有边框.边框颜色 === "string" ? item.有边框.边框颜色 : "",
+              背景颜色: typeof item.有边框.背景颜色 === "string" ? item.有边框.背景颜色 : "",
+              是否透明: Boolean(item.有边框.是否透明),
+            }
+          : undefined,
+    }
+  }
+  return out
+}
+
+function normalize自动修改器(raw: unknown): 高针图["自动修改器"] {
+  const items = Array.isArray(raw) ? raw : []
+  const out: 高针图["自动修改器"] = []
+
+  items.forEach(rawItem => {
+    const item = (rawItem ?? {}) as Record<string, unknown>
+    const type = String(item.type ?? "").trim()
+    const 规律 = Array.isArray(item.规律)
+      ? item.规律.map(x => String(x ?? "").trim()).filter(Boolean)
+      : []
+
+    const base: { 规律: string[]; id?: string; 启用?: boolean } = { 规律 }
+    if (typeof item.id === "string" && item.id.trim()) base.id = item.id.trim()
+    if (typeof item.启用 === "boolean") base.启用 = item.启用
+
+    if (type === "按区域自动标注DML") {
+      const 范围 = Array.isArray(item.范围)
+        ? item.范围
+            .map(r => ({
+              区域: String((r as any)?.区域 ?? "").trim(),
+              开始: clamp01((r as any)?.开始),
+              结束: clamp01((r as any)?.结束),
+            }))
+            .filter(r => r.区域)
+        : []
+      out.push({ type: "按区域自动标注DML", ...base, 范围 })
+      return
+    }
+
+    if (type === "按档位自动标注DML") {
+      const 范围 = Array.isArray(item.范围)
+        ? item.范围
+            .map(r => ({
+              档位: String((r as any)?.档位 ?? "").trim(),
+              开始: clamp01((r as any)?.开始),
+              结束: clamp01((r as any)?.结束),
+            }))
+            .filter(r => r.档位)
+        : []
+      out.push({ type: "按档位自动标注DML", ...base, 范围 })
+    }
+  })
+
+  return out
 }
 
 function normalize手织图比例项(
@@ -106,55 +173,44 @@ function normalize手织图比值(raw: unknown): 手织图比值 {
 }
 
 export function normalize高针图(raw: unknown): 高针图 {
-  const src = (raw ?? {}) as any
-  const rawDml = src?.自定义数据?.DML规则命令列表 ?? src?.自定义数据?.DML规则?.命令列表
-  const dmlCommands: DML规则命令列表 = Array.isArray(rawDml) ? rawDml : 空DML规则命令列表()
   return {
-    底图: normalize高针底图(src.底图),
-    自定义数据: {
-      DML规则命令列表: dmlCommands,
-      单双标注: Array.isArray(src?.自定义数据?.单双标注) ? src.自定义数据.单双标注 : [],
-    },
+    svg: typeof (raw as any)?.svg === "string" ? (raw as any).svg : "",
+    车线: normalize车线((raw as any)?.车线),
+    标注样式: normalize标注样式((raw as any)?.标注样式),
+    自动修改器: normalize自动修改器((raw as any)?.自动修改器),
   }
 }
 
 export function normalize手织图(raw: unknown): 手织图 {
   const src = (raw ?? {}) as any
   const svg = typeof src?.svg === "string" ? src.svg : ""
-  const raw类型 = (src?.类型 ?? {}) as {
+  const raw间色比例 = (src?.间色比例 ?? src?.类型 ?? {}) as {
     type?: unknown
-    groupNodeId?: unknown
     比值?: unknown
     边长?: unknown
   }
 
-  if (raw类型.type === "横排") {
+  if (raw间色比例.type === "横排") {
     return {
       svg,
-      类型: {
+      间色比例: {
         type: "横排",
-        groupNodeId:
-          typeof raw类型.groupNodeId === "string" && raw类型.groupNodeId.trim()
-            ? raw类型.groupNodeId
-            : "hand_woven_horizontal_group",
-        比值: normalize手织图比值(raw类型.比值),
+        比值: normalize手织图比值(raw间色比例.比值),
       },
     }
   }
 
-  if (raw类型.type === "方形") {
+  if (raw间色比例.type === "方形") {
     return {
       svg,
-      类型: {
+      间色比例: {
         type: "方形",
-        groupNodeId:
-          typeof raw类型.groupNodeId === "string" && raw类型.groupNodeId.trim()
-            ? raw类型.groupNodeId
-            : "hand_woven_square_group",
-        比值: normalize手织图比值(raw类型.比值),
+        比值: normalize手织图比值(raw间色比例.比值),
         边长:
-          typeof raw类型.边长 === "number" && Number.isFinite(raw类型.边长) && raw类型.边长 > 0
-            ? raw类型.边长
+          typeof raw间色比例.边长 === "number" &&
+          Number.isFinite(raw间色比例.边长) &&
+          raw间色比例.边长 > 0
+            ? raw间色比例.边长
             : 1,
       },
     }
@@ -162,6 +218,6 @@ export function normalize手织图(raw: unknown): 手织图 {
 
   return {
     svg,
-    类型: { type: "特殊" },
+    间色比例: { type: "特殊" },
   }
 }

@@ -1,5 +1,6 @@
-import * as React from "react"
-import { message } from "antd"
+import * as React from "react";
+import { message } from "antd";
+import InlineSvg from "../../components/InlineSvg";
 import {
   Field,
   NumInput,
@@ -7,40 +8,134 @@ import {
   Section,
   TextInput,
   inputCls,
-} from "../../pages/admin/add-file/components/ui"
+} from "../../pages/admin/add-file/components/ui";
 import type {
   手织图,
   手织图比例键,
   手织图类型,
-} from "../../shared/models/手织图"
+} from "../../shared/models/手织图";
+import type { 高针图 } from "../../shared/models/高针图";
 import {
-  build手织图Svg,
+  build手织图间色比例预览Svg,
   createEmpty手织图,
-  createEmpty手织图SourceSvg,
-  get当前分组节点ID,
   get有效排序,
-} from "./svgBuilder"
-import OpenSourceSvgEditor from "./OpenSourceSvgEditor"
+} from "./svgBuilder";
+import EmbeddedHighNeedleEditor from "../../pages/editor/EmbeddedHighNeedleEditor";
+import HandWovenSvgPreviewCard from "./HandWovenSvgPreviewCard";
 
-const 比例键列表: 手织图比例键[] = ["D", "M", "L"]
-const 比例组合列表 = ["D:M", "D:L", "D:M:L"] as const
+const 比例键列表: 手织图比例键[] = ["D", "M", "L"];
+const 比例组合列表 = ["D:M", "D:L", "D:M:L"] as const;
 
-type 可生成类型 = Extract<手织图["类型"], { type: "横排" | "方形" }>
-type 比例组合 = (typeof 比例组合列表)[number]
+type 本地间色比例 =
+  | {
+      type: "横排";
+      比值: {
+        D: {
+          值: number;
+          是否染色?: boolean;
+          remark?: string;
+          sort: number;
+        };
+        M?: {
+          值: number;
+          是否染色?: boolean;
+          remark?: string;
+          sort: number;
+        };
+        L?: {
+          值: number;
+          是否染色?: boolean;
+          remark?: string;
+          sort: number;
+        };
+      };
+    }
+  | {
+      type: "方形";
+      比值: {
+        D: {
+          值: number;
+          是否染色?: boolean;
+          remark?: string;
+          sort: number;
+        };
+        M?: {
+          值: number;
+          是否染色?: boolean;
+          remark?: string;
+          sort: number;
+        };
+        L?: {
+          值: number;
+          是否染色?: boolean;
+          remark?: string;
+          sort: number;
+        };
+      };
+      边长: number;
+    }
+  | {
+      type: "特殊";
+    };
+
+type 可生成类型 = Extract<本地间色比例, { type: "横排" | "方形" }>;
+type 比例组合 = (typeof 比例组合列表)[number];
+
+type 本地手织图 = {
+  svg: string;
+  间色比例: 本地间色比例;
+};
 
 type Props = {
-  title?: string
-  description?: string
-  value: 手织图
-  onChange: (v: 手织图) => void
-  fileName?: string | null
-  onFileNameChange?: (name: string | null) => void
-  emptyText?: string
-  showJsonActions?: boolean
-  fullscreen?: boolean
-  embed?: boolean
-  heightClassName?: string
-  showUploader?: boolean
+  title?: string;
+  description?: string;
+  value: 手织图;
+  onChange: (v: 手织图) => void;
+  fileName?: string | null;
+  onFileNameChange?: (name: string | null) => void;
+  emptyText?: string;
+  showJsonActions?: boolean;
+  fullscreen?: boolean;
+  embed?: boolean;
+  heightClassName?: string;
+  showUploader?: boolean;
+};
+
+function get间色比例(value: 手织图 | 本地手织图): 本地间色比例 {
+  const raw = (value as unknown as { 间色比例?: 本地间色比例 }).间色比例;
+  if (!raw || typeof raw !== "object") {
+    return { type: "特殊" };
+  }
+
+  if (raw.type === "横排") {
+    return {
+      type: "横排",
+      比值: raw.比值 ?? {
+        D: { 值: 1, remark: "", sort: 1 },
+        M: { 值: 2, remark: "", sort: 2 },
+        L: { 值: 1, remark: "", sort: 3 },
+      },
+    };
+  }
+
+  if (raw.type === "方形") {
+    return {
+      type: "方形",
+      比值: raw.比值 ?? {
+        D: { 值: 1, remark: "", sort: 1 },
+        M: { 值: 2, remark: "", sort: 2 },
+        L: { 值: 1, remark: "", sort: 3 },
+      },
+      边长:
+        typeof raw.边长 === "number" &&
+        Number.isFinite(raw.边长) &&
+        raw.边长 > 0
+          ? raw.边长
+          : 1,
+    };
+  }
+
+  return { type: "特殊" };
 }
 
 function clone生成类型(type: 可生成类型): 可生成类型 {
@@ -53,7 +148,7 @@ function clone生成类型(type: 可生成类型): 可生成类型 {
         M: type.比值.M ? { ...type.比值.M } : undefined,
         L: type.比值.L ? { ...type.比值.L } : undefined,
       },
-    }
+    };
   }
   return {
     ...type,
@@ -62,22 +157,22 @@ function clone生成类型(type: 可生成类型): 可生成类型 {
       M: type.比值.M ? { ...type.比值.M } : undefined,
       L: type.比值.L ? { ...type.比值.L } : undefined,
     },
-  }
+  };
 }
 
-function ensure生成类型(data: 手织图): 可生成类型 {
-  if (data.类型.type !== "特殊") {
-    return clone生成类型(data.类型)
+function ensure生成类型(data: 本地手织图): 可生成类型 {
+  const 间色比例 = get间色比例(data);
+  if (间色比例.type !== "特殊") {
+    return clone生成类型(间色比例);
   }
   return {
     type: "横排",
-    groupNodeId: "hand_woven_horizontal_group",
     比值: {
       D: { 值: 1, remark: "", sort: 1 },
       M: { 值: 2, remark: "", sort: 2 },
       L: { 值: 1, remark: "", sort: 3 },
     },
-  }
+  };
 }
 
 function create默认比例项(sort: number) {
@@ -86,56 +181,56 @@ function create默认比例项(sort: number) {
     remark: "",
     是否染色: false,
     sort,
-  }
+  };
 }
 
 function get比例组合(type: 可生成类型): 比例组合 {
-  const hasM = Boolean(type.比值.M)
-  const hasL = Boolean(type.比值.L)
-  if (hasM && hasL) return "D:M:L"
-  if (hasL) return "D:L"
-  return "D:M"
+  const hasM = Boolean(type.比值.M);
+  const hasL = Boolean(type.比值.L);
+  if (hasM && hasL) return "D:M:L";
+  if (hasL) return "D:L";
+  return "D:M";
 }
 
 function get组合键列表(combo: 比例组合): 手织图比例键[] {
-  if (combo === "D:L") return ["D", "L"]
-  if (combo === "D:M:L") return ["D", "M", "L"]
-  return ["D", "M"]
+  if (combo === "D:L") return ["D", "L"];
+  if (combo === "D:M:L") return ["D", "M", "L"];
+  return ["D", "M"];
 }
 
 function apply比例组合(type: 可生成类型, combo: 比例组合): 可生成类型 {
-  const keys = get组合键列表(combo)
+  const keys = get组合键列表(combo);
   const next比值: 可生成类型["比值"] = {
     D: {
       ...(type.比值.D ?? create默认比例项(1)),
       sort: 1,
     },
-  }
+  };
 
   if (keys.includes("M")) {
     next比值.M = {
       ...(type.比值.M ?? create默认比例项(keys.indexOf("M") + 1)),
       sort: keys.indexOf("M") + 1,
-    }
+    };
   }
 
   if (keys.includes("L")) {
     next比值.L = {
       ...(type.比值.L ?? create默认比例项(keys.indexOf("L") + 1)),
       sort: keys.indexOf("L") + 1,
-    }
+    };
   }
 
   return {
     ...type,
     比值: next比值,
-  }
+  };
 }
 
 function move排序(
   type: 可生成类型,
   key: 手织图比例键,
-  direction: "up" | "down"
+  direction: "up" | "down",
 ): 可生成类型 {
   const entries = 比例键列表
     .map((itemKey, index) => ({
@@ -145,235 +240,190 @@ function move排序(
     }))
     .filter(({ item }) => Boolean(item && item.值 > 0))
     .sort((left, right) => {
-      const leftSort = Number(left.item?.sort ?? left.index + 1)
-      const rightSort = Number(right.item?.sort ?? right.index + 1)
-      if (leftSort !== rightSort) return leftSort - rightSort
-      return left.index - right.index
-    })
+      const leftSort = Number(left.item?.sort ?? left.index + 1);
+      const rightSort = Number(right.item?.sort ?? right.index + 1);
+      if (leftSort !== rightSort) return leftSort - rightSort;
+      return left.index - right.index;
+    });
 
-  const currentIndex = entries.findIndex((entry) => entry.key === key)
-  if (currentIndex < 0) return type
-  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
-  if (targetIndex < 0 || targetIndex >= entries.length) return type
+  const currentIndex = entries.findIndex((entry) => entry.key === key);
+  if (currentIndex < 0) return type;
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= entries.length) return type;
 
-  ;[entries[currentIndex], entries[targetIndex]] = [
+  [entries[currentIndex], entries[targetIndex]] = [
     entries[targetIndex],
     entries[currentIndex],
-  ]
+  ];
 
-  const next比值 = { ...type.比值 }
+  const next比值 = { ...type.比值 };
   entries.forEach((entry, index) => {
-    const item = next比值[entry.key]
-    if (!item) return
+    const item = next比值[entry.key];
+    if (!item) return;
     next比值[entry.key] = {
       ...item,
       sort: index + 1,
-    }
-  })
+    };
+  });
 
   return {
     ...type,
     比值: next比值,
-  }
+  };
 }
 
 function downloadTextFile(filename: string, content: string, type: string) {
-  const blob = new Blob([content], { type })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-function deriveSelectedType(value: 手织图): 手织图类型 | "" {
-  if (value.svg.trim()) return value.类型.type
-  return value.类型.type === "特殊" ? "" : value.类型.type
-}
-
-function deriveSourceSvg(value: 手织图): string {
-  if (value.类型.type === "特殊") return value.svg
-  return value.svg.trim() || createEmpty手织图SourceSvg()
+function deriveSelectedType(value: 本地手织图): 手织图类型 | "" {
+  const 间色比例 = get间色比例(value);
+  if (value.svg.trim()) return 间色比例.type;
+  return 间色比例.type === "特殊" ? "" : 间色比例.type;
 }
 
 export default function HandWovenEditor({
   title = "手织图编辑",
-  description = "请选择手织图类型并上传 SVG，在当前页面完成生成和编辑。",
+  description = "间色比例与手织图 SVG 分开展示和编辑。",
   value,
   onChange,
   fileName,
-  onFileNameChange,
-  emptyText = "请先选择一份手织图 SVG 文件。",
+  onFileNameChange: _onFileNameChange,
+  emptyText: _emptyText = "请先上传一份手织图 SVG 文件。",
   showJsonActions = true,
   fullscreen = false,
   embed = false,
   heightClassName,
-  showUploader = true,
+  showUploader: _showUploader = true,
 }: Props) {
-  const [selectedType, setSelectedType] = React.useState<手织图类型 | "">(
-    () => deriveSelectedType(value),
-  )
-  const [sourceSvg, setSourceSvg] = React.useState(() => deriveSourceSvg(value))
-  const [hasLoadedSvg, setHasLoadedSvg] = React.useState(() => Boolean(value.svg.trim()))
-  const [data, setData] = React.useState<手织图>(() =>
-    value.svg || value.类型.type !== "特殊" ? value : createEmpty手织图(),
-  )
+  const normalizedValue = React.useMemo<本地手织图>(
+    () => ({
+      svg: value?.svg ?? "",
+      间色比例: get间色比例(value),
+    }),
+    [value],
+  );
+  const [selectedType, setSelectedType] = React.useState<手织图类型 | "">(() =>
+    deriveSelectedType(normalizedValue),
+  );
+  const [expanded, setExpanded] = React.useState(false);
+  const [data, setData] = React.useState<本地手织图>(() =>
+    normalizedValue.svg || normalizedValue.间色比例.type !== "特殊"
+      ? normalizedValue
+      : (createEmpty手织图() as unknown as 本地手织图),
+  );
 
   React.useEffect(() => {
-    setData(value.svg || value.类型.type !== "特殊" ? value : createEmpty手织图())
+    setData(
+      normalizedValue.svg || normalizedValue.间色比例.type !== "特殊"
+        ? normalizedValue
+        : (createEmpty手织图() as unknown as 本地手织图),
+    );
     setSelectedType((prev) => {
-      const derived = deriveSelectedType(value)
-      // "特殊" 允许在未上传 SVG 时先被选中；只有显式切回空选项时才清空选择。
-      if (!derived && value.类型.type === "特殊" && prev === "特殊") {
-        return "特殊"
+      const derived = deriveSelectedType(normalizedValue);
+      if (
+        !derived &&
+        normalizedValue.间色比例.type === "特殊" &&
+        prev === "特殊"
+      ) {
+        return "特殊";
       }
-      return derived
-    })
-    setSourceSvg(deriveSourceSvg(value))
-    setHasLoadedSvg(Boolean(value.svg.trim()))
-  }, [value])
+      return derived;
+    });
+  }, [normalizedValue]);
+
+  React.useEffect(() => {
+    if (!expanded) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setExpanded(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expanded]);
 
   const 当前生成类型 =
-    selectedType && data.类型.type !== "特殊" ? data.类型 : null
-  const 有效排序 = get有效排序(data)
-  const 当前比例组合 = 当前生成类型 ? get比例组合(当前生成类型) : "D:M:L"
-  const 当前组合键列表 = 当前生成类型 ? get组合键列表(当前比例组合) : []
+    selectedType && data.间色比例.type !== "特殊" ? data.间色比例 : null;
+  const 有效排序 = get有效排序(to外部手织图(data));
+  const 当前比例组合 = 当前生成类型 ? get比例组合(当前生成类型) : "D:M:L";
+  const 当前组合键列表 = 当前生成类型 ? get组合键列表(当前比例组合) : [];
+  const hasLoadedSvg = Boolean(data.svg.trim());
+  const 间色比例预览Svg = React.useMemo(
+    () => build手织图间色比例预览Svg(data),
+    [data],
+  );
 
-  function commit(nextData: 手织图) {
-    setData(nextData)
-    onChange(nextData)
+  function to外部手织图(nextData: 本地手织图): 手织图 {
+    return nextData as unknown as 手织图;
   }
 
-  function get当前源图Svg(nextData: 手织图): string {
-    return sourceSvg.trim() || nextData.svg.trim() || createEmpty手织图SourceSvg()
+  function commit(nextData: 本地手织图) {
+    setData(nextData);
+    onChange(to外部手织图(nextData));
   }
 
-  function syncSourceSvg(nextSourceSvg: string, options?: { silent?: boolean }) {
-    setSourceSvg(nextSourceSvg)
-    setHasLoadedSvg(Boolean(nextSourceSvg.trim()))
-
-    const nextData =
-      data.类型.type === "特殊"
-        ? {
-            ...data,
-            svg: nextSourceSvg,
-          }
-        : build手织图Svg(data, { sourceSvg: nextSourceSvg })
-
-    commit(nextData)
-    if (!options?.silent) {
-      message.success(data.类型.type === "特殊" ? "已替换 SVG" : "已应用源图 SVG")
-    }
-  }
-
-  function syncEditorSvg(nextSvg: string, options?: { silent?: boolean }) {
-    const nextData = {
+  function syncSvg(nextSvg: string, options?: { silent?: boolean }) {
+    commit({
       ...data,
       svg: nextSvg,
-    }
-    commit(nextData)
-
-    if (selectedType === "特殊") {
-      setSourceSvg(nextSvg)
-    }
-
+    });
     if (!options?.silent) {
-      message.success("已更新当前 SVG")
+      message.success("已更新手织图 SVG");
     }
   }
 
-  function update生成类型(mutator: (draft: 可生成类型) => 可生成类型) {
-    const nextType = mutator(ensure生成类型(data))
-    const nextData = build手织图Svg(
-      {
-        ...data,
-        类型: nextType,
-      },
-      {
-        sourceSvg: data.svg.trim() || get当前源图Svg(data),
-      },
-    )
-    commit(nextData)
+  function update间色比例(mutator: (draft: 可生成类型) => 可生成类型) {
+    const next类型 = mutator(ensure生成类型(data));
+    commit({
+      ...data,
+      间色比例: next类型,
+    });
   }
 
   function change类型(nextType: 手织图类型) {
-    const cleanSourceSvg = ""
-    setSelectedType(nextType)
-    setSourceSvg(cleanSourceSvg)
-    setHasLoadedSvg(false)
-    onFileNameChange?.(null)
+    setSelectedType(nextType);
 
     if (nextType === "特殊") {
       commit({
         ...data,
-        svg: cleanSourceSvg,
-        类型: { type: "特殊" },
-      })
-      return
+        间色比例: { type: "特殊" },
+      });
+      return;
     }
 
-    const base = ensure生成类型(data)
-    commit(
-      build手织图Svg(
-        {
-          ...data,
-          svg: cleanSourceSvg,
-          类型:
-            nextType === "横排"
-              ? {
-                  type: "横排",
-                  groupNodeId: "hand_woven_horizontal_group",
-                  比值: base.比值,
-                }
-              : {
-                  type: "方形",
-                  groupNodeId: "hand_woven_square_group",
-                  比值: base.比值,
-                  边长: base.type === "方形" && base.边长 > 0 ? base.边长 : 1,
-                },
-        },
-        {
-          sourceSvg: createEmpty手织图SourceSvg(),
-        },
-      ),
-    )
+    const base = ensure生成类型(data);
+    commit({
+      ...data,
+      间色比例:
+        nextType === "横排"
+          ? {
+              type: "横排",
+              比值: base.比值,
+            }
+          : {
+              type: "方形",
+              比值: base.比值,
+              边长: base.type === "方形" && base.边长 > 0 ? base.边长 : 1,
+            },
+    });
   }
 
-  function handleSourceUpload(file: File) {
-    if (!selectedType) {
-      message.error("请先选择手织图类型")
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const text = typeof reader.result === "string" ? reader.result : ""
-      onFileNameChange?.(file.name)
-      syncSourceSvg(text, { silent: true })
-      message.success(`已导入源图 ${file.name}`)
-    }
-    reader.readAsText(file, "utf-8")
-  }
-
-  function handleSpecialUpload(file: File) {
-    if (!selectedType) {
-      message.error("请先选择手织图类型")
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const text = typeof reader.result === "string" ? reader.result : ""
-      onFileNameChange?.(file.name)
-      setSourceSvg(text)
-      setHasLoadedSvg(Boolean(text.trim()))
-      commit({
-        ...data,
-        svg: text,
-        类型: { type: "特殊" },
-      })
-      message.success(`已导入 ${file.name}`)
-    }
-    reader.readAsText(file, "utf-8")
+  function toHandWovenSvgEditorValue(value: 本地手织图): 高针图 {
+    return {
+      svg: value.svg,
+      车线: [],
+      标注样式: {},
+      自动修改器: [],
+    };
   }
 
   const content = (
@@ -405,10 +455,12 @@ export default function HandWovenEditor({
                   className="rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
                   onClick={async () => {
                     try {
-                      await navigator.clipboard.writeText(JSON.stringify(data, null, 2))
-                      message.success("已复制 JSON")
+                      await navigator.clipboard.writeText(
+                        JSON.stringify(data, null, 2),
+                      );
+                      message.success("已复制 JSON");
                     } catch {
-                      message.error("复制失败")
+                      message.error("复制失败");
                     }
                   }}
                 >
@@ -422,7 +474,7 @@ export default function HandWovenEditor({
                       "hand-woven.json",
                       JSON.stringify(data, null, 2),
                       "application/json;charset=utf-8",
-                    )
+                    );
                   }}
                 >
                   下载 JSON
@@ -433,25 +485,25 @@ export default function HandWovenEditor({
         </div>
       ) : null}
 
-      <div className="grid gap-2 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <div className={embed ? "space-y-2 border-b border-slate-100 p-4 xl:border-b-0 xl:border-r" : "space-y-2"}>
-          <Section title="生成参数">
+      <div className="space-y-3">
+        <Section title="间色比例">
+          <div className="grid gap-3 xl:grid-cols-[300px_minmax(0,1fr)]">
             <div className="space-y-2">
               <Field label="手织图类型">
                 <select
                   className={inputCls}
                   value={selectedType}
                   onChange={(e) => {
-                    const nextType = e.target.value as 手织图类型 | ""
+                    const nextType = e.target.value as 手织图类型 | "";
                     if (!nextType) {
-                      setSelectedType("")
-                      setSourceSvg("")
-                      setHasLoadedSvg(false)
-                      onFileNameChange?.(null)
-                      commit({ svg: "", 类型: { type: "特殊" } })
-                      return
+                      setSelectedType("");
+                      commit({
+                        ...data,
+                        间色比例: { type: "特殊" },
+                      });
+                      return;
                     }
-                    change类型(nextType)
+                    change类型(nextType);
                   }}
                 >
                   <option value="">请选择类型</option>
@@ -463,7 +515,7 @@ export default function HandWovenEditor({
 
               {!selectedType ? (
                 <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2.5 text-xs text-slate-600">
-                  请先选择手织图类型，再上传或编辑 SVG。
+                  请先选择手织图类型，再填写间色比例参数。
                 </div>
               ) : 当前生成类型 ? (
                 <>
@@ -473,7 +525,7 @@ export default function HandWovenEditor({
                         value={当前生成类型.边长}
                         step="0.1"
                         onChange={(nextValue) =>
-                          update生成类型((draft) =>
+                          update间色比例((draft) =>
                             draft.type === "方形"
                               ? {
                                   ...draft,
@@ -491,7 +543,7 @@ export default function HandWovenEditor({
                       className={inputCls}
                       value={当前比例组合}
                       onChange={(e) =>
-                        update生成类型((draft) =>
+                        update间色比例((draft) =>
                           apply比例组合(draft, e.target.value as 比例组合),
                         )
                       }
@@ -506,14 +558,12 @@ export default function HandWovenEditor({
 
                   <div className="grid gap-1.5">
                     {当前组合键列表.map((key) => {
-                      const item =
-                        当前生成类型.比值[key] ??
-                        {
-                          值: 0,
-                          remark: "",
-                          是否染色: false,
-                          sort: 比例键列表.indexOf(key) + 1,
-                        }
+                      const item = 当前生成类型.比值[key] ?? {
+                        值: 0,
+                        remark: "",
+                        是否染色: false,
+                        sort: 比例键列表.indexOf(key) + 1,
+                      };
                       return (
                         <div
                           key={key}
@@ -528,7 +578,7 @@ export default function HandWovenEditor({
                                 type="checkbox"
                                 checked={Boolean(item.是否染色)}
                                 onChange={(e) =>
-                                  update生成类型((draft) => ({
+                                  update间色比例((draft) => ({
                                     ...draft,
                                     比值: {
                                       ...draft.比值,
@@ -552,7 +602,7 @@ export default function HandWovenEditor({
                               <OneDecimalInput
                                 value={item.值}
                                 onChange={(nextValue) =>
-                                  update生成类型((draft) => ({
+                                  update间色比例((draft) => ({
                                     ...draft,
                                     比值: {
                                       ...draft.比值,
@@ -572,7 +622,7 @@ export default function HandWovenEditor({
                               <TextInput
                                 value={item.remark ?? ""}
                                 onChange={(remark) =>
-                                  update生成类型((draft) => ({
+                                  update间色比例((draft) => ({
                                     ...draft,
                                     比值: {
                                       ...draft.比值,
@@ -591,13 +641,13 @@ export default function HandWovenEditor({
                             </Field>
                           </div>
                         </div>
-                      )
+                      );
                     })}
                   </div>
 
                   <div>
                     <div className="mb-1 text-[11px] font-medium text-slate-700">
-                      排序（值大于 0 的项会参与生成）
+                      排序（值大于 0 的项会参与预览）
                     </div>
                     <div className="space-y-1">
                       {有效排序.map((key, index) => (
@@ -613,7 +663,9 @@ export default function HandWovenEditor({
                               type="button"
                               className="rounded bg-slate-100 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-200"
                               onClick={() =>
-                                update生成类型((draft) => move排序(draft, key, "up"))
+                                update间色比例((draft) =>
+                                  move排序(draft, key, "up"),
+                                )
                               }
                             >
                               上移
@@ -622,7 +674,9 @@ export default function HandWovenEditor({
                               type="button"
                               className="rounded bg-slate-100 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-200"
                               onClick={() =>
-                                update生成类型((draft) => move排序(draft, key, "down"))
+                                update间色比例((draft) =>
+                                  move排序(draft, key, "down"),
+                                )
                               }
                             >
                               下移
@@ -636,110 +690,133 @@ export default function HandWovenEditor({
               ) : (
                 <div className="space-y-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2.5">
                   <div className="text-xs text-slate-700">
-                    特殊模式不自动生成，请在右侧编辑区直接上传或替换完整 SVG。
+                    特殊模式不生成间色比例预览，只维护手织图 SVG。
                   </div>
                 </div>
               )}
             </div>
-          </Section>
-        </div>
 
-        <div className={embed ? "space-y-3 p-4" : "space-y-3"}>
-          <Section
-            title="SVG 编辑"
-            action={
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">
-                  {selectedType ? "上传 SVG 后可继续编辑" : "请先选择类型"}
-                </span>
-              </div>
-            }
-          >
-            {selectedType ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {showUploader ? (
-                    selectedType === "特殊" ? (
-                      <label className="inline-flex cursor-pointer items-center rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                        上传新 SVG
-                        <input
-                          type="file"
-                          accept=".svg,image/svg+xml"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) handleSpecialUpload(file)
-                            e.target.value = ""
-                          }}
-                        />
-                      </label>
-                    ) : (
-                      <label className="inline-flex cursor-pointer items-center rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                        上传源图 SVG
-                        <input
-                          type="file"
-                          accept=".svg,image/svg+xml"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) handleSourceUpload(file)
-                            e.target.value = ""
-                          }}
-                        />
-                      </label>
-                    )
-                  ) : null}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-medium text-slate-600">
+                  预览效果
+                </div>
+                {间色比例预览Svg ? (
                   <button
                     type="button"
                     className="rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
                     onClick={() =>
-                      downloadTextFile("hand-woven.svg", data.svg, "image/svg+xml")
+                      downloadTextFile(
+                        "hand-woven-ratio-preview.svg",
+                        间色比例预览Svg,
+                        "image/svg+xml",
+                      )
                     }
                   >
-                    下载当前 SVG
+                    下载预览 SVG
                   </button>
-                  <div className="text-xs text-slate-500">
-                    {fileName
-                      ? `当前 SVG：${fileName}`
-                      : hasLoadedSvg
-                        ? "当前 SVG：已导入"
-                        : emptyText}
-                  </div>
-                </div>
+                ) : null}
+              </div>
 
-                {hasLoadedSvg ? (
-                  <div
-                    className={
-                      embed
-                        ? `overflow-hidden ${heightClassName ?? "h-[60vh] min-h-[520px]"}`
-                        : "h-[70vh] min-h-[560px] overflow-hidden"
+              {间色比例预览Svg ? (
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+                  <InlineSvg
+                    svg={间色比例预览Svg}
+                    className="min-h-[220px] w-full overflow-auto bg-white"
+                    height="auto"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                  {selectedType === "特殊"
+                    ? "当前为特殊模式，不展示间色比例预览。"
+                    : "请先选择类型并填写有效的间色比例参数。"}
+                </div>
+              )}
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          title="手织图 SVG"
+          action={
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+                onClick={() => setExpanded(true)}
+              >
+                放大标注
+              </button>
+              <span className="text-xs text-slate-500">
+                {hasLoadedSvg
+                  ? "已导入，可直接在编辑器中修改"
+                  : "请在编辑器内的文件菜单导入手织图 SVG"}
+              </span>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-xs text-slate-500">
+                {fileName
+                  ? `当前 SVG：${fileName}`
+                  : hasLoadedSvg
+                    ? "当前 SVG：已导入"
+                    : "请在编辑器内的文件菜单导入手织图 SVG"}
+              </div>
+            </div>
+
+            {!expanded ? (
+              <HandWovenSvgPreviewCard
+                svg={data.svg}
+                emptyText="请先在放大标注中导入手织图 SVG。"
+              />
+            ) : null}
+
+            <div
+              className={
+                expanded
+                  ? "fixed inset-0 z-[90] bg-slate-100"
+                  : embed
+                    ? "hidden"
+                    : ""
+              }
+            >
+              {expanded ? (
+                <div className="h-full min-w-0 bg-white">
+                  <EmbeddedHighNeedleEditor
+                    heightClassName="h-full min-h-0"
+                    value={toHandWovenSvgEditorValue(data)}
+                    onChange={(nextValue) => {
+                      if (!data.svg.trim() && nextValue.svg.trim()) {
+                        message.success("已导入手织图 SVG");
+                      }
+                      syncSvg(nextValue.svg, { silent: true });
+                    }}
+                    fileName={fileName ?? "手织图"}
+                    headerRight={
+                      <button
+                        type="button"
+                        className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+                        onClick={() => setExpanded(false)}
+                      >
+                        退出放大
+                      </button>
                     }
-                  >
-                    <OpenSourceSvgEditor
-                      title={selectedType === "特殊" ? "SVG 可视化编辑" : "当前 SVG 可视化编辑"}
-                      svg={data.svg}
-                      groupNodeId={selectedType === "特殊" ? undefined : get当前分组节点ID(data)}
-                      onChange={(nextSvg) => syncEditorSvg(nextSvg, { silent: true })}
-                    />
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                    请先上传 SVG 后再编辑。
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                请先在左侧选择手织图类型，再上传或编辑 SVG。
-              </div>
-            )}
-          </Section>
-        </div>
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </Section>
       </div>
     </section>
-  )
+  );
 
-  if (embed) return content
+  if (embed) {
+    return content;
+  }
 
   return fullscreen ? (
     content
@@ -750,5 +827,5 @@ export default function HandWovenEditor({
       </div>
       {content}
     </>
-  )
+  );
 }

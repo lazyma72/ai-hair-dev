@@ -1,9 +1,7 @@
-import type {
-  制品规格书,
-} from "../../../shared/db/Db沐茵丝假发成品稿";
+import type { 制品规格书 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import { 假发类型 } from "../../../shared/db/Db沐茵丝假发成品稿";
-import { 空DML规则命令列表 } from "../../../shared/models/DML规则";
 import type { FileDraftViewModel } from "../../../shared/fileDraft/model";
+import { createEmpty手织图 } from "../../../modules/handWovenDev/svgBuilder";
 
 export const 工艺说明Keys = [
   "作业方法",
@@ -72,27 +70,15 @@ export const emptyFile = (): FileDraftViewModel => ({
   高针指示单: {
     注意事项: "",
     高针图: {
-      底图: {
-        svg: "",
-        区域名: [],
-        区域线条: [],
-        档位标注: [],
-        文本节点: {},
-      },
-      自定义数据: {
-        DML规则命令列表: 空DML规则命令列表(),
-        单双标注: [],
-      },
+      svg: "",
+      车线: [],
+      标注样式: {},
+      自动修改器: [],
     },
   },
   手织指示单: {
     注意事项: "",
-    手织图: {
-      svg: "",
-      类型: {
-        type: "特殊",
-      },
-    },
+    手织图: createEmpty手织图() as never,
   },
 });
 

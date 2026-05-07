@@ -12,13 +12,15 @@ import type {
   沐茵丝假发成品稿ListItem,
 } from "../../../shared/frontend/model/model";
 import FileEditorPage from "../../../modules/fileDraft/FileEditorPage";
-import { toDbPayload } from "../../../shared/fileDraft/adapters/toDbPayload";
+import {
+  toDbPayload,
+  toPreviewDbFile,
+} from "../../../shared/fileDraft/adapters/toDbPayload";
 import { fromDbToFileDraftViewModel } from "../../../shared/fileDraft/adapters/fromDbToFileDraftViewModel";
 import type { FileDraftViewModel } from "../../../shared/fileDraft/model";
 import type { 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿";
 import DocumentTabs from "../../../modules/fileDraft/DocumentTabs";
 import FileDraftDataSections from "../../../modules/fileDraft/FileDraftDataSections";
-import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend";
 import { to高针指示单Frontend } from "../../../shared/frontend/converters/to高针指示单Frontend";
 import type {
   ResGetList,
@@ -62,13 +64,6 @@ function withNewId(file: FileDraftViewModel, id: string): FileDraftViewModel {
     样品编号: file.样品编号 || id,
     tag: "草稿",
   };
-}
-
-function toPreviewFile(value: FileDraftViewModel): 沐茵丝假发成品稿 {
-  return {
-    ...toDbPayload(value),
-    _id: value._id as never,
-  } as unknown as 沐茵丝假发成品稿;
 }
 
 function fetchFileList(req: {
@@ -304,11 +299,11 @@ export default function ABCreateWizardPage() {
               ) : null}
 
               {previewTab === "高针指示单" ? (
-                <高针指示单View data={to高针指示单Frontend(toPreviewFile(cDraft))} />
+                <高针指示单View data={to高针指示单Frontend(toPreviewDbFile(cDraft))} />
               ) : null}
 
               {previewTab === "手织指示单" ? (
-                <手织指示单View data={to手织指示单Frontend(toPreviewFile(cDraft))} />
+                <手织指示单View value={cDraft.手织指示单} />
               ) : null}
             </PageShell>
           )

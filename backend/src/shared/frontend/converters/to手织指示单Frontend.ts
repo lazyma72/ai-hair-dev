@@ -1,5 +1,5 @@
-import { 沐茵丝假发成品稿 } from "../../db/Db沐茵丝假发成品稿"
-import { 手织指示单Frontend } from "../model/model"
+import type { FileDraftPreviewDbShape } from "../../fileDraft/adapters/toDbPayload";
+import { 手织指示单Frontend } from "../model/model";
 
 /**
  * 将 沐茵丝假发成品稿 转换为 手织指示单Frontend
@@ -7,41 +7,55 @@ import { 手织指示单Frontend } from "../model/model"
  * 人工规格清单_手织图：注释说明需要"按照档位整合成一个档位"展示，
  * 具体整合规则待确认；当前取第一个人工规格清单档位作为占位。
  */
-export function to手织指示单Frontend(稿: 沐茵丝假发成品稿): 手织指示单Frontend {
+export function to手织指示单Frontend(
+  稿: FileDraftPreviewDbShape,
+): 手织指示单Frontend {
   return {
     title: {
       样品编号: 稿.样品编号,
       客户编号: 稿.客户编号,
-      尺寸: `${Math.min(...稿.制品规格书.人工规格清单.map(档位 => 档位.双针.毛长))}" ~ ${Math.max(...稿.制品规格书.人工规格清单.map(档位 => 档位.双针.毛长))}"`,
+      尺寸: `${Math.min(...稿.制品规格书.人工规格清单.map((档位) => 档位.双针.毛长))}" ~ ${Math.max(...稿.制品规格书.人工规格清单.map((档位) => 档位.双针.毛长))}"`,
       品名: 稿.品名,
       CAP: 稿.CAP,
       // 手织指示单标题重量：仅统计人工规格清单中的 D/M/L 重量
       重量: 稿.制品规格书.人工规格清单.reduce((sum, 档位) => {
-        const D = 档位.裁断与重量.reduce((s, item) => s + (item.重量g?.D ?? 0), 0)
-        const M = 档位.裁断与重量.reduce((s, item) => s + (item.重量g?.M ?? 0), 0)
-        const L = 档位.裁断与重量.reduce((s, item) => s + (item.重量g?.L ?? 0), 0)
-        return sum + D + M + L
+        const D = 档位.裁断与重量.reduce(
+          (s, item) => s + (item.重量g?.D ?? 0),
+          0,
+        );
+        const M = 档位.裁断与重量.reduce(
+          (s, item) => s + (item.重量g?.M ?? 0),
+          0,
+        );
+        const L = 档位.裁断与重量.reduce(
+          (s, item) => s + (item.重量g?.L ?? 0),
+          0,
+        );
+        return sum + D + M + L;
       }, 0),
       原材料: 稿.原材料,
       // TODO: 多颜色编号时确认展示格式（当前取第一个颜色编号）
       颜色编号: 稿.制品规格书.胶丝比例id.颜色编号,
     },
     // 每个人工规格清单档位对应一条记录
-    人工规格清单_手织图: 稿.制品规格书.人工规格清单.map(档位 => {
-      const 重量D = 档位.裁断与重量.reduce((s, item) => s + (item.重量g?.D ?? 0), 0)
-      const hasM = 档位.裁断与重量.some(item => item.重量g?.M != null)
-      const hasL = 档位.裁断与重量.some(item => item.重量g?.L != null)
+    人工规格清单_手织图: 稿.制品规格书.人工规格清单.map((档位) => {
+      const 重量D = 档位.裁断与重量.reduce(
+        (s, item) => s + (item.重量g?.D ?? 0),
+        0,
+      );
+      const hasM = 档位.裁断与重量.some((item) => item.重量g?.M != null);
+      const hasL = 档位.裁断与重量.some((item) => item.重量g?.L != null);
       const 重量M = hasM
         ? 档位.裁断与重量.reduce((s, item) => s + (item.重量g?.M ?? 0), 0)
-        : undefined
+        : undefined;
       const 重量L = hasL
         ? 档位.裁断与重量.reduce((s, item) => s + (item.重量g?.L ?? 0), 0)
-        : undefined
+        : undefined;
 
       return {
         档位: 档位.档位,
         // TODO: 整长字段在人工规格清单中不存在，待确认来源
-        整长: 档位.整毛.对裁 ?? 0 + 档位.整毛.拉尖,
+        整长: (档位.整毛.对裁 ?? 0) + 档位.整毛.拉尖,
         // TODO: 待确认毛长的字符串格式（例如 "13寸" 或 "13"）
         毛长: 档位.双针.毛长,
         // TODO: 手织图版每档位对应的 D/M/L 重量来源待确认；
@@ -51,9 +65,10 @@ export function to手织指示单Frontend(稿: 沐茵丝假发成品稿): 手织
           ...(重量M != null ? { M: 重量M } : {}),
           ...(重量L != null ? { L: 重量L } : {}),
         },
-      }
+      };
     }),
     // TODO: 后续如需按业务规则再次渲染，可在这里基于新手织图结构输出最终 SVG。
     手织图片: 稿.手织指示单.手织图.svg,
-  }
+    手织图: 稿.手织指示单.手织图,
+  };
 }

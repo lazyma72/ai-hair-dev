@@ -18,7 +18,7 @@ export default function HandWovenAnnotatorPage() {
         value={data}
         onChange={setData}
         title="手织标注测试页面"
-        description="生成横排 / 方形 / 特殊手织图 SVG，并支持继续编辑。"
+        description="分开维护间色比例参数与手织图 SVG，SVG 使用编辑器直接修改。"
         showJsonActions
         fullscreen
       />

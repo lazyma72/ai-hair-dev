@@ -119,7 +119,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 33,
+    "version": 36,
     "services": [
         {
             "id": 9,
@@ -1757,316 +1757,419 @@ export const serviceProto: ServiceProto<ServiceType> = {
             "type": "Interface",
             "properties": [
                 {
-                    "id": 0,
-                    "name": "底图",
-                    "type": {
-                        "type": "Interface",
-                        "properties": [
-                            {
-                                "id": 0,
-                                "name": "svg",
-                                "type": {
-                                    "type": "String"
-                                }
-                            },
-                            {
-                                "id": 1,
-                                "name": "区域名",
-                                "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "String"
-                                    }
-                                }
-                            },
-                            {
-                                "id": 2,
-                                "name": "区域线条",
-                                "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "Reference",
-                                        "target": "../models/高针图/高针图区域线条"
-                                    }
-                                }
-                            },
-                            {
-                                "id": 6,
-                                "name": "档位标注",
-                                "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 0,
-                                                "name": "区域名",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 1,
-                                                "name": "lineNodeIds",
-                                                "type": {
-                                                    "type": "Array",
-                                                    "elementType": {
-                                                        "type": "String"
-                                                    }
-                                                }
-                                            },
-                                            {
-                                                "id": 2,
-                                                "name": "textNodeIds",
-                                                "type": {
-                                                    "type": "Array",
-                                                    "elementType": {
-                                                        "type": "String"
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            },
-                            {
-                                "id": 5,
-                                "name": "文本节点",
-                                "type": {
-                                    "type": "Interface",
-                                    "indexSignature": {
-                                        "keyType": "String",
-                                        "type": {
-                                            "type": "Interface",
-                                            "properties": [
-                                                {
-                                                    "id": 0,
-                                                    "name": "textNodeId",
-                                                    "type": {
-                                                        "type": "String"
-                                                    }
-                                                },
-                                                {
-                                                    "id": 1,
-                                                    "name": "text",
-                                                    "type": {
-                                                        "type": "String"
-                                                    },
-                                                    "optional": true
-                                                },
-                                                {
-                                                    "id": 2,
-                                                    "name": "created",
-                                                    "type": {
-                                                        "type": "Boolean"
-                                                    },
-                                                    "optional": true
-                                                },
-                                                {
-                                                    "id": 3,
-                                                    "name": "fontStyle",
-                                                    "type": {
-                                                        "type": "Interface",
-                                                        "indexSignature": {
-                                                            "keyType": "String",
-                                                            "type": {
-                                                                "type": "Any"
-                                                            }
-                                                        }
-                                                    },
-                                                    "optional": true
-                                                }
-                                            ]
-                                        }
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                },
-                {
-                    "id": 1,
-                    "name": "自定义数据",
-                    "type": {
-                        "type": "Interface",
-                        "properties": [
-                            {
-                                "id": 3,
-                                "name": "DML规则命令列表",
-                                "type": {
-                                    "type": "Reference",
-                                    "target": "../models/DML规则/DML规则命令列表"
-                                }
-                            },
-                            {
-                                "id": 1,
-                                "name": "单双标注",
-                                "type": {
-                                    "type": "Array",
-                                    "elementType": {
-                                        "type": "Interface",
-                                        "properties": [
-                                            {
-                                                "id": 0,
-                                                "name": "lineNodeId",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            },
-                                            {
-                                                "id": 1,
-                                                "name": "双数",
-                                                "type": {
-                                                    "type": "Boolean"
-                                                }
-                                            },
-                                            {
-                                                "id": 2,
-                                                "name": "textNodeId",
-                                                "type": {
-                                                    "type": "String"
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                }
-            ]
-        },
-        "../models/高针图/高针图区域线条": {
-            "type": "Interface",
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "区域名",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 5,
-                    "name": "sortNodeId",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 1,
-                    "name": "lineNodeId",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
                     "id": 2,
-                    "name": "lineLength",
+                    "name": "svg",
                     "type": {
-                        "type": "Number"
+                        "type": "String"
                     }
                 },
                 {
                     "id": 3,
-                    "name": "区域内位置占比",
+                    "name": "车线",
                     "type": {
-                        "type": "Number"
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Interface",
+                            "properties": [
+                                {
+                                    "id": 0,
+                                    "name": "id",
+                                    "type": {
+                                        "type": "String"
+                                    }
+                                },
+                                {
+                                    "id": 1,
+                                    "name": "编号",
+                                    "type": {
+                                        "type": "Number"
+                                    }
+                                },
+                                {
+                                    "id": 2,
+                                    "name": "区域",
+                                    "type": {
+                                        "type": "String"
+                                    }
+                                },
+                                {
+                                    "id": 3,
+                                    "name": "车线编号",
+                                    "type": {
+                                        "type": "String"
+                                    }
+                                },
+                                {
+                                    "id": 4,
+                                    "name": "尺数",
+                                    "type": {
+                                        "type": "Number"
+                                    }
+                                },
+                                {
+                                    "id": 5,
+                                    "name": "档位",
+                                    "type": {
+                                        "type": "String"
+                                    }
+                                },
+                                {
+                                    "id": 6,
+                                    "name": "DML",
+                                    "type": {
+                                        "type": "Reference",
+                                        "target": "../models/高针图/DML值"
+                                    }
+                                },
+                                {
+                                    "id": 7,
+                                    "name": "是双数",
+                                    "type": {
+                                        "type": "Boolean"
+                                    }
+                                },
+                                {
+                                    "id": 8,
+                                    "name": "标注NodeId",
+                                    "type": {
+                                        "type": "Interface",
+                                        "properties": [
+                                            {
+                                                "id": 0,
+                                                "name": "车线编号",
+                                                "type": {
+                                                    "type": "String"
+                                                }
+                                            },
+                                            {
+                                                "id": 1,
+                                                "name": "档位",
+                                                "type": {
+                                                    "type": "String"
+                                                }
+                                            },
+                                            {
+                                                "id": 2,
+                                                "name": "单双",
+                                                "type": {
+                                                    "type": "String"
+                                                }
+                                            },
+                                            {
+                                                "id": 3,
+                                                "name": "DML",
+                                                "type": {
+                                                    "type": "String"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
                     }
                 },
                 {
                     "id": 4,
-                    "name": "sort",
+                    "name": "标注样式",
                     "type": {
-                        "type": "Number"
+                        "type": "Partial",
+                        "target": {
+                            "type": "Interface",
+                            "properties": [
+                                {
+                                    "id": 0,
+                                    "name": "车线编号",
+                                    "type": {
+                                        "type": "Reference",
+                                        "target": "../models/高针图/标注样式"
+                                    }
+                                },
+                                {
+                                    "id": 1,
+                                    "name": "档位",
+                                    "type": {
+                                        "type": "Reference",
+                                        "target": "../models/高针图/标注样式"
+                                    }
+                                },
+                                {
+                                    "id": 2,
+                                    "name": "单双",
+                                    "type": {
+                                        "type": "Reference",
+                                        "target": "../models/高针图/标注样式"
+                                    }
+                                },
+                                {
+                                    "id": 3,
+                                    "name": "DML",
+                                    "type": {
+                                        "type": "Reference",
+                                        "target": "../models/高针图/标注样式"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "id": 5,
+                    "name": "自动修改器",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../models/高针图/自动修改器配置"
+                        }
                     }
                 }
             ]
         },
-        "../models/DML规则/DML规则命令列表": {
-            "type": "Array",
-            "elementType": {
-                "type": "Reference",
-                "target": "../models/DML规则/DML规则命令"
-            }
-        },
-        "../models/DML规则/DML规则命令": {
+        "../models/高针图/DML值": {
             "type": "Union",
             "members": [
                 {
                     "id": 0,
                     "type": {
-                        "type": "Reference",
-                        "target": "../models/DML规则/DML区域百分比命令"
+                        "type": "Literal",
+                        "literal": "D"
                     }
                 },
                 {
                     "id": 1,
                     "type": {
-                        "type": "Reference",
-                        "target": "../models/DML规则/DML按档位标记命令"
+                        "type": "Literal",
+                        "literal": "M"
                     }
                 },
                 {
                     "id": 2,
                     "type": {
-                        "type": "Reference",
-                        "target": "../models/DML规则/DML特殊标记命令"
+                        "type": "Literal",
+                        "literal": "L"
                     }
                 }
             ]
         },
-        "../models/DML规则/DML区域百分比命令": {
+        "../models/高针图/标注样式": {
             "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "../models/DML规则/DML规则命令基础"
-                    }
-                }
-            ],
             "properties": [
                 {
                     "id": 0,
-                    "name": "type",
+                    "name": "字体",
                     "type": {
-                        "type": "Literal",
-                        "literal": "区域百分比"
+                        "type": "String"
                     }
                 },
                 {
                     "id": 1,
-                    "name": "规律",
+                    "name": "字号",
+                    "type": {
+                        "type": "Number"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "字色",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "有边框",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/高针图/标注边框样式"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "../models/高针图/标注边框样式": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "边框形状",
+                    "type": {
+                        "type": "Union",
+                        "members": [
+                            {
+                                "id": 0,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "圆形"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "方形"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "边框颜色",
                     "type": {
                         "type": "String"
                     }
                 },
                 {
                     "id": 2,
-                    "name": "区域百分比",
+                    "name": "背景颜色",
                     "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../models/DML规则/DML区域百分比片段"
-                        }
+                        "type": "String"
                     }
                 },
                 {
                     "id": 3,
-                    "name": "lineNodeIds",
+                    "name": "是否透明",
                     "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "String"
-                        }
+                        "type": "Boolean"
                     }
                 }
             ]
         },
-        "../models/DML规则/DML规则命令基础": {
+        "../models/高针图/自动修改器配置": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Intersection",
+                        "members": [
+                            {
+                                "id": 0,
+                                "type": {
+                                    "type": "Reference",
+                                    "target": "../models/高针图/自动修改器公共字段"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "type": {
+                                    "type": "Interface",
+                                    "properties": [
+                                        {
+                                            "id": 0,
+                                            "name": "type",
+                                            "type": {
+                                                "type": "Literal",
+                                                "literal": "按区域自动标注DML"
+                                            }
+                                        },
+                                        {
+                                            "id": 1,
+                                            "name": "范围",
+                                            "type": {
+                                                "type": "Array",
+                                                "elementType": {
+                                                    "type": "Interface",
+                                                    "properties": [
+                                                        {
+                                                            "id": 0,
+                                                            "name": "区域",
+                                                            "type": {
+                                                                "type": "String"
+                                                            }
+                                                        },
+                                                        {
+                                                            "id": 1,
+                                                            "name": "开始",
+                                                            "type": {
+                                                                "type": "Number"
+                                                            }
+                                                        },
+                                                        {
+                                                            "id": 2,
+                                                            "name": "结束",
+                                                            "type": {
+                                                                "type": "Number"
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Intersection",
+                        "members": [
+                            {
+                                "id": 0,
+                                "type": {
+                                    "type": "Reference",
+                                    "target": "../models/高针图/自动修改器公共字段"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "type": {
+                                    "type": "Interface",
+                                    "properties": [
+                                        {
+                                            "id": 0,
+                                            "name": "type",
+                                            "type": {
+                                                "type": "Literal",
+                                                "literal": "按档位自动标注DML"
+                                            }
+                                        },
+                                        {
+                                            "id": 1,
+                                            "name": "范围",
+                                            "type": {
+                                                "type": "Array",
+                                                "elementType": {
+                                                    "type": "Interface",
+                                                    "properties": [
+                                                        {
+                                                            "id": 0,
+                                                            "name": "档位",
+                                                            "type": {
+                                                                "type": "String"
+                                                            }
+                                                        },
+                                                        {
+                                                            "id": 1,
+                                                            "name": "开始",
+                                                            "type": {
+                                                                "type": "Number"
+                                                            }
+                                                        },
+                                                        {
+                                                            "id": 2,
+                                                            "name": "结束",
+                                                            "type": {
+                                                                "type": "Number"
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        "../models/高针图/自动修改器公共字段": {
             "type": "Interface",
             "properties": [
                 {
@@ -2074,150 +2177,20 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "id",
                     "type": {
                         "type": "String"
-                    }
-                },
-                {
-                    "id": 1,
-                    "name": "备注",
-                    "type": {
-                        "type": "String"
                     },
                     "optional": true
-                }
-            ]
-        },
-        "../models/DML规则/DML区域百分比片段": {
-            "type": "Interface",
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "区域",
-                    "type": {
-                        "type": "String"
-                    }
                 },
                 {
                     "id": 1,
-                    "name": "开始位置",
+                    "name": "启用",
                     "type": {
-                        "type": "Number"
-                    }
-                },
-                {
-                    "id": 2,
-                    "name": "结束位置",
-                    "type": {
-                        "type": "Number"
-                    }
-                }
-            ]
-        },
-        "../models/DML规则/DML按档位标记命令": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "../models/DML规则/DML规则命令基础"
-                    }
-                }
-            ],
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "type",
-                    "type": {
-                        "type": "Literal",
-                        "literal": "按档位标记"
-                    }
-                },
-                {
-                    "id": 1,
-                    "name": "规律",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 2,
-                    "name": "档位",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "Reference",
-                            "target": "../models/DML规则/DML档位片段"
-                        }
-                    }
-                },
-                {
-                    "id": 3,
-                    "name": "lineNodeIds",
-                    "type": {
-                        "type": "Array",
-                        "elementType": {
-                            "type": "String"
-                        }
-                    }
-                }
-            ]
-        },
-        "../models/DML规则/DML档位片段": {
-            "type": "Interface",
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "档位名称",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 1,
-                    "name": "开始位置",
-                    "type": {
-                        "type": "Number"
-                    }
-                },
-                {
-                    "id": 2,
-                    "name": "结束位置",
-                    "type": {
-                        "type": "Number"
-                    }
-                }
-            ]
-        },
-        "../models/DML规则/DML特殊标记命令": {
-            "type": "Interface",
-            "extends": [
-                {
-                    "id": 0,
-                    "type": {
-                        "type": "Reference",
-                        "target": "../models/DML规则/DML规则命令基础"
-                    }
-                }
-            ],
-            "properties": [
-                {
-                    "id": 0,
-                    "name": "type",
-                    "type": {
-                        "type": "Literal",
-                        "literal": "特殊标记"
-                    }
+                        "type": "Boolean"
+                    },
+                    "optional": true
                 },
                 {
                     "id": 2,
                     "name": "规律",
-                    "type": {
-                        "type": "String"
-                    }
-                },
-                {
-                    "id": 3,
-                    "name": "lineNodeIds",
                     "type": {
                         "type": "Array",
                         "elementType": {
@@ -2258,94 +2231,84 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     }
                 },
                 {
-                    "id": 3,
-                    "name": "类型",
+                    "id": 4,
+                    "name": "间色比例",
                     "type": {
-                        "type": "Union",
-                        "members": [
+                        "type": "Reference",
+                        "target": "../models/手织图/手织图间色比例"
+                    }
+                }
+            ]
+        },
+        "../models/手织图/手织图间色比例": {
+            "type": "Union",
+            "members": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
                             {
                                 "id": 0,
+                                "name": "type",
                                 "type": {
-                                    "type": "Interface",
-                                    "properties": [
-                                        {
-                                            "id": 0,
-                                            "name": "type",
-                                            "type": {
-                                                "type": "Literal",
-                                                "literal": "横排"
-                                            }
-                                        },
-                                        {
-                                            "id": 1,
-                                            "name": "groupNodeId",
-                                            "type": {
-                                                "type": "String"
-                                            }
-                                        },
-                                        {
-                                            "id": 2,
-                                            "name": "比值",
-                                            "type": {
-                                                "type": "Reference",
-                                                "target": "../models/手织图/手织图比值"
-                                            }
-                                        }
-                                    ]
+                                    "type": "Literal",
+                                    "literal": "横排"
                                 }
                             },
                             {
                                 "id": 1,
+                                "name": "比值",
                                 "type": {
-                                    "type": "Interface",
-                                    "properties": [
-                                        {
-                                            "id": 0,
-                                            "name": "type",
-                                            "type": {
-                                                "type": "Literal",
-                                                "literal": "方形"
-                                            }
-                                        },
-                                        {
-                                            "id": 1,
-                                            "name": "groupNodeId",
-                                            "type": {
-                                                "type": "String"
-                                            }
-                                        },
-                                        {
-                                            "id": 2,
-                                            "name": "比值",
-                                            "type": {
-                                                "type": "Reference",
-                                                "target": "../models/手织图/手织图比值"
-                                            }
-                                        },
-                                        {
-                                            "id": 3,
-                                            "name": "边长",
-                                            "type": {
-                                                "type": "Number"
-                                            }
-                                        }
-                                    ]
+                                    "type": "Reference",
+                                    "target": "../models/手织图/手织图比值"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 1,
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "type",
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "方形"
+                                }
+                            },
+                            {
+                                "id": 1,
+                                "name": "比值",
+                                "type": {
+                                    "type": "Reference",
+                                    "target": "../models/手织图/手织图比值"
                                 }
                             },
                             {
                                 "id": 2,
+                                "name": "边长",
                                 "type": {
-                                    "type": "Interface",
-                                    "properties": [
-                                        {
-                                            "id": 0,
-                                            "name": "type",
-                                            "type": {
-                                                "type": "Literal",
-                                                "literal": "特殊"
-                                            }
-                                        }
-                                    ]
+                                    "type": "Number"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": 2,
+                    "type": {
+                        "type": "Interface",
+                        "properties": [
+                            {
+                                "id": 0,
+                                "name": "type",
+                                "type": {
+                                    "type": "Literal",
+                                    "literal": "特殊"
                                 }
                             }
                         ]
@@ -3375,6 +3338,14 @@ export const serviceProto: ServiceProto<ServiceType> = {
                     "name": "手织图片",
                     "type": {
                         "type": "String"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "手织图",
+                    "type": {
+                        "type": "Reference",
+                        "target": "../models/手织图/手织图"
                     }
                 }
             ]

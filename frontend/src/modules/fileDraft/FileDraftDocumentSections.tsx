@@ -171,7 +171,7 @@ export default function FileDraftDocumentSections(props: Props) {
           previewData={props.手织数据}
         />
       ) : props.手织数据 ? (
-        <手织指示单View data={props.手织数据} />
+        <手织指示单View value={props.value.手织指示单} />
       ) : null}
     </div>
   );

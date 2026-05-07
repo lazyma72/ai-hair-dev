@@ -47,19 +47,14 @@ export default function TestPagesHome() {
           to="/test/hand-woven-instruction"
         />
         <TestEntryCard
-          title="高针标注 Demo"
-          desc="导入 SVG 后在页面内完成高针图标注流程。"
-          to="/test/high-needle-annotator"
-        />
-        <TestEntryCard
-          title="高针预览"
-          desc="导入 JSON，查看高针图预览和叠加标记效果。"
-          to="/test/high-needle-preview"
-        />
-        <TestEntryCard
           title="CDR 转 SVG"
           desc="上传 CDR 文件，调用后端转换接口并直接在页面内预览 SVG。"
           to="/test/cdr-to-svg"
+        />
+        <TestEntryCard
+          title="SVG Demo（编辑器）"
+          desc="测试入口：挂载从别的项目拷贝过来的编辑器页面。"
+          to="/test/svg-demo"
         />
       </div>
     </PageShell>

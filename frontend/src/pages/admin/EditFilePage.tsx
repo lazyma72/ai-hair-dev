@@ -34,10 +34,10 @@ export default function EditFilePage() {
         if (!id) {
           throw new Error("缺少稿件编号");
         }
-        const r = (await callApi("admin/file/Update" as never, {
+        const r = (await callApi("admin/file/Update", {
           id,
           file: toDbPayload(nextForm),
-        } as never)) as
+        } )) as
           | { isSucc: true; res: { id: string } }
           | { isSucc: false; err: { message: string } };
         if (!r.isSucc) {

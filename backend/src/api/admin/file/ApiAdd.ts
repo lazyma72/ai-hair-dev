@@ -1,7 +1,7 @@
 import { ApiCall } from "tsrpc"
 import { Global } from "../../../models/Global"
 import { ReqAdd, ResAdd } from "../../../shared/protocols/admin/file/PtlAdd"
-import { validateFileInput } from "./fileValidation"
+import { validateFileInput } from "../hatMaking/fileValidation"
 import { normalize染色档位列表 } from "./normalizeDyeLevels"
 import { normalize手织图, normalize高针图 } from "./normalizeNeedleGraphs"
 import { ObjectId } from "mongodb"

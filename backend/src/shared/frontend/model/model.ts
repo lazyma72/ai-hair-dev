@@ -7,6 +7,7 @@ import {
 import { Db胶丝比例 } from "../../db/Db胶丝比例";
 import type { 高针图 } from "../../models/高针图";
 import type { 染色档位 } from "../../db/Db沐茵丝假发成品稿";
+import type { 手织图 } from "../../models/手织图";
 
 // ==============================
 // 胶丝比例 Frontend Types
@@ -157,4 +158,5 @@ export interface 手织指示单Frontend {
   }[];
 
   手织图片: string;
+  手织图: 手织图;
 }

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { SVG } from "@svgdotjs/svg.js";
 import "@svgdotjs/svg.draggable.js";
-import { parseSvg } from "../highNeedleAnnotator/svgUtils";
+import { parseSvg } from "../../utils/svgDom";
 
 type Props = {
   svg: string;
@@ -42,13 +42,11 @@ type ViewBoxState = {
   raw: string;
 };
 
-type LineDraft =
-  | {
-      type: "line" | "curve";
-      start: { x: number; y: number };
-      current: { x: number; y: number };
-    }
-  | null;
+type LineDraft = {
+  type: "line" | "curve";
+  start: { x: number; y: number };
+  current: { x: number; y: number };
+} | null;
 
 type GroupBox = {
   x: number;
@@ -92,7 +90,9 @@ function isTextElement(el: Element): boolean {
 
 function isLineElement(el: Element): boolean {
   const tag = el.tagName.toLowerCase();
-  return tag === "line" || tag === "path" || tag === "polyline" || tag === "polygon";
+  return (
+    tag === "line" || tag === "path" || tag === "polyline" || tag === "polygon"
+  );
 }
 
 function describeNode(el: Element): string {
@@ -113,7 +113,10 @@ function clearTransientSelectionStyles(root: ParentNode) {
   });
 }
 
-function getGroupNode(root: SVGSVGElement | null, groupNodeId?: string): Element | null {
+function getGroupNode(
+  root: SVGSVGElement | null,
+  groupNodeId?: string,
+): Element | null {
   if (!root || !groupNodeId) return null;
   return (
     Array.from(root.querySelectorAll("g")).find(
@@ -132,7 +135,9 @@ function ensureRootContentGroup(root: SVGSVGElement): SVGGElement {
   group.setAttribute("id", ROOT_CONTENT_GROUP_ID);
   const movableChildren = Array.from(root.children).filter((child) => {
     const tag = child.tagName.toLowerCase();
-    return !SKIP_TAGS.has(tag) && child.getAttribute("id") !== ROOT_CONTENT_GROUP_ID;
+    return (
+      !SKIP_TAGS.has(tag) && child.getAttribute("id") !== ROOT_CONTENT_GROUP_ID
+    );
   });
   movableChildren.forEach((child) => {
     group.appendChild(child);
@@ -172,10 +177,7 @@ function applyGroupTransform(
   const { translateX, translateY, scale, originX, originY } = transform;
   const e = originX + translateX - originX * scale;
   const f = originY + translateY - originY * scale;
-  node.setAttribute(
-    "transform",
-    `matrix(${scale} 0 0 ${scale} ${e} ${f})`,
-  );
+  node.setAttribute("transform", `matrix(${scale} 0 0 ${scale} ${e} ${f})`);
   node.setAttribute("data-editor-tx", String(translateX));
   node.setAttribute("data-editor-ty", String(translateY));
   node.setAttribute("data-editor-scale", String(scale));
@@ -226,32 +228,26 @@ export default function OpenSourceSvgEditor({
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const rootRef = React.useRef<SVGSVGElement | null>(null);
   const nodesRef = React.useRef<Element[]>([]);
-  const interactionRef = React.useRef<
-    | {
-        type: "drag" | "resize";
-        index: number;
-        startPoint: { x: number; y: number };
-        startTranslate: { x: number; y: number; rest: string };
-        startFontSize: number;
-        startTspanFontSizes: number[];
-      }
-    | null
-  >(null);
-  const groupInteractionRef = React.useRef<
-    | {
-        type: "drag" | "resize";
-        target: "generated" | "root";
-        startPoint: { x: number; y: number };
-        startTranslateX: number;
-        startTranslateY: number;
-        startScale: number;
-        originX: number;
-        originY: number;
-        boxWidth: number;
-        boxHeight: number;
-      }
-    | null
-  >(null);
+  const interactionRef = React.useRef<{
+    type: "drag" | "resize";
+    index: number;
+    startPoint: { x: number; y: number };
+    startTranslate: { x: number; y: number; rest: string };
+    startFontSize: number;
+    startTspanFontSizes: number[];
+  } | null>(null);
+  const groupInteractionRef = React.useRef<{
+    type: "drag" | "resize";
+    target: "generated" | "root";
+    startPoint: { x: number; y: number };
+    startTranslateX: number;
+    startTranslateY: number;
+    startScale: number;
+    originX: number;
+    originY: number;
+    boxWidth: number;
+    boxHeight: number;
+  } | null>(null);
   const latestSvgRef = React.useRef(svg);
   const onChangeRef = React.useRef(onChange);
   const [selectedIndex, setSelectedIndex] = React.useState<number | null>(null);
@@ -261,7 +257,9 @@ export default function OpenSourceSvgEditor({
   const [mode, setMode] = React.useState<EditorMode>("preview");
   const [lineTool, setLineTool] = React.useState<LineTool>("select");
   const [textBoxes, setTextBoxes] = React.useState<TextBox[]>([]);
-  const [viewBoxState, setViewBoxState] = React.useState<ViewBoxState | null>(null);
+  const [viewBoxState, setViewBoxState] = React.useState<ViewBoxState | null>(
+    null,
+  );
   const [lineDraft, setLineDraft] = React.useState<LineDraft>(null);
   const [groupBox, setGroupBox] = React.useState<GroupBox>(null);
   const [rootScaleBox, setRootScaleBox] = React.useState<ScaleBox>(null);
@@ -300,7 +298,8 @@ export default function OpenSourceSvgEditor({
     const nextBoxes = nodesRef.current
       .map((node, index) => {
         if (!isTextElement(node)) return null;
-        if (generatedGroupNode && generatedGroupNode.contains(node)) return null;
+        if (generatedGroupNode && generatedGroupNode.contains(node))
+          return null;
         if (!(node instanceof SVGGraphicsElement)) return null;
         const box = node.getBBox();
         const translate = parseTranslate(node.getAttribute("transform"));
@@ -397,7 +396,11 @@ export default function OpenSourceSvgEditor({
     }
   }, [mode]);
 
-  function parseTranslate(value: string | null): { x: number; y: number; rest: string } {
+  function parseTranslate(value: string | null): {
+    x: number;
+    y: number;
+    rest: string;
+  } {
     const raw = (value ?? "").trim();
     const match = raw.match(/translate\(([^)]+)\)/);
     if (!match) return { x: 0, y: 0, rest: raw };
@@ -435,14 +438,15 @@ export default function OpenSourceSvgEditor({
 
   React.useEffect(() => {
     const selectedNode =
-      selectedIndex != null ? nodesRef.current[selectedIndex] ?? null : null;
+      selectedIndex != null ? (nodesRef.current[selectedIndex] ?? null) : null;
     setSelectedLabel(selectedNode ? describeNode(selectedNode) : "");
   }, [selectedIndex]);
 
   const canEditNode = React.useCallback(
     (node: Element) => {
       if (mode === "preview") return false;
-      if (mode === "text") return isTextElement(node) && !isInsideGroup(node, groupNodeId);
+      if (mode === "text")
+        return isTextElement(node) && !isInsideGroup(node, groupNodeId);
       return lineTool === "select" && isLineElement(node);
     },
     [groupNodeId, lineTool, mode],
@@ -468,7 +472,10 @@ export default function OpenSourceSvgEditor({
       return;
     }
 
-    const mountedRoot = document.importNode(root, true) as unknown as SVGSVGElement;
+    const mountedRoot = document.importNode(
+      root,
+      true,
+    ) as unknown as SVGSVGElement;
     clearTransientSelectionStyles(mountedRoot);
     ensureSvgStyles(mountedRoot);
     ensureRootContentGroup(mountedRoot);
@@ -476,7 +483,9 @@ export default function OpenSourceSvgEditor({
     container.appendChild(mountedRoot);
 
     const cleanupTasks: Array<() => void> = [];
-    const editableNodes = Array.from(mountedRoot.querySelectorAll("*")).filter(isGraphicElement);
+    const editableNodes = Array.from(mountedRoot.querySelectorAll("*")).filter(
+      isGraphicElement,
+    );
     nodesRef.current = editableNodes;
     setNodeCount(editableNodes.length);
     setViewBoxState(getViewBoxState(mountedRoot));
@@ -525,8 +534,8 @@ export default function OpenSourceSvgEditor({
             tag === "path" ? "编辑路径 d" : "编辑线条描边颜色";
           const currentValue =
             tag === "path"
-              ? node.getAttribute("d") ?? ""
-              : node.getAttribute("stroke") ?? "#0f172a";
+              ? (node.getAttribute("d") ?? "")
+              : (node.getAttribute("stroke") ?? "#0f172a");
           const next = window.prompt(promptLabel, currentValue);
           if (next == null) return;
 
@@ -635,7 +644,10 @@ export default function OpenSourceSvgEditor({
           8,
           interaction.startFontSize + Math.max(dx, dy) * 0.2,
         );
-        node.setAttribute("font-size", String(Math.round(nextFontSize * 10) / 10));
+        node.setAttribute(
+          "font-size",
+          String(Math.round(nextFontSize * 10) / 10),
+        );
         Array.from(node.querySelectorAll("tspan")).forEach((tspan, idx) => {
           const baseSize =
             interaction.startTspanFontSizes[idx] || interaction.startFontSize;
@@ -719,7 +731,14 @@ export default function OpenSourceSvgEditor({
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [groupNodeId, mode, refreshGroupBox, refreshScaleBoxes, syncBack, viewBoxState]);
+  }, [
+    groupNodeId,
+    mode,
+    refreshGroupBox,
+    refreshScaleBoxes,
+    syncBack,
+    viewBoxState,
+  ]);
 
   React.useEffect(() => {
     if (mode !== "line" || lineTool === "select") {
@@ -740,7 +759,8 @@ export default function OpenSourceSvgEditor({
     const parsedTransform = parseTranslate(node.getAttribute("transform"));
     const fontSize = Number(node.getAttribute("font-size") ?? "16") || 16;
     const startTspanFontSizes = Array.from(node.querySelectorAll("tspan")).map(
-      (tspan) => Number(tspan.getAttribute("font-size") ?? String(fontSize)) || fontSize,
+      (tspan) =>
+        Number(tspan.getAttribute("font-size") ?? String(fontSize)) || fontSize,
     );
     interactionRef.current = {
       type,
@@ -768,7 +788,9 @@ export default function OpenSourceSvgEditor({
     const node = nodesRef.current[index];
     if (!node || !isTextElement(node)) return;
     node.remove();
-    nodesRef.current = nodesRef.current.filter((_, itemIndex) => itemIndex !== index);
+    nodesRef.current = nodesRef.current.filter(
+      (_, itemIndex) => itemIndex !== index,
+    );
     setNodeCount(nodesRef.current.length);
     setSelectedIndex(null);
     setSelectedLabel("");
@@ -813,7 +835,9 @@ export default function OpenSourceSvgEditor({
     syncBack(root);
   }
 
-  function handleViewportPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+  function handleViewportPointerDown(
+    event: React.PointerEvent<HTMLDivElement>,
+  ) {
     if (mode !== "line" || lineTool === "select") return;
     const point = clientToSvgPoint(event.clientX, event.clientY);
     if (!point) return;
@@ -825,7 +849,9 @@ export default function OpenSourceSvgEditor({
     });
   }
 
-  function handleViewportPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+  function handleViewportPointerMove(
+    event: React.PointerEvent<HTMLDivElement>,
+  ) {
     if (!lineDraft || mode !== "line" || lineTool === "select") return;
     const point = clientToSvgPoint(event.clientX, event.clientY);
     if (!point) return;
@@ -870,7 +896,8 @@ export default function OpenSourceSvgEditor({
     if (!root) return;
     const groupNode = getGroupNode(root, groupNodeId);
     const point = clientToSvgPoint(event.clientX, event.clientY);
-    if (!groupNode || !point || !(groupNode instanceof SVGGraphicsElement)) return;
+    if (!groupNode || !point || !(groupNode instanceof SVGGraphicsElement))
+      return;
     const box = groupNode.getBBox();
     const transform = getGroupTransformState(groupNode);
     event.preventDefault();
@@ -896,7 +923,8 @@ export default function OpenSourceSvgEditor({
     if (!root) return;
     const rootGroup = getGroupNode(root, ROOT_CONTENT_GROUP_ID);
     const point = clientToSvgPoint(event.clientX, event.clientY);
-    if (!rootGroup || !point || !(rootGroup instanceof SVGGraphicsElement)) return;
+    if (!rootGroup || !point || !(rootGroup instanceof SVGGraphicsElement))
+      return;
     const box = rootGroup.getBBox();
     const transform = getGroupTransformState(rootGroup);
     event.preventDefault();
@@ -998,15 +1026,17 @@ export default function OpenSourceSvgEditor({
                   : "文本模式：拖动文本框可移动，双击文本框可编辑，右上角 X 可删除，右下角可缩放"
                 : mode === "scale"
                   ? "缩放模式：可整体缩放上传 SVG；如果存在生成组，也可单独缩放生成组"
-                : lineTool === "select"
-                  ? "线条模式：可拖动线条/曲线，双击线条或曲线可编辑"
-                  : lineTool === "draw-line"
-                    ? "线条模式：在画布中按下并拖拽可绘制直线"
-                    : "线条模式：在画布中按下并拖拽可绘制曲线"}
+                  : lineTool === "select"
+                    ? "线条模式：可拖动线条/曲线，双击线条或曲线可编辑"
+                    : lineTool === "draw-line"
+                      ? "线条模式：在画布中按下并拖拽可绘制直线"
+                      : "线条模式：在画布中按下并拖拽可绘制曲线"}
           </div>
           <div>
             当前缩放：{Math.round(zoom * 100)}%
-            {selectedLabel ? `，当前节点：${selectedLabel}` : `，当前模式：${MODE_LABELS[mode]}`}
+            {selectedLabel
+              ? `，当前节点：${selectedLabel}`
+              : `，当前模式：${MODE_LABELS[mode]}`}
           </div>
         </div>
         <div className="h-[560px] overflow-auto rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
@@ -1052,10 +1082,14 @@ export default function OpenSourceSvgEditor({
                           ? "rgba(37,99,235,0.10)"
                           : "rgba(148,163,184,0.05)"
                       }
-                      stroke={selectedIndex === box.index ? "#2563eb" : "#94a3b8"}
+                      stroke={
+                        selectedIndex === box.index ? "#2563eb" : "#94a3b8"
+                      }
                       strokeWidth={selectedIndex === box.index ? 1.5 : 1}
                       pointerEvents="all"
-                      onPointerDown={(event) => startTextInteraction(box.index, "drag", event)}
+                      onPointerDown={(event) =>
+                        startTextInteraction(box.index, "drag", event)
+                      }
                       onDoubleClick={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
@@ -1064,9 +1098,7 @@ export default function OpenSourceSvgEditor({
                     />
                     {selectedIndex === box.index ? (
                       <>
-                        <g
-                          pointerEvents="all"
-                        >
+                        <g pointerEvents="all">
                           <rect
                             x={box.x + box.width - 28}
                             y={box.y - 18}
@@ -1101,7 +1133,9 @@ export default function OpenSourceSvgEditor({
                           fill="#2563eb"
                           pointerEvents="all"
                           style={{ cursor: "nwse-resize" }}
-                          onPointerDown={(event) => startTextInteraction(box.index, "resize", event)}
+                          onPointerDown={(event) =>
+                            startTextInteraction(box.index, "resize", event)
+                          }
                         />
                       </>
                     ) : null}

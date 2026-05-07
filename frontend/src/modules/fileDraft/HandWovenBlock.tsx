@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
+import DownloadSvgButton from "../../components/DownloadSvgButton";
 import Section from "../../components/Section";
 import InlineSvg from "../../components/InlineSvg";
 import HandWovenImportStep from "../../pages/design/create/components/HandWovenImportStep";
 import type { 手织指示单 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { 手织指示单Frontend } from "../../shared/frontend/model/model";
 import { inputCls } from "../../pages/admin/add-file/components/ui";
+import { build手织图间色比例预览Svg } from "../handWovenDev/svgBuilder";
+import HandWovenSvgPreviewCard from "../handWovenDev/HandWovenSvgPreviewCard";
 
 type Props = {
   mode: "edit" | "readonly";
@@ -22,8 +25,11 @@ export default function HandWovenBlock({
   previewData: _previewData,
 }: Props) {
   const isEdit = mode === "edit";
-  const [expanded, setExpanded] = useState(false);
   const hasSvg = Boolean(value.手织图?.svg?.trim());
+  const ratioPreviewSvg = useMemo(
+    () => build手织图间色比例预览Svg(value.手织图),
+    [value.手织图],
+  );
   const [showUploader, setShowUploader] = useState(!hideUploader || !hasSvg);
   const fileName = useMemo(() => {
     const svg = value.手织图?.svg?.trim() ?? "";
@@ -45,15 +51,17 @@ export default function HandWovenBlock({
               </div>
             </div>
 
-            {previewSvg ? (
+            <HandWovenSvgPreviewCard svg={previewSvg} />
+
+            {ratioPreviewSvg ? (
               <div>
                 <div className="mb-1 text-xs font-medium text-slate-700">
-                  手织图
+                  间色比例
                 </div>
                 <div className="overflow-hidden rounded border border-slate-100 bg-white">
                   <InlineSvg
-                    svg={previewSvg}
-                    className="min-h-[200px] w-full overflow-auto bg-white p-3"
+                    svg={ratioPreviewSvg}
+                    className="min-h-[180px] w-full overflow-auto bg-white p-3"
                     height="auto"
                   />
                 </div>
@@ -98,13 +106,6 @@ export default function HandWovenBlock({
                   更换 SVG
                 </button>
               ) : null}
-              <button
-                type="button"
-                className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
-                onClick={() => setExpanded(true)}
-              >
-                放大标注
-              </button>
             </div>
           </div>
 
@@ -120,37 +121,6 @@ export default function HandWovenBlock({
         </div>
       </Section>
 
-      {expanded ? (
-        <div className="fixed inset-0 z-50 bg-black/40 p-4">
-          <div className="mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden rounded-xl bg-white ring-1 ring-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-900">
-                手织图标注（放大）
-              </div>
-              <button
-                type="button"
-                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-                onClick={() => setExpanded(false)}
-              >
-                退出放大
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto p-4">
-              <HandWovenImportStep
-                embed
-                fullscreen
-                heightClassName="h-[calc(100vh-180px)] min-h-[680px]"
-                title="手织图标注"
-                value={value.手织图}
-                onChange={(v) => onChange?.({ ...value, 手织图: v })}
-                showJsonActions
-                showUploader={false}
-                fileName={fileName}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

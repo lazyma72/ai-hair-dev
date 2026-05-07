@@ -9,7 +9,7 @@
  *
  * 路由：/file/:id/print
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import InlineSvg from "../../components/InlineSvg";
 import { callApi } from "../../api/callApi";
@@ -22,6 +22,7 @@ import type {
   沐茵丝假发成品稿Frontend,
 } from "../../shared/frontend/model/model";
 import { buildPreviewSvg } from "../admin/add-file/components/DyeLevelEditor";
+import { build手织图间色比例预览Svg } from "../../modules/handWovenDev/svgBuilder";
 import {
   格式化可选定位小数,
   格式化定位小数,
@@ -1463,13 +1464,17 @@ function PrintHighNeedleDoc({ data }: { data: 高针指示单Frontend }) {
       </div>
       <PrintNeedleFigure
         title="高针图"
-        svg={data.高针图svg || data.高针图数据?.底图?.svg || ""}
+        svg={data.高针图svg || data.高针图数据?.svg || ""}
       />
     </div>
   );
 }
 
 function PrintHandWovenDoc({ data }: { data: 手织指示单Frontend }) {
+  const ratioPreviewSvg = useMemo(() => {
+    return build手织图间色比例预览Svg(data.手织图);
+  }, [data.手织图]);
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
       <div
@@ -1499,6 +1504,14 @@ function PrintHandWovenDoc({ data }: { data: 手织指示单Frontend }) {
       />
       <div style={SECTION_HEADER}>人工规格清单（手织图版）</div>
       <PrintHandWovenTable rows={data.人工规格清单_手织图} />
+      {ratioPreviewSvg && (
+        <div>
+          <div style={SECTION_HEADER}>间色比例</div>
+          <div style={{ border: "1px solid #000", padding: "2mm" }}>
+            <InlineSvg svg={ratioPreviewSvg} style={{ width: "100%", height: "auto" }} />
+          </div>
+        </div>
+      )}
       <PrintNeedleFigure
         title="手织图"
         svg={data.手织图片}

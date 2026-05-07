@@ -302,7 +302,7 @@ export default function FileEditorPage({
       return;
     }
 
-    if (!form.高针指示单.高针图.底图.svg.trim()) {
+    if (!form.高针指示单.高针图.svg.trim()) {
       const msg = "请先选择高针图 SVG 并完成标注";
       setSubmitError(msg);
       message.error(msg);

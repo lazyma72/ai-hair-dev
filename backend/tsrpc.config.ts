@@ -24,7 +24,7 @@ const tsrpcConf: TsrpcConfig = {
   // Dev server
   dev: {
     autoProto: true, // Auto regenerate proto
-    autoSync: true, // Auto sync when file changed
+    autoSync: false, // 暂时禁用自动同步，避免 db 目录被覆盖
     autoApi: true, // Auto create API when ServiceProto updated
     watch: "src", // Restart dev server when these files changed
     entry: "src/index.ts", // Dev server command: node -r ts-node/register {entry}

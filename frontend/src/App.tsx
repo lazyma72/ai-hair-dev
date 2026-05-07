@@ -14,13 +14,12 @@ import LoginPage from "./pages/auth/LoginPage";
 import CdrToSvgPage from "./pages/dev/CdrToSvgPage";
 import HandWovenAnnotatorPage from "./pages/dev/HandWovenAnnotatorPage";
 import HandWovenInstructionTestPage from "./pages/dev/HandWovenInstructionTestPage";
-import HighNeedleAnnotatorDemoPage from "./pages/dev/HighNeedleAnnotatorDemo";
-import HighNeedlePreviewPage from "./pages/dev/HighNeedlePreviewPage";
 import TestPagesHome from "./pages/dev/TestPagesHome";
 import DesignDraftListPage from "./pages/design/DesignDraftListPage";
 import ABCreateWizardPage from "./pages/design/create/ABCreateWizardPage";
 import DesignCreateHubPage from "./pages/design/create/DesignCreateHubPage";
 import ManualCreateWizardPage from "./pages/design/create/ManualCreateWizardPage";
+import EditPage from "./pages/editor/EditPage";
 import FileDetailPage from "./pages/file/FileDetailPage";
 import PrintSpecPage from "./pages/file/PrintSpecPage";
 import HatMakingDetailPage from "./pages/hatMaking/HatMakingDetailPage";
@@ -102,6 +101,9 @@ function App() {
           />
           <Route path="/designs/create/ab" element={<ABCreateWizardPage />} />
 
+          <Route path="/edit" element={<EditPage />} />
+          <Route path="/edit/*" element={<EditPage />} />
+
           <Route path="/hat-making" element={<HatMakingListPage />} />
           <Route path="/hat-making/:id" element={<HatMakingDetailPage />} />
           <Route path="/hatMaking/:id" element={<HatMakingDetailRedirect />} />
@@ -127,17 +129,10 @@ function App() {
             element={<HandWovenInstructionTestPage />}
           />
           <Route
-            path="/test/high-needle-annotator"
-            element={<HighNeedleAnnotatorDemoPage />}
-          />
-          <Route
-            path="/test/high-needle-preview"
-            element={<HighNeedlePreviewPage />}
-          />
-          <Route
             path="/test/cdr-to-svg"
             element={<CdrToSvgPage />}
           />
+          <Route path="/test/svg-demo" element={<EditPage />} />
 
           <Route path="/file/:id" element={<FileDetailPage />} />
           <Route path="/file/:id/print" element={<PrintSpecPage />} />

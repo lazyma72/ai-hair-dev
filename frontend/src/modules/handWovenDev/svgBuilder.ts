@@ -8,44 +8,109 @@ import {
   格式化厘米文本,
   格式化最多一位小数,
 } from "../../shared/models/数字格式化";
-import { parseSvg, serializeSvg } from "../highNeedleAnnotator/svgUtils";
 
-const 横排分组节点ID = "hand_woven_horizontal_group";
-const 方形分组节点ID = "hand_woven_square_group";
-const 手织图生成层ID = "hand_woven_generated_overlay";
+type 手织图间色比例类型 =
+  | {
+      type: "横排";
+      比值: 手织图比值;
+    }
+  | {
+      type: "方形";
+      比值: 手织图比值;
+      边长: number;
+    }
+  | {
+      type: "特殊";
+    };
 
-type 可生成类型 = Extract<手织图["类型"], { type: "横排" | "方形" }>;
-
-type SvgCanvasSize = {
-  width: number;
-  height: number;
-  viewBoxX: number;
-  viewBoxY: number;
-  viewBoxWidth: number;
-  viewBoxHeight: number;
+type 手织图预览输入 = {
+  svg?: string;
+  间色比例?: 手织图间色比例类型;
 };
 
-export function createEmpty手织图SourceSvg(): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560">
-  <rect x="0" y="0" width="900" height="560" fill="#ffffff" />
-</svg>`;
-}
+type 可生成类型 = Extract<手织图间色比例类型, { type: "横排" | "方形" }>;
+
+type 预览区块 = {
+  width: number;
+  height: number;
+  body: string;
+};
 
 export function createEmpty手织图(): 手织图 {
   return {
     svg: "",
-    类型: {
+    间色比例: {
       type: "特殊",
     },
+  } as unknown as 手织图;
+}
+
+function normalize比值(raw: unknown): 手织图比值 {
+  const source = (raw ?? {}) as Partial<
+    Record<手织图比例键, Partial<手织图比例项>>
+  >;
+  const normalizeItem = (
+    item: Partial<手织图比例项> | undefined,
+    sort: number,
+    fallbackValue: number,
+  ): 手织图比例项 => ({
+    值:
+      typeof item?.值 === "number" && Number.isFinite(item.值)
+        ? item.值
+        : fallbackValue,
+    是否染色: Boolean(item?.是否染色),
+    remark: typeof item?.remark === "string" ? item.remark : "",
+    sort:
+      typeof item?.sort === "number" &&
+      Number.isFinite(item.sort) &&
+      item.sort > 0
+        ? Math.floor(item.sort)
+        : sort,
+  });
+
+  return {
+    D: normalizeItem(source.D, 1, 1),
+    M: source.M == null ? undefined : normalizeItem(source.M, 2, 2),
+    L: source.L == null ? undefined : normalizeItem(source.L, 3, 1),
   };
 }
 
+function normalize间色比例(
+  input: 手织图预览输入 | 手织图间色比例类型 | null | undefined,
+): 手织图间色比例类型 {
+  const raw = input && "间色比例" in input ? input.间色比例 : input;
+  if (!raw || typeof raw !== "object") {
+    return { type: "特殊" };
+  }
+
+  const type = (raw as { type?: unknown }).type;
+  if (type === "横排") {
+    return {
+      type: "横排",
+      比值: normalize比值((raw as { 比值?: unknown }).比值),
+    };
+  }
+
+  if (type === "方形") {
+    const 边长 = (raw as { 边长?: unknown }).边长;
+    return {
+      type: "方形",
+      比值: normalize比值((raw as { 比值?: unknown }).比值),
+      边长:
+        typeof 边长 === "number" && Number.isFinite(边长) && 边长 > 0
+          ? 边长
+          : 1,
+    };
+  }
+
+  return { type: "特殊" };
+}
+
 function get比值项(
-  比值: 手织图比值,
+  比值: 手织图比值 | undefined,
   key: 手织图比例键,
 ): 手织图比例项 | undefined {
-  return 比值[key];
+  return 比值?.[key];
 }
 
 function get排序值(item: 手织图比例项 | undefined, fallback: number): number {
@@ -142,119 +207,6 @@ function build间色比例标题(type: 可生成类型): string {
   return "间色比例";
 }
 
-function append标题文本(
-  doc: Document,
-  group: SVGGElement,
-  text: string,
-  x: number,
-  y: number,
-) {
-  const title = createSvgElement(doc, "text");
-  title.setAttribute("x", String(x));
-  title.setAttribute("y", String(y));
-  title.setAttribute("fill", "#0f172a");
-  title.setAttribute("text-anchor", "middle");
-  title.setAttribute("dominant-baseline", "middle");
-  title.setAttribute(
-    "font-family",
-    "system-ui, -apple-system, Segoe UI, sans-serif",
-  );
-  title.setAttribute("font-size", "16");
-  title.setAttribute("font-weight", "700");
-  title.textContent = text;
-  group.appendChild(title);
-}
-
-function rotateRight<T>(list: T[], step: number): T[] {
-  if (list.length === 0) return [];
-  const normalized = ((step % list.length) + list.length) % list.length;
-  if (normalized === 0) return [...list];
-  return [...list.slice(-normalized), ...list.slice(0, -normalized)];
-}
-
-function getSvgCanvasSize(root: Element): SvgCanvasSize {
-  const viewBox = (root.getAttribute("viewBox") ?? "").trim();
-  if (viewBox) {
-    const [x, y, width, height] = viewBox
-      .split(/[ ,]+/)
-      .map((value) => Number(value));
-    if ([x, y, width, height].every((value) => Number.isFinite(value))) {
-      return {
-        width,
-        height,
-        viewBoxX: x,
-        viewBoxY: y,
-        viewBoxWidth: width,
-        viewBoxHeight: height,
-      };
-    }
-  }
-
-  const width = Number(root.getAttribute("width")) || 900;
-  const height = Number(root.getAttribute("height")) || 560;
-  return {
-    width,
-    height,
-    viewBoxX: 0,
-    viewBoxY: 0,
-    viewBoxWidth: width,
-    viewBoxHeight: height,
-  };
-}
-
-function createSvgElement<K extends keyof SVGElementTagNameMap>(
-  doc: Document,
-  tagName: K,
-): SVGElementTagNameMap[K] {
-  return doc.createElementNS(
-    "http://www.w3.org/2000/svg",
-    tagName,
-  ) as SVGElementTagNameMap[K];
-}
-
-function getOrCreateOverlayGroup(doc: Document): SVGGElement | null {
-  const root = doc.documentElement;
-  if (!root) return null;
-  root.setAttribute("overflow", "visible");
-
-  const existed = doc.getElementById(手织图生成层ID);
-  if (existed instanceof SVGGElement) {
-    return existed;
-  }
-
-  const group = createSvgElement(doc, "g");
-  group.setAttribute("id", 手织图生成层ID);
-  root.appendChild(group);
-  return group;
-}
-
-function createContentGroup(
-  doc: Document,
-  overlayGroup: SVGGElement,
-  groupNodeId: string,
-): SVGGElement {
-  Array.from(overlayGroup.children).forEach((child) => {
-    if (child.id !== groupNodeId) {
-      child.remove();
-    }
-  });
-
-  const existed = overlayGroup.querySelector(`#${CSS.escape(groupNodeId)}`);
-  const group =
-    existed instanceof SVGGElement ? existed : createSvgElement(doc, "g");
-
-  if (!(existed instanceof SVGGElement)) {
-    group.setAttribute("id", groupNodeId);
-    overlayGroup.appendChild(group);
-  }
-
-  while (group.firstChild) {
-    group.removeChild(group.firstChild);
-  }
-
-  return group;
-}
-
 function build横排标签(type: Extract<可生成类型, { type: "横排" }>): Array<{
   key: 手织图比例键;
   item: 手织图比例项;
@@ -277,69 +229,37 @@ function build横排标签(type: Extract<可生成类型, { type: "横排" }>): 
   }>;
 }
 
-function render横排到源图(
-  doc: Document,
-  overlayGroup: SVGGElement,
-  type: Extract<可生成类型, { type: "横排" }>,
-): void {
+function build横排预览(type: Extract<可生成类型, { type: "横排" }>): 预览区块 {
   const labels = build横排标签(type);
-  const canvas = getSvgCanvasSize(doc.documentElement);
-  const paddingX = Math.max(32, canvas.viewBoxWidth * 0.08);
-  const topY = canvas.viewBoxY + Math.max(56, canvas.viewBoxHeight * 0.12);
-  const minGap = 28;
-  const lineStrokeWidth = 1.5;
   const textFontSize = 14;
-  const textX = canvas.viewBoxX + paddingX + 12;
   const estimateCharWidth = textFontSize * 0.62;
-  const maxTextWidth = labels.reduce((max, entry) => {
-    return Math.max(max, entry.text.length * estimateCharWidth);
-  }, "请先填写有效比值".length * estimateCharWidth);
-  const lineEndX = textX + maxTextWidth;
-  const groupNodeId = type.groupNodeId || 横排分组节点ID;
-  const group = createContentGroup(doc, overlayGroup, groupNodeId);
-
-  // 间色比例：显示在横排内容区域正上方
-  append标题文本(
-    doc,
-    group,
-    build间色比例标题(type),
-    (canvas.viewBoxX + paddingX + lineEndX) / 2,
-    topY - 18,
+  const contentWidth = Math.max(
+    180,
+    labels.reduce(
+      (max, entry) => Math.max(max, entry.text.length * estimateCharWidth),
+      0,
+    ),
   );
+  const width = Math.max(360, Math.ceil(contentWidth + 120));
+  const title = build间色比例标题(type);
+  const paddingX = 48;
+  const topY = 64;
+  const minGap = 32;
+  const lineEndX = width - paddingX;
+  const textX = paddingX + 12;
 
   if (labels.length === 0) {
-    const placeholderBottomY = topY + 60;
-    const topLine = createSvgElement(doc, "line");
-    topLine.setAttribute("x1", String(canvas.viewBoxX + paddingX));
-    topLine.setAttribute("y1", String(topY));
-    topLine.setAttribute("x2", String(lineEndX));
-    topLine.setAttribute("y2", String(topY));
-    topLine.setAttribute("stroke", "#475569");
-    topLine.setAttribute("stroke-width", String(lineStrokeWidth));
-    group.appendChild(topLine);
-
-    const bottomLine = createSvgElement(doc, "line");
-    bottomLine.setAttribute("x1", String(canvas.viewBoxX + paddingX));
-    bottomLine.setAttribute("y1", String(placeholderBottomY));
-    bottomLine.setAttribute("x2", String(lineEndX));
-    bottomLine.setAttribute("y2", String(placeholderBottomY));
-    bottomLine.setAttribute("stroke", "#475569");
-    bottomLine.setAttribute("stroke-width", String(lineStrokeWidth));
-    group.appendChild(bottomLine);
-
-    const textEl = createSvgElement(doc, "text");
-    textEl.setAttribute("x", String(textX));
-    textEl.setAttribute("y", String(topY + 34));
-    textEl.setAttribute("fill", "#0f172a");
-    textEl.setAttribute(
-      "font-family",
-      "system-ui, -apple-system, Segoe UI, sans-serif",
-    );
-    textEl.setAttribute("font-size", String(textFontSize));
-    textEl.setAttribute("font-weight", "600");
-    textEl.textContent = "请先填写有效比值";
-    group.appendChild(textEl);
-    return;
+    const height = 160;
+    return {
+      width,
+      height,
+      body: `
+  <rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="16" fill="#ffffff" stroke="#e2e8f0" />
+  <text x="${width / 2}" y="30" fill="#0f172a" text-anchor="middle" dominant-baseline="middle" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="18" font-weight="700">${title}</text>
+  <line x1="${paddingX}" y1="${topY}" x2="${lineEndX}" y2="${topY}" stroke="#475569" stroke-width="1.5" />
+  <line x1="${paddingX}" y1="${topY + 56}" x2="${lineEndX}" y2="${topY + 56}" stroke="#475569" stroke-width="1.5" />
+  <text x="${textX}" y="${topY + 33}" fill="#0f172a" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="14" font-weight="600">请先填写有效比值</text>`,
+    };
   }
 
   const totalRatio = labels.reduce(
@@ -353,39 +273,44 @@ function render横排到源图(
   scaledGaps.forEach((gap) => {
     lineYs.push(lineYs[lineYs.length - 1] + gap);
   });
-
-  lineYs.forEach((y) => {
-    const line = createSvgElement(doc, "line");
-    line.setAttribute("x1", String(canvas.viewBoxX + paddingX));
-    line.setAttribute("y1", String(y));
-    line.setAttribute("x2", String(lineEndX));
-    line.setAttribute("y2", String(y));
-    line.setAttribute("stroke", "#475569");
-    line.setAttribute("stroke-width", String(lineStrokeWidth));
-    group.appendChild(line);
-  });
-
-  const textEl = createSvgElement(doc, "text");
-  textEl.setAttribute("fill", "#0f172a");
-  textEl.setAttribute(
-    "font-family",
-    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
+  const height = Math.max(
+    180,
+    Math.ceil((lineYs[lineYs.length - 1] ?? topY) + 36),
   );
-  textEl.setAttribute("font-size", String(textFontSize));
-  textEl.setAttribute("font-weight", "600");
 
-  labels.forEach((entry, index) => {
-    const startY = lineYs[index];
-    const endY = lineYs[index + 1];
-    const textY = startY + (endY - startY) / 2 + 4;
-    const tspan = createSvgElement(doc, "tspan");
-    tspan.setAttribute("x", String(textX));
-    tspan.setAttribute("y", String(textY));
-    tspan.textContent = entry.text;
-    textEl.appendChild(tspan);
-  });
+  const lines = lineYs
+    .map(
+      (y) =>
+        `  <line x1="${paddingX}" y1="${y}" x2="${lineEndX}" y2="${y}" stroke="#475569" stroke-width="1.5" />`,
+    )
+    .join("\n");
+  const tspans = labels
+    .map((entry, index) => {
+      const startY = lineYs[index];
+      const endY = lineYs[index + 1];
+      const textY = startY + (endY - startY) / 2 + 4;
+      return `    <tspan x="${textX}" y="${textY}">${entry.text}</tspan>`;
+    })
+    .join("\n");
 
-  group.appendChild(textEl);
+  return {
+    width,
+    height,
+    body: `
+  <rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="16" fill="#ffffff" stroke="#e2e8f0" />
+  <text x="${width / 2}" y="30" fill="#0f172a" text-anchor="middle" dominant-baseline="middle" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="18" font-weight="700">${title}</text>
+${lines}
+  <text fill="#0f172a" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="14" font-weight="600">
+${tspans}
+  </text>`,
+  };
+}
+
+function rotateRight<T>(list: T[], step: number): T[] {
+  if (list.length === 0) return [];
+  const normalized = ((step % list.length) + list.length) % list.length;
+  if (normalized === 0) return [...list];
+  return [...list.slice(-normalized), ...list.slice(0, -normalized)];
 }
 
 function build方形行数据(type: Extract<可生成类型, { type: "方形" }>): {
@@ -413,169 +338,76 @@ function build方形行数据(type: Extract<可生成类型, { type: "方形" }>
   };
 }
 
-function render方形到源图(
-  doc: Document,
-  overlayGroup: SVGGElement,
-  type: Extract<可生成类型, { type: "方形" }>,
-): void {
+function build方形预览(type: Extract<可生成类型, { type: "方形" }>): 预览区块 {
   const matrix = build方形行数据(type);
   const cellWidth = 82;
   const cellHeight = 54;
-  const canvas = getSvgCanvasSize(doc.documentElement);
+  const paddingX = 32;
+  const gridY = 62;
   const gridWidth = matrix.columns * cellWidth;
   const gridHeight = 3 * cellHeight;
-  const gridX =
-    canvas.viewBoxX + Math.max(40, (canvas.viewBoxWidth - gridWidth) / 2);
-  const gridY = canvas.viewBoxY + Math.max(68, canvas.viewBoxHeight * 0.18);
-  const groupNodeId = type.groupNodeId || 方形分组节点ID;
-  const group = createContentGroup(doc, overlayGroup, groupNodeId);
+  const width = Math.max(280, gridWidth + paddingX * 2);
+  const height = gridY + gridHeight + 28;
+  const gridX = (width - gridWidth) / 2;
+  const title = build间色比例标题(type);
 
-  // 间色比例：显示在方形矩阵正上方
-  append标题文本(
-    doc,
-    group,
-    build间色比例标题(type),
-    gridX + gridWidth / 2,
-    gridY - 18,
-  );
-
-  const background = createSvgElement(doc, "rect");
-  background.setAttribute("x", String(gridX));
-  background.setAttribute("y", String(gridY));
-  background.setAttribute("width", String(gridWidth));
-  background.setAttribute("height", String(gridHeight));
-  background.setAttribute("fill", "#f8fafc");
-  background.setAttribute("stroke", "#94a3b8");
-  group.appendChild(background);
-
-  Array.from({ length: matrix.columns + 1 }, (_, index) => {
-    const x = gridX + index * cellWidth;
-    const line = createSvgElement(doc, "line");
-    line.setAttribute("x1", String(x));
-    line.setAttribute("y1", String(gridY));
-    line.setAttribute("x2", String(x));
-    line.setAttribute("y2", String(gridY + gridHeight));
-    line.setAttribute("stroke", "#94a3b8");
-    group.appendChild(line);
-  });
-
-  Array.from({ length: 4 }, (_, index) => {
-    const y = gridY + index * cellHeight;
-    const line = createSvgElement(doc, "line");
-    line.setAttribute("x1", String(gridX));
-    line.setAttribute("y1", String(y));
-    line.setAttribute("x2", String(gridX + gridWidth));
-    line.setAttribute("y2", String(y));
-    line.setAttribute("stroke", "#94a3b8");
-    group.appendChild(line);
-  });
-
-  const textEl = createSvgElement(doc, "text");
-  textEl.setAttribute("fill", "#0f172a");
-  textEl.setAttribute("text-anchor", "middle");
-  textEl.setAttribute("dominant-baseline", "middle");
-  textEl.setAttribute(
-    "font-family",
-    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
-  );
-  textEl.setAttribute("font-size", "18");
-  textEl.setAttribute("font-weight", "700");
-
-  matrix.rows.forEach((row, rowIndex) => {
-    row.forEach((token, colIndex) => {
-      const x = gridX + colIndex * cellWidth + cellWidth / 2;
-      const y = gridY + rowIndex * cellHeight + cellHeight / 2 + 4;
-      const tspan = createSvgElement(doc, "tspan");
-      tspan.setAttribute("x", String(x));
-      tspan.setAttribute("y", String(y));
-      tspan.textContent = token;
-      textEl.appendChild(tspan);
-    });
-  });
-
-  group.appendChild(textEl);
-}
-
-function normalize生成类型(type: 可生成类型): 可生成类型 {
-  const 比值: 手织图比值 = {
-    D: {
-      ...type.比值.D,
-      sort: get排序值(type.比值.D, 1),
+  const verticalLines = Array.from(
+    { length: matrix.columns + 1 },
+    (_, index) => {
+      const x = gridX + index * cellWidth;
+      return `  <line x1="${x}" y1="${gridY}" x2="${x}" y2="${gridY + gridHeight}" stroke="#94a3b8" />`;
     },
-    M: type.比值.M
-      ? {
-          ...type.比值.M,
-          sort: get排序值(type.比值.M, 2),
-        }
-      : undefined,
-    L: type.比值.L
-      ? {
-          ...type.比值.L,
-          sort: get排序值(type.比值.L, 3),
-        }
-      : undefined,
-  };
-  if (type.type === "横排") {
-    return {
-      ...type,
-      groupNodeId: type.groupNodeId || 横排分组节点ID,
-      比值,
-    };
-  }
+  ).join("\n");
+
+  const horizontalLines = Array.from({ length: 4 }, (_, index) => {
+    const y = gridY + index * cellHeight;
+    return `  <line x1="${gridX}" y1="${y}" x2="${gridX + gridWidth}" y2="${y}" stroke="#94a3b8" />`;
+  }).join("\n");
+
+  const tspans = matrix.rows
+    .flatMap((row, rowIndex) =>
+      row.map((token, colIndex) => {
+        const x = gridX + colIndex * cellWidth + cellWidth / 2;
+        const y = gridY + rowIndex * cellHeight + cellHeight / 2 + 4;
+        return `    <tspan x="${x}" y="${y}">${token}</tspan>`;
+      }),
+    )
+    .join("\n");
 
   return {
-    ...type,
-    groupNodeId: type.groupNodeId || 方形分组节点ID,
-    比值,
+    width,
+    height,
+    body: `
+  <rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="16" fill="#ffffff" stroke="#e2e8f0" />
+  <text x="${width / 2}" y="30" fill="#0f172a" text-anchor="middle" dominant-baseline="middle" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="18" font-weight="700">${title}</text>
+  <rect x="${gridX}" y="${gridY}" width="${gridWidth}" height="${gridHeight}" fill="#f8fafc" stroke="#94a3b8" />
+${verticalLines}
+${horizontalLines}
+  <text fill="#0f172a" text-anchor="middle" dominant-baseline="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="18" font-weight="700">
+${tspans}
+  </text>`,
   };
 }
 
-export function build手织图Svg(
-  data: 手织图,
-  options?: { sourceSvg?: string },
-): 手织图 {
-  if (data.类型.type === "特殊") {
-    return data;
-  }
+export function build手织图间色比例预览Svg(
+  input: 手织图预览输入 | 手织图间色比例类型,
+): string {
+  const 间色比例 = normalize间色比例(input);
+  if (间色比例.type === "特殊") return "";
 
-  const normalizedType = normalize生成类型(data.类型);
-  const sourceSvg = options?.sourceSvg?.trim() || createEmpty手织图SourceSvg();
-  const doc = parseSvg(sourceSvg);
-  if (!doc?.documentElement) {
-    return {
-      ...data,
-      svg: sourceSvg,
-      类型: normalizedType,
-    };
-  }
+  const block =
+    间色比例.type === "横排"
+      ? build横排预览(间色比例)
+      : build方形预览(间色比例);
 
-  const overlayGroup = getOrCreateOverlayGroup(doc);
-  if (!overlayGroup) {
-    return {
-      ...data,
-      svg: sourceSvg,
-      类型: normalizedType,
-    };
-  }
-
-  if (normalizedType.type === "横排") {
-    render横排到源图(doc, overlayGroup, normalizedType);
-  } else {
-    render方形到源图(doc, overlayGroup, normalizedType);
-  }
-
-  return {
-    ...data,
-    svg: serializeSvg(doc),
-    类型: normalizedType,
-  };
-}
-
-export function get当前分组节点ID(data: 手织图): string {
-  return data.类型.type === "特殊" ? "" : data.类型.groupNodeId;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${block.width}" height="${block.height}" viewBox="0 0 ${block.width} ${block.height}">
+${block.body}
+</svg>`;
 }
 
 export function get有效排序(data: 手织图): 手织图比例键[] {
-  if (data.类型.type === "特殊") return [];
-  return get有效比例键列表(data.类型.比值);
+  const 间色比例 = normalize间色比例(data as unknown as 手织图预览输入);
+  if (间色比例.type === "特殊") return [];
+  return get有效比例键列表(间色比例.比值);
 }

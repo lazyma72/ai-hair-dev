@@ -1,27 +1,16 @@
 import type { 制品规格书 } from "../db/Db沐茵丝假发成品稿"
-import type { DML值, DML规则命令 } from "./DML规则"
-import type { 高针图 } from "./高针图"
+import { 高针图系统预置区域列表, type DML值, type 高针图 } from "./高针图"
 
 export type 上下分标记 = {
   hasM: boolean
   hasL: boolean
 }
 
-type 区域线条 = 高针图["底图"]["区域线条"][number]
-
 function normalizeLevelName(name: string): string {
   return String(name ?? "")
     .trim()
     .replace(/档$/u, "")
     .trim()
-}
-
-function normalizePattern(raw: string): string {
-  return String(raw ?? "")
-    .toUpperCase()
-    .split("")
-    .filter(ch => ch === "D" || ch === "M" || ch === "L")
-    .join("")
 }
 
 function clampRatio(value: unknown): number {
@@ -34,152 +23,104 @@ function isValidDmlValue(value: unknown): value is DML值 {
   return value === "D" || value === "M" || value === "L"
 }
 
-function uniqueLineIds(lineIds: string[]): string[] {
-  return Array.from(new Set(lineIds.map(lineId => String(lineId ?? "").trim()).filter(Boolean)))
+function normalizePattern(raw: unknown): DML值[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map(v =>
+      String(v ?? "")
+        .trim()
+        .toUpperCase()
+    )
+    .filter((v): v is DML值 => v === "D" || v === "M" || v === "L")
 }
 
-function orderLineIdsByReferenceOrder(rawLineIds: string[], referenceLineIds: string[]): string[] {
-  const normalized = uniqueLineIds(rawLineIds)
-  if (normalized.length === 0) return []
-
-  const selected = new Set(normalized)
-  const ordered: string[] = []
-
-  referenceLineIds.forEach(id => {
-    const lineId = String(id ?? "").trim()
-    if (!lineId || !selected.has(lineId)) return
-    ordered.push(lineId)
-    selected.delete(lineId)
-  })
-
-  normalized.forEach(lineId => {
-    if (!selected.has(lineId)) return
-    ordered.push(lineId)
-    selected.delete(lineId)
-  })
-
-  return ordered
-}
-
-function getSortedRegionLines(graph: 高针图): 区域线条[] {
-  return (graph.底图.区域线条 ?? [])
-    .map((line, index) => ({
-      ...line,
-      lineNodeId: String(line.lineNodeId ?? "").trim(),
-      区域名: String(line.区域名 ?? "").trim(),
-      sort: Number.isFinite(line.sort) && line.sort > 0 ? Math.floor(line.sort) : index + 1,
-      __index: index,
-    }))
-    .filter(line => line.lineNodeId)
-    .sort((a, b) => a.sort - b.sort || a.__index - b.__index)
-    .map(({ __index: _omit, ...line }) => line)
-}
-
-function getRegionLinesByName(graph: 高针图): Map<string, 区域线条[]> {
-  const out = new Map<string, 区域线条[]>()
-  getSortedRegionLines(graph).forEach(line => {
-    const list = out.get(line.区域名) ?? []
-    list.push(line)
-    out.set(line.区域名, list)
+function uniqueById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>()
+  const out: T[] = []
+  items.forEach(item => {
+    const id = String(item.id ?? "").trim()
+    if (!id || seen.has(id)) return
+    seen.add(id)
+    out.push(item)
   })
   return out
 }
 
-function getLevelLineIds(graph: 高针图): Map<string, string[]> {
-  const globalOrder = getSortedRegionLines(graph).map(line => line.lineNodeId)
-  const out = new Map<string, string[]>()
+function buildRegionOrderHint(graph: 高针图): string[] {
+  const preset = 高针图系统预置区域列表.map(d => d.name)
+  const existed = uniqueById(
+    graph.车线.map(c => ({ id: String(c.区域 ?? "").trim() })).filter(d => d.id)
+  ).map(d => d.id)
 
-  ;(graph.底图.档位标注 ?? []).forEach(item => {
-    const key = normalizeLevelName(item.区域名)
-    if (!key) return
-    const list = out.get(key) ?? []
-    ;(item.lineNodeIds ?? []).forEach(lineId => {
-      const normalized = String(lineId ?? "").trim()
-      if (normalized) list.push(normalized)
-    })
-    out.set(key, orderLineIdsByReferenceOrder(list, globalOrder))
-  })
-
-  return out
+  const presetSet = new Set(preset)
+  const extra = existed.filter(name => !presetSet.has(name)).sort()
+  return [...preset, ...extra]
 }
 
-function selectLineIdsByRange(lineIds: string[], start: number, end: number): string[] {
-  if (lineIds.length === 0) return []
+function selectByPercent<T>(items: T[], start: unknown, end: unknown): T[] {
+  if (items.length === 0) return []
   const from = Math.min(clampRatio(start), clampRatio(end))
   const to = Math.max(clampRatio(start), clampRatio(end))
-  return lineIds.filter((_, index) => {
-    const bucketEnd = (index + 1) / lineIds.length
+
+  return items.filter((_, index) => {
+    const bucketEnd = (index + 1) / items.length
     return bucketEnd > from && bucketEnd <= to
   })
 }
 
-function collectCommandLineIds(graph: 高针图, command: DML规则命令): string[] {
-  const globalOrder = getSortedRegionLines(graph).map(line => line.lineNodeId)
-
-  if (command.lineNodeIds.length > 0) {
-    return orderLineIdsByReferenceOrder(command.lineNodeIds, globalOrder)
-  }
-
-  if (command.type === "区域百分比") {
-    const byRegion = getRegionLinesByName(graph)
-    const out: string[] = []
-    ;(command.区域百分比 ?? []).forEach(segment => {
-      const regionName = String(segment.区域 ?? "").trim()
-      const regionLines = byRegion.get(regionName) ?? []
-      out.push(
-        ...selectLineIdsByRange(
-          regionLines.map(line => line.lineNodeId),
-          segment.开始位置,
-          segment.结束位置
-        )
-      )
-    })
-    return orderLineIdsByReferenceOrder(out, globalOrder)
-  }
-
-  if (command.type === "按档位标记") {
-    const byLevel = getLevelLineIds(graph)
-    const out: string[] = []
-    ;(command.档位 ?? []).forEach(segment => {
-      const levelName = normalizeLevelName(segment.档位名称)
-      out.push(
-        ...selectLineIdsByRange(byLevel.get(levelName) ?? [], segment.开始位置, segment.结束位置)
-      )
-    })
-    return orderLineIdsByReferenceOrder(out, globalOrder)
-  }
-
-  return uniqueLineIds(command.lineNodeIds ?? [])
+function orderCarlinesByRegionAndNumber(graph: 高针图): 高针图["车线"] {
+  const regionOrder = buildRegionOrderHint(graph)
+  const rank = new Map<string, number>(regionOrder.map((name, i) => [name, i]))
+  return [...graph.车线].sort((a, b) => {
+    const ra = rank.get(a.区域) ?? 9999
+    const rb = rank.get(b.区域) ?? 9999
+    if (ra !== rb) return ra - rb
+    return a.编号 - b.编号
+  })
 }
 
-function compile高针图DmlAssignments(graph: 高针图): Map<string, DML值> {
-  const assignments = new Map<string, DML值>()
+function orderCarlinesInRegion(graph: 高针图, region: string): 高针图["车线"] {
+  return graph.车线.filter(c => c.区域 === region).sort((a, b) => a.编号 - b.编号)
+}
 
-  ;(graph.自定义数据?.DML规则命令列表 ?? []).forEach(command => {
-    if (!command) return
+function compileDmlAssignments(graph: 高针图): Map<string, DML值> {
+  const result = new Map<string, DML值>()
+  const orderedByRegion = orderCarlinesByRegionAndNumber(graph)
 
-    if (command.type === "特殊标记") {
-      if (!isValidDmlValue(command.规律)) return
-      const specialValue: DML值 = command.规律
-      uniqueLineIds(command.lineNodeIds ?? []).forEach(lineId => {
-        assignments.set(lineId, specialValue)
+  ;(graph.自动修改器 ?? []).forEach(mod => {
+    if (!mod || mod.启用 === false) return
+    const pattern = normalizePattern(mod.规律)
+    if (pattern.length === 0) return
+
+    if (mod.type === "按区域自动标注DML") {
+      const selected: 高针图["车线"] = []
+      ;(mod.范围 ?? []).forEach(seg => {
+        const region = String(seg.区域 ?? "").trim()
+        if (!region) return
+        const regionItems = orderCarlinesInRegion(graph, region)
+        selected.push(...selectByPercent(regionItems, seg.开始, seg.结束))
       })
+      selected.forEach((c, i) => result.set(c.id, pattern[i % pattern.length]))
       return
     }
 
-    const pattern = normalizePattern(command.规律)
-    if (!pattern) return
-
-    collectCommandLineIds(graph, command).forEach((lineId, index) => {
-      assignments.set(lineId, pattern[index % pattern.length] as DML值)
-    })
+    if (mod.type === "按档位自动标注DML") {
+      // 先按区域顺序拼出该档位的全局序列，再按百分比切片。
+      ;(mod.范围 ?? []).forEach(seg => {
+        const gear = normalizeLevelName(String(seg.档位 ?? ""))
+        if (!gear) return
+        const gearItems = orderedByRegion.filter(c => normalizeLevelName(c.档位) === gear)
+        const selected = selectByPercent(gearItems, seg.开始, seg.结束)
+        selected.forEach((c, i) => result.set(c.id, pattern[i % pattern.length]))
+      })
+    }
   })
 
-  return assignments
+  return result
 }
 
 export function 提取高针图上下分标记(graph: 高针图): 上下分标记 {
-  const dmlMap = compile高针图DmlAssignments(graph)
+  const dmlMap = compileDmlAssignments(graph)
   let hasM = false
   let hasL = false
   dmlMap.forEach(value => {
@@ -194,31 +135,14 @@ export function 根据高针图计算上下分档位尺数(
   slotName: string,
   splitFlags: 上下分标记 = 提取高针图上下分标记(graph)
 ): { D: number; M?: number; L?: number } {
-  const dmlMap = compile高针图DmlAssignments(graph)
-  const lineMap = new Map(getSortedRegionLines(graph).map(line => [line.lineNodeId, line] as const))
-  const doubleSet = new Set(
-    (graph.自定义数据?.单双标注 ?? [])
-      .filter(item => item?.双数)
-      .map(item => String(item.lineNodeId ?? "").trim())
-      .filter(Boolean)
-  )
-
+  const dmlMap = compileDmlAssignments(graph)
   const totals = { D: 0, M: 0, L: 0 }
-  const used = new Set<string>()
-
-  ;(graph.底图.档位标注 ?? [])
-    .filter(item => normalizeLevelName(item.区域名) === normalizeLevelName(slotName))
-    .flatMap(item => item.lineNodeIds ?? [])
-    .forEach(rawLineId => {
-      const lineId = String(rawLineId ?? "").trim()
-      if (!lineId || used.has(lineId)) return
-      used.add(lineId)
-
-      const line = lineMap.get(lineId)
-      const value = dmlMap.get(lineId)
-      if (!line || !value) return
-
-      const length = line.lineLength * (doubleSet.has(lineId) ? 2 : 1)
+  const normalizedSlot = normalizeLevelName(slotName)
+  graph.车线
+    .filter(c => normalizeLevelName(c.档位) === normalizedSlot)
+    .forEach(c => {
+      const value = dmlMap.get(c.id) ?? (isValidDmlValue(c.DML) ? c.DML : "D")
+      const length = (Number.isFinite(c.尺数) ? c.尺数 : 0) * (c.是双数 ? 2 : 1)
       if (value === "M") totals.M += length
       else if (value === "L") totals.L += length
       else totals.D += length

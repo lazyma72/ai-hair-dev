@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DownloadSvgButton from "../../components/DownloadSvgButton";
 import Section from "../../components/Section";
-import HighNeedleImportStep from "../../pages/design/create/components/HighNeedleImportStep";
+import EmbeddedHighNeedleEditor from "../../pages/editor/EmbeddedHighNeedleEditor";
 import type { 高针指示单 } from "../../shared/db/Db沐茵丝假发成品稿";
 import type { 高针指示单Frontend } from "../../shared/frontend/model/model";
 import { inputCls } from "../../pages/admin/add-file/components/ui";
-import HighNeedlePreviewViewer from "../highNeedleAnnotator/HighNeedlePreviewViewer";
+import HighNeedlePreview from "./HighNeedlePreview";
 
 type Props = {
   mode: "edit" | "readonly";
@@ -20,21 +20,31 @@ export default function HighNeedleBlock({
   mode,
   value,
   onChange,
-  hideUploader = false,
   previewData,
 }: Props) {
   const isEdit = mode === "edit";
   const [expanded, setExpanded] = useState(false);
-  const hasSvg = Boolean(value.高针图?.底图?.svg?.trim());
-  const [showUploader, setShowUploader] = useState(!hideUploader || !hasSvg);
   const fileName = useMemo(() => {
-    const svg = value.高针图?.底图?.svg?.trim() ?? "";
+    const svg = value.高针图?.svg?.trim() ?? "";
     return svg ? "已导入 SVG" : null;
-  }, [value.高针图?.底图?.svg]);
+  }, [value.高针图?.svg]);
+
+  useEffect(() => {
+    if (!expanded) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setExpanded(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expanded]);
 
   if (!isEdit) {
     const preview = previewData?.高针图数据 ?? value.高针图;
-    const downloadSvg = previewData?.高针图svg || preview?.底图?.svg || "";
+    const downloadSvg = previewData?.高针图svg || preview?.svg || "";
     const downloadFilename = `${
       previewData?.title?.样品编号 || "high-needle"
     }-high-needle.svg`;
@@ -51,23 +61,44 @@ export default function HighNeedleBlock({
               </div>
             </div>
 
-            {preview?.底图?.svg?.trim() ? (
+            {preview?.svg?.trim() ? (
               <div>
                 <div className="mb-1 flex items-center justify-between gap-3">
                   <div className="text-xs font-medium text-slate-700">
                     高针图
                   </div>
-                  <DownloadSvgButton
-                    svg={downloadSvg}
-                    filename={downloadFilename}
-                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!preview}
+                      onClick={() => {
+                        if (!preview) return;
+                        const blob = new Blob(
+                          [JSON.stringify(preview, null, 2)],
+                          {
+                            type: "application/json;charset=utf-8",
+                          },
+                        );
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `${
+                          previewData?.title?.样品编号 || "high-needle"
+                        }-high-needle.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      导出 JSON
+                    </button>
+                    <DownloadSvgButton
+                      svg={downloadSvg}
+                      filename={downloadFilename}
+                    />
+                  </div>
                 </div>
-                <div className="overflow-hidden rounded border border-slate-100 bg-white">
-                  <HighNeedlePreviewViewer
-                    data={preview}
-                    emptyText="暂无高针图"
-                  />
-                </div>
+                <HighNeedlePreview value={preview} />
               </div>
             ) : null}
           </div>
@@ -97,18 +128,11 @@ export default function HighNeedleBlock({
 
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs text-slate-500">
-              {fileName ? `当前：${fileName}` : "暂未导入高针图 SVG"}
+              {fileName
+                ? `当前：${fileName}`
+                : "请在编辑器内的文件菜单导入高针图 SVG"}
             </div>
             <div className="flex items-center gap-2">
-              {hideUploader && hasSvg ? (
-                <button
-                  type="button"
-                  className="rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
-                  onClick={() => setShowUploader((v) => !v)}
-                >
-                  更换 SVG
-                </button>
-              ) : null}
               <button
                 type="button"
                 className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
@@ -119,51 +143,35 @@ export default function HighNeedleBlock({
             </div>
           </div>
 
-          {!expanded ? (
-            <HighNeedleImportStep
-              embed
-              title="高针图标注"
+          {value.高针图?.svg?.trim() ? (
+            <HighNeedlePreview value={value.高针图} />
+          ) : (
+            <div className="rounded border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+              请先在放大标注中导入高针图 SVG。
+            </div>
+          )}
+
+          <div className={expanded ? "fixed inset-0 z-[90] bg-white" : "hidden"}>
+            <EmbeddedHighNeedleEditor
+              heightClassName="h-full min-h-0"
               value={value.高针图}
               onChange={(v) => onChange?.({ ...value, 高针图: v })}
-              showJsonActions
-              showUploader={showUploader}
               fileName={fileName}
+              headerRight={
+                expanded ? (
+                  <button
+                    type="button"
+                    className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+                    onClick={() => setExpanded(false)}
+                  >
+                    退出放大
+                  </button>
+                ) : undefined
+              }
             />
-          ) : null}
-        </div>
-      </Section>
-
-      {expanded ? (
-        <div className="fixed inset-0 z-50 bg-black/40 p-4">
-          <div className="mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden rounded-xl bg-white ring-1 ring-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-900">
-                高针图标注（放大）
-              </div>
-              <button
-                type="button"
-                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-                onClick={() => setExpanded(false)}
-              >
-                退出放大
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto p-4">
-              <HighNeedleImportStep
-                embed
-                fullscreen
-                heightClassName="h-[calc(100vh-180px)] min-h-[680px]"
-                title="高针图标注"
-                value={value.高针图}
-                onChange={(v) => onChange?.({ ...value, 高针图: v })}
-                showJsonActions
-                showUploader={false}
-                fileName={fileName}
-              />
-            </div>
           </div>
         </div>
-      ) : null}
+      </Section>
     </div>
   );
 }

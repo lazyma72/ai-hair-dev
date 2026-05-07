@@ -87,6 +87,13 @@ export default function DesignDraftListPage() {
       title="产品规格系统 · 成品稿管理"
       actions={
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-200"
+            onClick={reload}
+          >
+            刷新
+          </button>
           <div className="flex items-center rounded border border-slate-200 bg-white p-0.5">
             {(["全部", "成品稿", "草稿"] as const).map((v) => (
               <button
@@ -150,15 +157,6 @@ export default function DesignDraftListPage() {
         )}
       />
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-        <div className="mb-3 flex items-center justify-end">
-          <button
-            type="button"
-            className="rounded bg-slate-100 px-3 py-2 text-sm text-slate-700 hover:bg-slate-200"
-            onClick={reload}
-          >
-            刷新
-          </button>
-        </div>
         <div className="space-y-4">
           <PaginationBar
             total={total}

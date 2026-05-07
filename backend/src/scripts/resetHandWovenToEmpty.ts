@@ -6,7 +6,7 @@ async function main() {
 
   const 空手织图: 手织图 = {
     svg: "",
-    类型: {
+    间色比例: {
       type: "特殊",
     },
   }
@@ -18,7 +18,7 @@ async function main() {
       $set: {
         "手织指示单.手织图": 空手织图,
       },
-    },
+    }
   )
 
   console.log("手织图已批量重置为空数据", {
@@ -28,7 +28,7 @@ async function main() {
 }
 
 main()
-  .catch((error) => {
+  .catch(error => {
     console.error("重置手织图失败:", error)
     process.exitCode = 1
   })

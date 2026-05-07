@@ -9,7 +9,6 @@ import {
   type 染色档位,
   type 沐茵丝假发成品稿,
 } from "../../../shared/db/Db沐茵丝假发成品稿"
-import type { DML值, DML规则命令, DML规则命令列表 } from "../../../shared/models/DML规则"
 import {
   recalc人工规格清单D重量,
   recalc人工规格清单上下分重量,
@@ -24,52 +23,9 @@ import {
   type 上下分标记,
 } from "../../../shared/models/上下分计算尺数"
 import { ObjectId } from "mongodb"
-import type { 高针图 } from "../../../shared/models/高针图"
+import type { DML值, 高针图 } from "../../../shared/models/高针图"
+import { 高针图系统预置区域列表 } from "../../../shared/models/高针图"
 import { load } from "cheerio"
-
-type GraphLike = {
-  底图: {
-    svg?: string
-    区域名?: string[]
-    区域线条?: {
-      区域名: string
-      sortNodeId?: string
-      lineNodeId: string
-      sort: number
-      lineLength: number
-      textNodeIds?: string[]
-    }[]
-    档位标注?: {
-      区域名: string
-      lineNodeIds: string[]
-      textNodeIds?: string[]
-    }[]
-    文本节点?: Record<
-      string,
-      {
-        textNodeId: string
-        text?: string
-        created?: boolean
-        fontStyle?: Record<string, unknown>
-      }
-    >
-  }
-  自定义数据: {
-    DML规则命令列表: DML规则命令列表
-  }
-}
-
-type RegionLine = {
-  区域名: string
-  lineNodeId: string
-  sort: number
-  lineLength: number
-}
-
-type 区域覆盖段 = {
-  start: number
-  end: number
-}
 
 type DML比值 = {
   D: number
@@ -78,19 +34,6 @@ type DML比值 = {
 }
 
 type 调试日志函数 = (阶段: string, data: Record<string, unknown>) => void
-
-type SvgPoint = {
-  x: number
-  y: number
-}
-
-type DML标注锚点 = {
-  textNodeId: string
-  source: "region" | "existing-dml" | "level"
-  pos: SvgPoint
-}
-
-type 图文本节点 = NonNullable<GraphLike["底图"]["文本节点"]>[string]
 
 function 深拷贝普通对象<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -121,7 +64,7 @@ function 获取C稿手织图(
   const b = fileB.手织指示单?.手织图
   if (!a || !b) return a ?? b
 
-  if (shouldOverride手织图类型(a.类型?.type, b.类型?.type)) {
+  if (shouldOverride手织图类型(a.间色比例?.type, b.间色比例?.type)) {
     // Keep C稿以A为底的原则不变，只在横排/方形互换时，用B稿手织图替换，避免类型不一致。
     return 深拷贝普通对象(b)
   }
@@ -135,29 +78,7 @@ function normalizeLevelName(name: string): string {
     .trim()
 }
 
-const DML_DEBUG_VERBOSE =
-  process.env.AB_DML_DEBUG_VERBOSE === "1" || process.env.AI_HAIR_DML_DEBUG_VERBOSE === "1"
-
-function sampleHeadTail<T>(list: T[], head = 3, tail = 3): { head: T[]; tail: T[] } {
-  if (list.length <= head + tail) return { head: list.slice(0), tail: [] }
-  return { head: list.slice(0, head), tail: list.slice(Math.max(0, list.length - tail)) }
-}
-
-function normalizePattern(raw: string): string {
-  return String(raw ?? "")
-    .toUpperCase()
-    .split("")
-    .filter(ch => ch === "D" || ch === "M" || ch === "L")
-    .join("")
-}
-
-function normalizeSort(value: unknown, fallback: number): number {
-  const num = typeof value === "number" ? value : Number(value)
-  if (!Number.isFinite(num) || num < 1) return fallback + 1
-  return Math.floor(num)
-}
-
-function clampRatio(value: unknown): number {
+function clamp01(value: unknown): number {
   const num = typeof value === "number" ? value : Number(value)
   if (!Number.isFinite(num)) return 0
   return Math.max(0, Math.min(1, num))
@@ -167,92 +88,7 @@ function isValidDmlValue(value: unknown): value is DML值 {
   return value === "D" || value === "M" || value === "L"
 }
 
-function uniqueLineIds(lineIds: string[]): string[] {
-  return Array.from(new Set(lineIds.map(lineId => String(lineId ?? "").trim()).filter(Boolean)))
-}
-
-function orderLineIdsByReferenceOrder(rawLineIds: string[], referenceLineIds: string[]): string[] {
-  const normalized = uniqueLineIds(rawLineIds)
-  if (normalized.length === 0) return []
-
-  const selected = new Set(normalized)
-  const ordered: string[] = []
-
-  referenceLineIds.forEach(id => {
-    const lineId = String(id ?? "").trim()
-    if (!lineId || !selected.has(lineId)) return
-    ordered.push(lineId)
-    selected.delete(lineId)
-  })
-
-  // fallback: keep remaining ids in their input order
-  normalized.forEach(lineId => {
-    if (!selected.has(lineId)) return
-    ordered.push(lineId)
-    selected.delete(lineId)
-  })
-
-  return ordered
-}
-
-// 统一整理线条顺序，后面的 DML 计算和规则映射都按这个顺序走。
-function getRegionLines(graph: GraphLike): RegionLine[] {
-  return (graph.底图.区域线条 ?? [])
-    .map((item, index) => ({
-      区域名: String(item.区域名 ?? "").trim(),
-      lineNodeId: String(item.lineNodeId ?? "").trim(),
-      sort: normalizeSort(item.sort, index),
-      lineLength: typeof item.lineLength === "number" ? item.lineLength : 0,
-      index,
-    }))
-    .filter(item => item.lineNodeId)
-    .sort((a, b) => a.sort - b.sort || a.index - b.index)
-    .map(({ index: _index, ...item }, index) => ({
-      ...item,
-      sort: index + 1,
-    }))
-}
-
-function getRegionSet(graph: GraphLike): Set<string> {
-  const out = new Set<string>()
-  ;(graph.底图.区域名 ?? []).forEach(name => {
-    const region = String(name ?? "").trim()
-    if (region) out.add(region)
-  })
-  getRegionLines(graph).forEach(line => {
-    if (line.区域名) out.add(line.区域名)
-  })
-  return out
-}
-
-function getRegionLinesByName(graph: GraphLike): Map<string, RegionLine[]> {
-  const out = new Map<string, RegionLine[]>()
-  getRegionLines(graph).forEach(line => {
-    const list = out.get(line.区域名) ?? []
-    list.push(line)
-    out.set(line.区域名, list)
-  })
-  return out
-}
-
-function buildLineIdToRegionMap(graph: GraphLike): Map<string, string> {
-  return new Map(getRegionLines(graph).map(line => [line.lineNodeId, line.区域名] as const))
-}
-
-function getLevelLineIds(graph: GraphLike): Map<string, string[]> {
-  const out = new Map<string, string[]>()
-  ;(graph.底图.档位标注 ?? []).forEach(item => {
-    const slot = normalizeLevelName(item.区域名)
-    if (!slot) return
-    const list = out.get(slot) ?? []
-    ;(item.lineNodeIds ?? []).forEach(lineId => {
-      const id = String(lineId ?? "").trim()
-      if (id) list.push(id)
-    })
-    out.set(slot, list)
-  })
-  return out
-}
+type 区域覆盖段 = { start: number; end: number }
 
 function merge覆盖段列表(segments: 区域覆盖段[]): 区域覆盖段[] {
   if (segments.length <= 1) return segments.slice()
@@ -270,31 +106,67 @@ function merge覆盖段列表(segments: 区域覆盖段[]): 区域覆盖段[] {
   return merged
 }
 
-function build档位区域覆盖映射(graph: GraphLike): Map<string, Map<string, 区域覆盖段[]>> {
-  const byRegion = getRegionLinesByName(graph)
+function buildRegionOrderHint(graph: 高针图): string[] {
+  const preset = 高针图系统预置区域列表.map(d => d.name)
+  const presetSet = new Set(preset)
+  const existed = Array.from(
+    new Set(graph.车线.map(c => String(c.区域 ?? "").trim()).filter(Boolean))
+  )
+  const extra = existed.filter(name => !presetSet.has(name)).sort()
+  return [...preset, ...extra]
+}
+
+function orderCarlinesInRegion(graph: 高针图, region: string): 高针图["车线"] {
+  return graph.车线.filter(c => c.区域 === region).sort((a, b) => a.编号 - b.编号)
+}
+
+function orderCarlinesByRegionAndNumber(graph: 高针图): 高针图["车线"] {
+  const regionOrder = buildRegionOrderHint(graph)
+  const rank = new Map<string, number>(regionOrder.map((name, i) => [name, i]))
+  return [...graph.车线].sort((a, b) => {
+    const ra = rank.get(a.区域) ?? 9999
+    const rb = rank.get(b.区域) ?? 9999
+    if (ra !== rb) return ra - rb
+    return a.编号 - b.编号
+  })
+}
+
+function selectByPercent<T>(items: T[], start: unknown, end: unknown): T[] {
+  if (items.length === 0) return []
+  const from = Math.min(clamp01(start), clamp01(end))
+  const to = Math.max(clamp01(start), clamp01(end))
+  return items.filter((_, index) => {
+    const bucketEnd = (index + 1) / items.length
+    return bucketEnd > from && bucketEnd <= to
+  })
+}
+
+function build档位区域覆盖映射(graph: 高针图): Map<string, Map<string, 区域覆盖段[]>> {
   const out = new Map<string, Map<string, 区域覆盖段[]>>()
+  const regionOrder = buildRegionOrderHint(graph)
 
-  ;(graph.底图.档位标注 ?? []).forEach(item => {
-    const slot = normalizeLevelName(item.区域名)
-    if (!slot) return
-    const selected = new Set(uniqueLineIds(item.lineNodeIds ?? []))
-    if (selected.size === 0) return
+  regionOrder.forEach(regionName => {
+    const regionItems = orderCarlinesInRegion(graph, regionName)
+    if (regionItems.length === 0) return
 
-    const regionMap = out.get(slot) ?? new Map<string, 区域覆盖段[]>()
-    byRegion.forEach((regionLines, regionName) => {
-      const indexes: number[] = []
-      regionLines.forEach((line, index) => {
-        if (selected.has(line.lineNodeId)) indexes.push(index)
-      })
-      if (indexes.length === 0) return
-
-      const start = indexes[0] / regionLines.length
-      const end = (indexes[indexes.length - 1] + 1) / regionLines.length
-      const next = [...(regionMap.get(regionName) ?? []), { start, end }]
-      regionMap.set(regionName, merge覆盖段列表(next))
+    const slotToIndexes = new Map<string, number[]>()
+    regionItems.forEach((c, index) => {
+      const slot = normalizeLevelName(c.档位)
+      if (!slot) return
+      const list = slotToIndexes.get(slot) ?? []
+      list.push(index)
+      slotToIndexes.set(slot, list)
     })
 
-    out.set(slot, regionMap)
+    slotToIndexes.forEach((indexes, slot) => {
+      if (indexes.length === 0) return
+      const start = indexes[0] / regionItems.length
+      const end = (indexes[indexes.length - 1] + 1) / regionItems.length
+      const regionMap = out.get(slot) ?? new Map<string, 区域覆盖段[]>()
+      const next = [...(regionMap.get(regionName) ?? []), { start, end }]
+      regionMap.set(regionName, merge覆盖段列表(next))
+      out.set(slot, regionMap)
+    })
   })
 
   return out
@@ -352,8 +224,8 @@ function 转换B稿染色档位列表到C稿(fileA: 沐茵丝假发成品稿, fi
   const bMachineSlotSet = new Set(
     (fileB.制品规格书.机器规格清单 ?? []).map(row => normalizeLevelName(row.档位)).filter(Boolean)
   )
-  const bCoverage = build档位区域覆盖映射(fileB.高针指示单.高针图 as unknown as GraphLike)
-  const aCoverage = build档位区域覆盖映射(fileA.高针指示单.高针图 as unknown as GraphLike)
+  const bCoverage = build档位区域覆盖映射(fileB.高针指示单.高针图 as unknown as 高针图)
+  const aCoverage = build档位区域覆盖映射(fileA.高针指示单.高针图 as unknown as 高针图)
 
   return sourceList.map(item => {
     const rawSlots = (item.染色图?.档位标注?.档位列表 ?? [])
@@ -380,709 +252,203 @@ function 转换B稿染色档位列表到C稿(fileA: 沐茵丝假发成品稿, fi
         ...item.染色图,
         档位标注: {
           ...item.染色图.档位标注,
-          档位列表: uniqueLineIds([...mappedMachineSlots, ...passThroughSlots]),
+          档位列表: Array.from(new Set([...mappedMachineSlots, ...passThroughSlots])),
         },
       },
     } as 染色档位
   })
 }
 
-function selectLineIdsByRange(lineIds: string[], start: unknown, end: unknown): string[] {
-  if (lineIds.length === 0) return []
-
-  const rangeStart = Math.min(clampRatio(start), clampRatio(end))
-  const rangeEnd = Math.max(clampRatio(start), clampRatio(end))
-
-  return lineIds.filter((_, index) => {
-    const bucketEnd = (index + 1) / lineIds.length
-    return bucketEnd > rangeStart && bucketEnd <= rangeEnd
-  })
-}
-
-function collectCommandLineIds(graph: GraphLike, command: DML规则命令): string[] {
-  if (command.lineNodeIds.length > 0) {
-    return uniqueLineIds(command.lineNodeIds)
-  }
-
-  if (command.type === "区域百分比") {
-    const byRegion = getRegionLinesByName(graph)
-    return uniqueLineIds(
-      (command.区域百分比 ?? []).flatMap(segment => {
-        const lineIds = (byRegion.get(String(segment.区域 ?? "").trim()) ?? []).map(
-          line => line.lineNodeId
-        )
-        return selectLineIdsByRange(lineIds, segment.开始位置, segment.结束位置)
-      })
-    )
-  }
-
-  if (command.type === "按档位标记") {
-    const byLevel = getLevelLineIds(graph)
-    return uniqueLineIds(
-      (command.档位 ?? []).flatMap(segment => {
-        const lineIds = byLevel.get(normalizeLevelName(segment.档位名称)) ?? []
-        return selectLineIdsByRange(lineIds, segment.开始位置, segment.结束位置)
-      })
-    )
-  }
-
-  return []
-}
-
-// 按图里的规则给每根线算出 D/M/L。
-function compileDmlAssignments(
-  graph: GraphLike,
-  记录日志?: 调试日志函数,
-  ctx: { scene?: string } = {}
-): Map<string, DML值> {
-  const assignments = new Map<string, DML值>()
-
-  const commands = graph.自定义数据.DML规则命令列表 ?? []
-  if (记录日志) {
-    记录日志("DML编译输入摘要", {
-      scene: ctx.scene ?? "",
-      commandCount: commands.length,
-      regionLineCount: getRegionLines(graph).length,
-      levelCount: (graph.底图.档位标注 ?? []).length,
-    })
-  }
-
-  for (const command of commands) {
-    if (!command) continue
-
-    if (command.type === "特殊标记") {
-      if (!isValidDmlValue(command.规律)) continue
-      const specialValue: DML值 = command.规律
-      const lineIds = uniqueLineIds(command.lineNodeIds ?? [])
-      let overwritten = 0
-      lineIds.forEach(lineId => {
-        if (assignments.has(lineId)) overwritten++
-        assignments.set(lineId, specialValue)
-      })
-      if (记录日志) {
-        记录日志("DML编译单条规则摘要", {
-          scene: ctx.scene ?? "",
-          ruleId: command.id,
-          ruleType: command.type,
-          value: specialValue,
-          rawLineNodeCount: (command.lineNodeIds ?? []).length,
-          effectiveLineNodeCount: lineIds.length,
-          overwrittenCount: overwritten,
-          sample: sampleHeadTail(lineIds),
-        })
-      }
-      continue
-    }
-
-    const pattern = normalizePattern(command.规律)
-    if (!pattern) continue
-
-    const lineIds = collectCommandLineIds(graph, command)
-    const perValue = { D: 0, M: 0, L: 0 }
-    let overwritten = 0
-
-    // 详细段信息（仅在 verbose 模式下输出，避免刷屏）
-    if (记录日志 && DML_DEBUG_VERBOSE && command.lineNodeIds.length === 0) {
-      if (command.type === "区域百分比") {
-        const byRegion = getRegionLinesByName(graph)
-        const segStats = (command.区域百分比 ?? []).map(segment => {
-          const regionName = String(segment.区域 ?? "").trim()
-          const regionLineIds = (byRegion.get(regionName) ?? []).map(line => line.lineNodeId)
-          const selected = selectLineIdsByRange(regionLineIds, segment.开始位置, segment.结束位置)
-          const selectedSet = new Set(selected)
-          const selectedIndexes = regionLineIds
-            .map((id, idx) => (selectedSet.has(id) ? idx : -1))
-            .filter(idx => idx >= 0)
-          return {
-            区域: regionName,
-            start: segment.开始位置,
-            end: segment.结束位置,
-            total: regionLineIds.length,
-            selected: selected.length,
-            firstIndex: selectedIndexes.length ? Math.min(...selectedIndexes) : -1,
-            lastIndex: selectedIndexes.length ? Math.max(...selectedIndexes) : -1,
-          }
-        })
-        记录日志("DML编译规则段明细", {
-          scene: ctx.scene ?? "",
-          ruleId: command.id,
-          ruleType: command.type,
-          pattern,
-          segments: segStats,
-        })
-      } else if (command.type === "按档位标记") {
-        const byLevel = getLevelLineIds(graph)
-        const segStats = (command.档位 ?? []).map(segment => {
-          const levelName = normalizeLevelName(segment.档位名称)
-          const levelLineIds = byLevel.get(levelName) ?? []
-          const selected = selectLineIdsByRange(levelLineIds, segment.开始位置, segment.结束位置)
-          const selectedSet = new Set(selected)
-          const selectedIndexes = levelLineIds
-            .map((id, idx) => (selectedSet.has(id) ? idx : -1))
-            .filter(idx => idx >= 0)
-          return {
-            档位: levelName,
-            start: segment.开始位置,
-            end: segment.结束位置,
-            total: levelLineIds.length,
-            selected: selected.length,
-            firstIndex: selectedIndexes.length ? Math.min(...selectedIndexes) : -1,
-            lastIndex: selectedIndexes.length ? Math.max(...selectedIndexes) : -1,
-          }
-        })
-        记录日志("DML编译规则段明细", {
-          scene: ctx.scene ?? "",
-          ruleId: command.id,
-          ruleType: command.type,
-          pattern,
-          segments: segStats,
-        })
-      }
-    }
-
-    lineIds.forEach((lineId, index) => {
-      if (assignments.has(lineId)) overwritten++
-      const v = pattern[index % pattern.length] as DML值
-      assignments.set(lineId, v)
-      if (v === "M") perValue.M++
-      else if (v === "L") perValue.L++
-      else perValue.D++
-    })
-
-    if (记录日志) {
-      记录日志("DML编译单条规则摘要", {
-        scene: ctx.scene ?? "",
-        ruleId: command.id,
-        ruleType: command.type,
-        pattern,
-        rawLineNodeCount: (command.lineNodeIds ?? []).length,
-        effectiveLineNodeCount: lineIds.length,
-        overwrittenCount: overwritten,
-        perValue,
-        sample: sampleHeadTail(lineIds),
-      })
-    }
-  }
-
-  if (记录日志) {
-    const totals = { D: 0, M: 0, L: 0 }
-    assignments.forEach(v => {
-      if (v === "M") totals.M++
-      else if (v === "L") totals.L++
-      else totals.D++
-    })
-    记录日志("DML编译输出摘要", {
-      scene: ctx.scene ?? "",
-      assignmentCount: assignments.size,
-      totals,
-    })
-  }
-
-  return assignments
-}
-
-function keepSpecialRules(rules: DML规则命令列表 | undefined): DML规则命令列表 {
-  return (rules ?? []).filter(rule => rule?.type === "特殊标记")
-}
-
 function createRuleId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-function 获取标记文本样式(kind: "dml"): Record<string, string | number> {
-  if (kind === "dml") {
-    return {
-      fill: "#111827",
-      "font-weight": "700",
-      "font-size": 10,
-      "text-anchor": "middle",
-      "dominant-baseline": "middle",
+function normalizePattern(raw: unknown): DML值[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map(v =>
+      String(v ?? "")
+        .trim()
+        .toUpperCase()
+    )
+    .filter((v): v is DML值 => v === "D" || v === "M" || v === "L")
+}
+
+function compileDmlAssignments(graph: 高针图): Map<string, DML值> {
+  const result = new Map<string, DML值>()
+  const orderedByRegion = orderCarlinesByRegionAndNumber(graph)
+
+  ;(graph.自动修改器 ?? []).forEach(mod => {
+    if (!mod || mod.启用 === false) return
+    const pattern = normalizePattern(mod.规律)
+    if (pattern.length === 0) return
+
+    if (mod.type === "按区域自动标注DML") {
+      const selected: 高针图["车线"] = []
+      ;(mod.范围 ?? []).forEach(seg => {
+        const region = String(seg.区域 ?? "").trim()
+        if (!region) return
+        const regionItems = orderCarlinesInRegion(graph, region)
+        selected.push(...selectByPercent(regionItems, seg.开始, seg.结束))
+      })
+      selected.forEach((c, i) => result.set(c.id, pattern[i % pattern.length]))
+      return
     }
-  }
-  return {}
-}
 
-function 解析首个数字(value: string | undefined): number | undefined {
-  if (!value) return undefined
-  const num = Number(value.trim().split(/[ ,]+/)[0])
-  return Number.isFinite(num) ? num : undefined
-}
-
-function 读取文本节点位置(svg: string, textNodeId: string): SvgPoint | undefined {
-  if (!svg || !textNodeId) return undefined
-  const $ = load(svg, { xmlMode: true })
-  const node = $(`[id="${textNodeId}"]`).first()
-  if (node.length === 0) return undefined
-
-  const firstTspan = node.find("tspan").first()
-  const rawX = 解析首个数字(firstTspan.attr("x")) ?? 解析首个数字(node.attr("x")) ?? 0
-  const rawY = 解析首个数字(firstTspan.attr("y")) ?? 解析首个数字(node.attr("y")) ?? 0
-
-  const transform = String(node.attr("transform") ?? "").trim()
-  const matched = transform.match(/translate\(\s*([^\s,)]+)(?:[\s,]+([^\s,)]+))?\s*\)/i)
-  const tx = matched ? Number(matched[1]) : 0
-  const ty = matched ? Number(matched[2] ?? "0") : 0
-
-  return {
-    x: rawX + (Number.isFinite(tx) ? tx : 0),
-    y: rawY + (Number.isFinite(ty) ? ty : 0),
-  }
-}
-
-function 获取线条区域标注文本节点Id(graph: GraphLike, lineNodeId: string): string {
-  const line = (graph.底图.区域线条 ?? []).find(
-    item => String(item.lineNodeId ?? "").trim() === lineNodeId
-  )
-  const sortNodeId = String(line?.sortNodeId ?? "").trim()
-  if (sortNodeId) return sortNodeId
-  const textNodeIds = (line?.textNodeIds ?? []).map(id => String(id ?? "").trim()).filter(Boolean)
-  return textNodeIds.find(id => id.startsWith("region_text")) ?? textNodeIds[0] ?? ""
-}
-
-function 获取线条档位标注文本节点Id(graph: GraphLike, lineNodeId: string): string {
-  for (const item of graph.底图.档位标注 ?? []) {
-    const index = (item.lineNodeIds ?? []).findIndex(id => String(id ?? "").trim() === lineNodeId)
-    if (index < 0) continue
-    const textNodeId = String(item.textNodeIds?.[index] ?? "").trim()
-    if (textNodeId) return textNodeId
-  }
-  return ""
-}
-
-function 获取线条DML标注锚点(graph: GraphLike, lineNodeId: string): DML标注锚点 | undefined {
-  const 候选锚点: Array<{ textNodeId: string; source: DML标注锚点["source"] }> = [
-    {
-      textNodeId: 获取线条区域标注文本节点Id(graph, lineNodeId),
-      source: "region" as const,
-    },
-    {
-      textNodeId: String(graph.底图.文本节点?.[`dml:${lineNodeId}`]?.textNodeId ?? "").trim(),
-      source: "existing-dml" as const,
-    },
-    {
-      textNodeId: 获取线条档位标注文本节点Id(graph, lineNodeId),
-      source: "level" as const,
-    },
-  ].filter(item => item.textNodeId)
-
-  for (const item of 候选锚点) {
-    const pos = 读取文本节点位置(graph.底图.svg ?? "", item.textNodeId)
-    if (pos) {
-      return {
-        textNodeId: item.textNodeId,
-        source: item.source,
-        pos,
-      }
+    if (mod.type === "按档位自动标注DML") {
+      ;(mod.范围 ?? []).forEach(seg => {
+        const gear = normalizeLevelName(String(seg.档位 ?? ""))
+        if (!gear) return
+        const gearItems = orderedByRegion.filter(c => normalizeLevelName(c.档位) === gear)
+        const selected = selectByPercent(gearItems, seg.开始, seg.结束)
+        selected.forEach((c, i) => result.set(c.id, pattern[i % pattern.length]))
+      })
     }
-  }
-
-  return undefined
-}
-
-function 将DML标记写入高针图SVG(
-  graph: 沐茵丝假发成品稿["高针指示单"]["高针图"],
-  记录日志?: 调试日志函数
-): 沐茵丝假发成品稿["高针指示单"]["高针图"] {
-  const dmlAssignments = compileDmlAssignments(graph as unknown as GraphLike, 记录日志, {
-    scene: "write-svg",
   })
-  const $ = load(graph.底图.svg ?? "", { xmlMode: true })
+
+  return result
+}
+
+function 将DML标记写回高针图SVG(graph: 高针图, 记录日志?: 调试日志函数): 高针图 {
+  const dmlAssignments = compileDmlAssignments(graph)
+  const $ = load(graph.svg ?? "", { xmlMode: true })
   const svgRoot = $("svg").first()
   if (svgRoot.length === 0) {
-    记录日志?.("高针图DML写入SVG失败", { reason: "svg-root-missing" })
+    记录日志?.("高针图DML写回SVG失败", { reason: "svg-root-missing" })
     return graph
   }
 
-  svgRoot.attr("overflow", "visible")
-  $('text[id^="dml_text_"]').remove()
+  let written = 0
+  let skippedNoNodeId = 0
+  let skippedNotFound = 0
 
-  const next文本节点 = Object.fromEntries(
-    Object.entries(graph.底图.文本节点 ?? {}).filter(([key]) => !String(key).startsWith("dml:"))
-  ) as Record<string, 图文本节点>
-
-  let 写入数量 = 0
-  let 跳过数量 = 0
-  const 字体样式 = 获取标记文本样式("dml")
-
-  dmlAssignments.forEach((dml值, lineNodeId) => {
-    const 锚点 = 获取线条DML标注锚点(graph as unknown as GraphLike, lineNodeId)
-    if (!锚点) {
-      跳过数量++
-      记录日志?.("高针图DML写入SVG逐条明细", {
-        lineNodeId,
-        dml值,
-        usedAnchorTextNodeId: "",
-        anchorSource: "missing",
-        written: false,
-      })
+  graph.车线.forEach(carline => {
+    const nodeId = String(carline.标注NodeId?.DML ?? "").trim()
+    if (!nodeId) {
+      skippedNoNodeId++
       return
     }
 
-    const textNodeId = `dml_text_${lineNodeId}`
-    const textNode = $("<text></text>")
-    textNode.attr("id", textNodeId)
-    textNode.attr("x", String(锚点.pos.x))
-    textNode.attr("y", String(锚点.pos.y))
-    Object.entries(字体样式).forEach(([key, value]) => {
-      textNode.attr(key, String(value))
-    })
-    textNode.text(dml值)
-    svgRoot.append(textNode)
-
-    next文本节点[`dml:${lineNodeId}`] = {
-      textNodeId,
-      text: dml值,
-      created: true,
-      fontStyle: {
-        fill: 字体样式.fill,
-        fontWeight: 字体样式["font-weight"],
-        fontSize: 字体样式["font-size"],
-        textAnchor: 字体样式["text-anchor"],
-        dominantBaseline: 字体样式["dominant-baseline"],
-      },
+    const selector = `[id="${nodeId.replace(/"/g, '\\"')}"]`
+    const node = $(selector).first()
+    if (node.length === 0) {
+      skippedNotFound++
+      return
     }
-    写入数量++
-    记录日志?.("高针图DML写入SVG逐条明细", {
-      lineNodeId,
-      dml值,
-      usedAnchorTextNodeId: 锚点.textNodeId,
-      anchorSource: 锚点.source,
-      written: true,
-      x: 锚点.pos.x,
-      y: 锚点.pos.y,
-    })
+
+    const dml = dmlAssignments.get(carline.id) ?? (isValidDmlValue(carline.DML) ? carline.DML : "D")
+    const tspan = node.find("tspan").first()
+    if (tspan.length > 0) tspan.text(dml)
+    else node.text(dml)
+    written++
   })
 
-  const nextSvg = $.xml()
-  记录日志?.("高针图DML写入SVG摘要", {
+  记录日志?.("高针图DML写回SVG摘要", {
     assignmentCount: dmlAssignments.size,
-    writtenCount: 写入数量,
-    skippedCount: 跳过数量,
+    writtenCount: written,
+    skippedNoNodeId,
+    skippedNotFound,
   })
 
-  return {
-    ...graph,
-    底图: {
-      ...graph.底图,
-      svg: nextSvg,
-      文本节点: next文本节点,
-    },
-  }
+  return { ...graph, svg: $.xml() }
 }
 
-// 上下分时，把 B 图上的规则映射到 A 图的线条上。
-function mapLineNodeIdsByRegionSort(
-  targetGraph: GraphLike,
-  sourceGraph: GraphLike,
-  sourceLineIds: string[],
-  记录日志?: 调试日志函数,
-  ctx: { ruleId?: string; ruleType?: string } = {}
-): string[] {
-  const targetByRegion = getRegionLinesByName(targetGraph)
-  const sourceByRegion = getRegionLinesByName(sourceGraph)
-  const sourceLineMap = new Map(
-    getRegionLines(sourceGraph).map(line => [line.lineNodeId, line] as const)
-  )
-  const targetRegions = Array.from(targetByRegion.keys()).filter(Boolean)
+function 转换按档位范围为区域范围(
+  sourceGraph: 高针图,
+  seg: { 档位: string; 开始: number; 结束: number }
+): Array<{ 区域: string; 开始: number; 结束: number }> {
+  const gear = normalizeLevelName(String(seg.档位 ?? ""))
+  if (!gear) return []
 
-  const out: string[] = []
-  const seen = new Set<string>()
-  let mapped = 0
-  let skippedNoSource = 0
-  let skippedNoCandidates = 0
-  let skippedDup = 0
-  const skippedNoCandidatesByRegion: Record<string, number> = {}
-  let expandedWholeRegionCount = 0
-  let expandedWholeRegionLineCount = 0
-  let distanceSum = 0
-  let distanceMax = 0
-  const worst: Array<{
-    sourceLineId: string
-    sourceRegion: string
-    sourceSort: number
-    targetLineId: string
-    targetSort: number
-    distance: number
-  }> = []
-  const normalizedSourceLineIds = uniqueLineIds(sourceLineIds)
-  const selectedCountByRegion: Record<string, number> = {}
+  const ordered = orderCarlinesByRegionAndNumber(sourceGraph)
+  const gearItems = ordered.filter(c => normalizeLevelName(c.档位) === gear)
+  const selected = selectByPercent(gearItems, seg.开始, seg.结束)
+  if (selected.length === 0) return []
 
-  normalizedSourceLineIds.forEach(sourceLineId => {
-    const sourceLine = sourceLineMap.get(sourceLineId)
-    if (!sourceLine) return
-    const regionName = String(sourceLine.区域名 ?? "").trim()
-    if (!regionName) return
-    selectedCountByRegion[regionName] = (selectedCountByRegion[regionName] ?? 0) + 1
+  const byRegion = new Map<string, { min: number; max: number; len: number }>()
+  selected.forEach(c => {
+    const region = String(c.区域 ?? "").trim()
+    if (!region) return
+    const regionAll = orderCarlinesInRegion(sourceGraph, region)
+    if (regionAll.length === 0) return
+    const index = regionAll.findIndex(x => x.id === c.id)
+    if (index < 0) return
+    const prev = byRegion.get(region)
+    if (!prev) {
+      byRegion.set(region, { min: index, max: index, len: regionAll.length })
+      return
+    }
+    prev.min = Math.min(prev.min, index)
+    prev.max = Math.max(prev.max, index)
   })
 
-  const wholeCoveredRegions = new Set<string>()
-  Object.entries(selectedCountByRegion).forEach(([regionName, selectedCount]) => {
-    const sourceRegionLines = sourceByRegion.get(regionName) ?? []
-    const targetRegionLines = targetByRegion.get(regionName) ?? []
-    if (sourceRegionLines.length === 0 || targetRegionLines.length === 0) return
-    if (selectedCount !== sourceRegionLines.length) return
-    wholeCoveredRegions.add(regionName)
-    expandedWholeRegionCount++
-    targetRegionLines.forEach(line => {
-      if (seen.has(line.lineNodeId)) return
-      seen.add(line.lineNodeId)
-      out.push(line.lineNodeId)
-      mapped++
-      expandedWholeRegionLineCount++
-    })
-  })
-
-  normalizedSourceLineIds.forEach(sourceLineId => {
-    const sourceLine = sourceLineMap.get(sourceLineId)
-    if (!sourceLine) {
-      skippedNoSource++
-      return
-    }
-
-    if (wholeCoveredRegions.has(sourceLine.区域名)) {
-      return
-    }
-
-    const candidates = targetByRegion.get(sourceLine.区域名) ?? []
-    if (candidates.length === 0) {
-      skippedNoCandidates++
-      const k = String(sourceLine.区域名 ?? "").trim() || "(empty-region)"
-      skippedNoCandidatesByRegion[k] = (skippedNoCandidatesByRegion[k] ?? 0) + 1
-      return
-    }
-
-    let best = candidates[0]
-    let bestDistance = Math.abs(candidates[0].sort - sourceLine.sort)
-    for (let i = 1; i < candidates.length; i++) {
-      const distance = Math.abs(candidates[i].sort - sourceLine.sort)
-      if (distance < bestDistance) {
-        best = candidates[i]
-        bestDistance = distance
+  const regionOrder = buildRegionOrderHint(sourceGraph)
+  return regionOrder
+    .filter(region => byRegion.has(region))
+    .map(region => {
+      const stat = byRegion.get(region)!
+      return {
+        区域: region,
+        开始: stat.min / stat.len,
+        结束: (stat.max + 1) / stat.len,
       }
-    }
-
-    if (seen.has(best.lineNodeId)) {
-      skippedDup++
-      return
-    }
-    seen.add(best.lineNodeId)
-    out.push(best.lineNodeId)
-
-    mapped++
-    distanceSum += bestDistance
-    distanceMax = Math.max(distanceMax, bestDistance)
-    if (DML_DEBUG_VERBOSE) {
-      worst.push({
-        sourceLineId,
-        sourceRegion: sourceLine.区域名,
-        sourceSort: sourceLine.sort,
-        targetLineId: best.lineNodeId,
-        targetSort: best.sort,
-        distance: bestDistance,
-      })
-    }
-  })
-
-  if (记录日志) {
-    const avgDistance = mapped > 0 ? distanceSum / mapped : 0
-    const worstTop = DML_DEBUG_VERBOSE
-      ? [...worst].sort((a, b) => b.distance - a.distance).slice(0, 10)
-      : []
-    记录日志("上下分线条映射摘要", {
-      ruleId: ctx.ruleId ?? "",
-      ruleType: ctx.ruleType ?? "",
-      sourceLineNodeCount: normalizedSourceLineIds.length,
-      mappedLineNodeCount: mapped,
-      skippedNoSource,
-      skippedNoCandidates,
-      skippedDup,
-      expandedWholeRegionCount,
-      expandedWholeRegionLineCount,
-      wholeCoveredRegions: Array.from(wholeCoveredRegions),
-      skippedNoCandidatesByRegion:
-        Object.keys(skippedNoCandidatesByRegion).length > 0
-          ? Object.entries(skippedNoCandidatesByRegion)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 10)
-          : [],
-      targetRegionsSample: sampleHeadTail(targetRegions, 5, 5),
-      avgDistance,
-      maxDistance: distanceMax,
-      worstSamples: worstTop,
     })
-  }
-
-  return out
 }
 
-function mapDmlRulesFromBToA(
-  targetGraph: GraphLike,
-  sourceGraph: GraphLike,
+function 映射B稿自动修改器到A稿并转为按区域(
+  targetGraph: 高针图,
+  sourceGraph: 高针图,
   记录日志?: 调试日志函数
-): DML规则命令列表 {
-  const targetRegions = getRegionSet(targetGraph)
-  const targetGlobalOrder = getRegionLines(targetGraph).map(line => line.lineNodeId)
-  const sourceLineRegionMap = buildLineIdToRegionMap(sourceGraph)
-  const mappedRules: DML规则命令[] = []
-  let keptRuleCount = 0
-  let droppedRuleCount = 0
-  let keptLineCount = 0
-  let droppedLineCount = 0
+): 高针图["自动修改器"] {
+  const targetRegions = new Set(
+    targetGraph.车线.map(c => String(c.区域 ?? "").trim()).filter(Boolean)
+  )
+  const out: 高针图["自动修改器"] = []
 
-  // #region debug-point A:split-map-input-summary
-  记录日志?.("上下分规则映射输入摘要", {
-    sourceRuleCount: sourceGraph.自定义数据.DML规则命令列表?.length ?? 0,
-    sourceRegionCount: getRegionSet(sourceGraph).size,
-    targetRegionCount: targetRegions.size,
-    sourceLineCount: getRegionLines(sourceGraph).length,
-    targetLineCount: getRegionLines(targetGraph).length,
-  })
-  // #endregion
+  ;(sourceGraph.自动修改器 ?? []).forEach(mod => {
+    if (!mod || mod.启用 === false) return
+    const pattern = normalizePattern(mod.规律)
+    if (pattern.length === 0) return
 
-  for (const rule of sourceGraph.自定义数据.DML规则命令列表 ?? []) {
-    if (!rule || rule.type === "特殊标记") continue
-
-    const 原始线条数量 = rule.lineNodeIds.length
-    const 源图可收集线条 = collectCommandLineIds(sourceGraph, rule)
-
-    // #region debug-point B:split-map-rule-before
-    记录日志?.("上下分单条规则映射前", {
-      ruleId: rule.id,
-      levelCount: rule.type === "按档位标记" ? rule.档位.length : undefined,
-      ruleType: rule.type,
-      rawLineNodeCount: 原始线条数量,
-      collectedLineNodeCount: 源图可收集线条.length,
-      regionPercentCount: rule.type === "区域百分比" ? rule.区域百分比.length : undefined,
-    })
-    // #endregion
-
-    const mappedLineNodeIds = mapLineNodeIdsByRegionSort(
-      targetGraph,
-      sourceGraph,
-      rule.lineNodeIds,
-      记录日志,
-      {
-        ruleId: rule.id,
-        ruleType: rule.type,
-      }
-    )
-    const lineNodeIds = orderLineIdsByReferenceOrder(mappedLineNodeIds, targetGlobalOrder)
-    const sourceUniqueLineIds = uniqueLineIds(rule.lineNodeIds)
-    const missingRegionCounts: Record<string, number> = {}
-    sourceUniqueLineIds.forEach(lineId => {
-      const regionName = String(sourceLineRegionMap.get(lineId) ?? "").trim() || "(empty-region)"
-      if (targetRegions.has(regionName)) return
-      missingRegionCounts[regionName] = (missingRegionCounts[regionName] ?? 0) + 1
-    })
-    const droppedByMissingRegion = Object.values(missingRegionCounts).reduce(
-      (sum, count) => sum + count,
-      0
-    )
-    const droppedTotal = Math.max(0, sourceUniqueLineIds.length - lineNodeIds.length)
-    const droppedByOther = Math.max(0, droppedTotal - droppedByMissingRegion)
-
-    // #region debug-point C:split-map-rule-after
-    记录日志?.("上下分单条规则映射后", {
-      ruleId: rule.id,
-      ruleType: rule.type,
-      mappedLineNodeCount: lineNodeIds.length,
-      targetMatchedRegionPercentCount:
-        rule.type === "区域百分比"
-          ? rule.区域百分比.filter(segment => targetRegions.has(String(segment.区域 ?? "").trim()))
-              .length
-          : undefined,
-    })
-    记录日志?.("上下分单条规则业务摘要", {
-      ruleId: rule.id,
-      ruleType: rule.type,
-      pattern: rule.规律,
-      sourceLineNodeCount: sourceUniqueLineIds.length,
-      keptLineNodeCount: lineNodeIds.length,
-      droppedLineNodeCount: droppedTotal,
-      droppedByMissingRegion,
-      droppedByOther,
-      missingRegions:
-        Object.keys(missingRegionCounts).length > 0
-          ? Object.entries(missingRegionCounts)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 10)
-          : [],
-      result:
-        lineNodeIds.length === 0
-          ? "dropped_all"
-          : lineNodeIds.length === sourceUniqueLineIds.length
-            ? "kept_all"
-            : "kept_partial",
-    })
-    // #endregion
-
-    if (lineNodeIds.length === 0) {
-      droppedRuleCount++
-      droppedLineCount += sourceUniqueLineIds.length
-      continue
+    const base = {
+      id: createRuleId("ab_auto"),
+      启用: true,
+      规律: pattern,
     }
 
-    if (rule.type === "区域百分比") {
-      const segments = (rule.区域百分比 ?? []).filter(segment =>
-        targetRegions.has(String(segment.区域 ?? "").trim())
-      )
-      if (segments.length === 0) {
-        droppedRuleCount++
-        droppedLineCount += sourceUniqueLineIds.length
-        continue
-      }
-      mappedRules.push({
-        ...rule,
-        id: createRuleId("dml_region"),
-        lineNodeIds,
-        区域百分比: segments,
-      })
-      keptRuleCount++
-      keptLineCount += lineNodeIds.length
-      droppedLineCount += droppedTotal
-      continue
+    if (mod.type === "按区域自动标注DML") {
+      const 范围 = (mod.范围 ?? [])
+        .map(seg => ({
+          区域: String(seg.区域 ?? "").trim(),
+          开始: clamp01(seg.开始),
+          结束: clamp01(seg.结束),
+        }))
+        .filter(seg => seg.区域 && targetRegions.has(seg.区域))
+      if (范围.length === 0) return
+      out.push({ type: "按区域自动标注DML", ...base, 范围 })
+      return
     }
 
-    mappedRules.push({
-      ...rule,
-      id: createRuleId("dml_rule"),
-      lineNodeIds,
-    })
-    keptRuleCount++
-    keptLineCount += lineNodeIds.length
-    droppedLineCount += droppedTotal
-  }
-
-  记录日志?.("上下分规则映射业务汇总", {
-    sourceRuleCount: (sourceGraph.自定义数据.DML规则命令列表 ?? []).filter(
-      rule => rule && rule.type !== "特殊标记"
-    ).length,
-    keptRuleCount,
-    droppedRuleCount,
-    keptLineCount,
-    droppedLineCount,
+    if (mod.type === "按档位自动标注DML") {
+      const 范围 = (mod.范围 ?? [])
+        .flatMap(seg => 转换按档位范围为区域范围(sourceGraph, seg))
+        .map(seg => ({
+          区域: String(seg.区域 ?? "").trim(),
+          开始: clamp01(seg.开始),
+          结束: clamp01(seg.结束),
+        }))
+        .filter(seg => seg.区域 && targetRegions.has(seg.区域))
+      if (范围.length === 0) return
+      out.push({ type: "按区域自动标注DML", ...base, 范围 })
+      return
+    }
   })
 
-  return [...mappedRules, ...keepSpecialRules(targetGraph.自定义数据.DML规则命令列表)]
-}
-
-function strip高针图DML标注(
-  graph: 沐茵丝假发成品稿["高针指示单"]["高针图"]
-): 沐茵丝假发成品稿["高针指示单"]["高针图"] {
-  const 文本节点 = graph?.底图?.文本节点 ?? {}
-  return {
-    ...graph,
-    底图: {
-      ...graph.底图,
-      文本节点: Object.fromEntries(
-        Object.entries(文本节点).filter(([key]) => !String(key).startsWith("dml:"))
-      ),
-    },
-    自定义数据: {
-      ...graph.自定义数据,
-      DML规则命令列表: [],
-    },
-  }
+  记录日志?.("上下分自动修改器映射摘要", {
+    sourceCount: sourceGraph.自动修改器?.length ?? 0,
+    mappedCount: out.length,
+  })
+  return out
 }
 
 function strip机器规格清单到单D尺数(
@@ -1099,10 +465,7 @@ function strip机器规格清单到单D尺数(
 
 // C 稿公共底稿：以 A 为底，覆盖 B 的类型、染色图、胶丝比例。
 function 构建C稿公共底稿(fileA: 沐茵丝假发成品稿, fileB: 沐茵丝假发成品稿): 沐茵丝假发成品稿 {
-  const next高针图 =
-    fileA.假发类型 === 假发类型.间色
-      ? strip高针图DML标注(fileA.高针指示单.高针图)
-      : fileA.高针指示单.高针图
+  const next高针图 = fileA.高针指示单.高针图
   const next手织图 = 获取C稿手织图(fileA, fileB)
 
   return {
@@ -1153,17 +516,15 @@ function 生成上下分图稿(
   b稿: 沐茵丝假发成品稿,
   记录日志?: 调试日志函数
 ): Pick<沐茵丝假发成品稿, "高针指示单" | "手织指示单"> {
-  const 高针图 = 将DML标记写入高针图SVG(
+  const mappedAutoModifiers = 映射B稿自动修改器到A稿并转为按区域(
+    c稿.高针指示单.高针图 as unknown as 高针图,
+    b稿.高针指示单.高针图 as unknown as 高针图,
+    记录日志
+  )
+  const 高针图 = 将DML标记写回高针图SVG(
     {
-      ...c稿.高针指示单.高针图,
-      自定义数据: {
-        ...c稿.高针指示单.高针图.自定义数据,
-        DML规则命令列表: mapDmlRulesFromBToA(
-          c稿.高针指示单.高针图 as unknown as GraphLike,
-          b稿.高针指示单.高针图 as unknown as GraphLike,
-          记录日志
-        ),
-      },
+      ...(c稿.高针指示单.高针图 as unknown as 高针图),
+      自动修改器: mappedAutoModifiers,
     },
     记录日志
   )
@@ -1172,17 +533,17 @@ function 生成上下分图稿(
 
   // #region debug-point D:split-graph-output
   记录日志?.("生成上下分图稿结果摘要", {
-    高针图规则数: 高针图.自定义数据.DML规则命令列表?.length ?? 0,
-    B稿高针图规则数: b稿.高针指示单.高针图.自定义数据.DML规则命令列表?.length ?? 0,
-    手织图类型: 手织图.类型.type,
-    B稿手织图类型: b稿.手织指示单.手织图.类型.type,
+    高针图自动修改器数: (高针图 as unknown as 高针图).自动修改器?.length ?? 0,
+    B稿高针图自动修改器数: (b稿.高针指示单.高针图 as unknown as 高针图).自动修改器?.length ?? 0,
+    手织图类型: 手织图.间色比例.type,
+    B稿手织图类型: b稿.手织指示单.手织图.间色比例.type,
   })
   // #endregion
 
   return {
     高针指示单: {
       ...c稿.高针指示单,
-      高针图,
+      高针图: 高针图 as unknown as 沐茵丝假发成品稿["高针指示单"]["高针图"],
     },
     手织指示单: {
       ...c稿.手织指示单,
@@ -1317,8 +678,8 @@ function 按B稿上下分规则生成C稿(
     machineRowCount: machineRows.length,
     splitHasM: splitFlags.hasM,
     splitHasL: splitFlags.hasL,
-    高针图规则数: 图稿.高针指示单.高针图.自定义数据.DML规则命令列表?.length ?? 0,
-    手织图类型: 图稿.手织指示单.手织图.类型.type,
+    高针图自动修改器数: (图稿.高针指示单.高针图 as unknown as 高针图).自动修改器?.length ?? 0,
+    手织图类型: 图稿.手织指示单.手织图.间色比例.type,
   })
   // #endregion
 

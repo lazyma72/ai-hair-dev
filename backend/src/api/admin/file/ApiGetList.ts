@@ -4,7 +4,7 @@ import { ObjectId, type Filter, type Sort } from "mongodb"
 import { ReqGetList, ResGetList } from "../../../shared/protocols/admin/file/PtlGetList"
 import { Global } from "../../../models/Global"
 import { 假发类型, type 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿"
-import type { DML规则命令 } from "../../../shared/models/DML规则"
+import type { 高针图 } from "../../../shared/models/高针图"
 
 function normalizeLevelName(raw: unknown): string {
   return String(raw ?? "")
@@ -87,43 +87,49 @@ function formatPercent(n: number): string {
   return `${Math.round(n * 100)}%`
 }
 
-function build上下分摘要(commands: DML规则命令[] | undefined): string[] {
+function build上下分摘要(modifiers: 高针图["自动修改器"] | undefined): string[] {
   type Group = {
     pattern: string
     startPct: string
     endPct: string
-    levels: string[]
+    labels: string[]
   }
 
   const groups = new Map<string, Group>()
-  ;(commands ?? []).forEach(cmd => {
-    if (!cmd || (cmd as any).type !== "按档位标记") return
-    const c = cmd as Extract<DML规则命令, { type: "按档位标记" }>
-    const pattern = String(c.规律 ?? "")
+  ;(modifiers ?? []).forEach(mod => {
+    if (!mod) return
+    const pattern = String((mod as any).规律 ?? "")
       .trim()
       .toUpperCase()
     if (!pattern) return
-    ;(c.档位 ?? []).forEach(seg => {
-      const level = normalizeLevelName(seg.档位名称)
-      if (!level) return
-      const startPct = formatPercent(seg.开始位置)
-      const endPct = formatPercent(seg.结束位置)
+
+    const pushGroup = (label: string, start: unknown, end: unknown) => {
+      const clean = String(label ?? "").trim()
+      if (!clean) return
+      const startPct = formatPercent(Number(start))
+      const endPct = formatPercent(Number(end))
       const key = `${pattern}|${startPct}|${endPct}`
-      const g = groups.get(key) ?? { pattern, startPct, endPct, levels: [] }
-      g.levels.push(level)
+      const g = groups.get(key) ?? { pattern, startPct, endPct, labels: [] }
+      g.labels.push(clean)
       groups.set(key, g)
-    })
+    }
+
+    if (mod.type === "按区域自动标注DML") {
+      ;(mod.范围 ?? []).forEach(seg => pushGroup(seg.区域, seg.开始, seg.结束))
+    } else if (mod.type === "按档位自动标注DML") {
+      ;(mod.范围 ?? []).forEach(seg => pushGroup(seg.档位, seg.开始, seg.结束))
+    }
   })
 
-  const items = Array.from(groups.values()).filter(g => g.levels.length > 0)
+  const items = Array.from(groups.values()).filter(g => g.labels.length > 0)
   items.sort((a, b) => {
-    const aN = Number(normalizeLevelName(a.levels[0]))
-    const bN = Number(normalizeLevelName(b.levels[0]))
+    const aN = Number(normalizeLevelName(a.labels[0]))
+    const bN = Number(normalizeLevelName(b.labels[0]))
     if (Number.isFinite(aN) && Number.isFinite(bN)) return aN - bN
-    return a.levels[0].localeCompare(b.levels[0])
+    return a.labels[0].localeCompare(b.labels[0])
   })
 
-  return items.map(g => `${mergeLevels(g.levels)}档${g.startPct}-${g.endPct}: ${g.pattern}`)
+  return items.map(g => `${mergeLevels(g.labels)} ${g.startPct}-${g.endPct}: ${g.pattern}`)
 }
 
 const ReqSchema = z.object({
@@ -195,7 +201,7 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
           tag: 1,
           "制品规格书.机器规格清单.档位": 1,
           "制品规格书.机器规格清单.DML比值": 1,
-          "高针指示单.高针图.自定义数据.DML规则命令列表": 1,
+          "高针指示单.高针图.自动修改器": 1,
           "制品规格书.胶丝比例id": 1,
         },
       })
@@ -218,7 +224,7 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
       tag: doc.tag ?? "成品稿",
       规则摘要:
         doc.假发类型 === "上下分"
-          ? build上下分摘要(doc.高针指示单?.高针图?.自定义数据?.DML规则命令列表 as any)
+          ? build上下分摘要(doc.高针指示单?.高针图?.自动修改器 as any)
           : doc.假发类型 === "间色" || doc.假发类型 === "T色"
             ? build间色摘要((doc.制品规格书?.机器规格清单 ?? []) as any)
             : undefined,
