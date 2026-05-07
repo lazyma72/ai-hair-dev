@@ -264,7 +264,6 @@ export const FabricStage = forwardRef<
   const renderDocument = displayDocument ?? document;
   const renderDocumentRef = useRef(renderDocument);
   const sourceDocumentRef = useRef(document);
-  const viewStateRef = useRef(viewState);
   const businessCommandRef = useRef<ActiveBusinessCommandState | null>(
     businessCommand,
   );
@@ -280,23 +279,19 @@ export const FabricStage = forwardRef<
   useEffect(() => {
     renderDocumentRef.current = renderDocument;
     sourceDocumentRef.current = document;
-    viewStateRef.current = viewState;
     businessCommandRef.current = businessCommand;
-  }, [businessCommand, document, renderDocument, viewState]);
+  }, [businessCommand, document, renderDocument]);
 
   useImperativeHandle(
     ref,
     () => ({
       exportSvg() {
-        return buildExportSvg(
-          sourceDocumentRef.current,
-          viewStateRef.current,
-        );
+        return buildExportSvg(document, viewState);
       },
       exportPersistedSvg() {
         // 不包含标注背景对象：背景是渲染辅助层，导入时会根据文字节点样式自动重建。
         // 若包含背景 Rect，每次 SVG 持久化→重导入都会多产生一批白色矩形节点。
-        return buildExportSvg(sourceDocumentRef.current, DEFAULT_VIEW_STATE, false);
+        return buildExportSvg(document, DEFAULT_VIEW_STATE, false);
       },
       exportJson() {
         return serializeDocument(editor.data.getState());
@@ -312,7 +307,7 @@ export const FabricStage = forwardRef<
         );
       },
     }),
-    [editor],
+    [document, editor, viewState],
   );
 
   useEffect(() => {
@@ -712,15 +707,8 @@ export const FabricStage = forwardRef<
   void ready;
 
   return (
-    <div className="paperStage">
-      <div className="paperFrame">
-        <div className="paperSizeBadge">
-          SVG 画布 {canvasSize.width} x {canvasSize.height}
-        </div>
-        <div style={{ position: "relative" }}>
-          <canvas ref={canvasElRef} className="fabricCanvas" />
-        </div>
-      </div>
+    <div style={{ position: "relative" }}>
+      <canvas ref={canvasElRef} className="fabricCanvas" />
     </div>
   );
 });

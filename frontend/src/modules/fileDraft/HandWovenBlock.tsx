@@ -7,7 +7,6 @@ import type { 手织指示单 } from "../../shared/db/Db沐茵丝假发成品稿
 import type { 手织指示单Frontend } from "../../shared/frontend/model/model";
 import { inputCls } from "../../pages/admin/add-file/components/ui";
 import { build手织图间色比例预览Svg } from "../handWovenDev/svgBuilder";
-import HandWovenSvgPreviewCard from "../handWovenDev/HandWovenSvgPreviewCard";
 
 type Props = {
   mode: "edit" | "readonly";
@@ -38,6 +37,7 @@ export default function HandWovenBlock({
 
   if (!isEdit) {
     const previewSvg = value.手织图?.svg?.trim() ?? "";
+    const downloadFilename = "hand-woven.svg";
     return (
       <div className="space-y-5">
         <Section title="手织指示单">
@@ -51,7 +51,26 @@ export default function HandWovenBlock({
               </div>
             </div>
 
-            <HandWovenSvgPreviewCard svg={previewSvg} />
+            {previewSvg ? (
+              <div>
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <div className="text-xs font-medium text-slate-700">
+                    手织图 SVG
+                  </div>
+                  <DownloadSvgButton
+                    svg={previewSvg}
+                    filename={downloadFilename}
+                  />
+                </div>
+                <div className="overflow-hidden rounded border border-slate-100 bg-white">
+                  <InlineSvg
+                    svg={previewSvg}
+                    className="min-h-[200px] w-full overflow-auto bg-white p-3"
+                    height="auto"
+                  />
+                </div>
+              </div>
+            ) : null}
 
             {ratioPreviewSvg ? (
               <div>

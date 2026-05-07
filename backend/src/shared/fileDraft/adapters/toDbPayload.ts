@@ -20,7 +20,7 @@ export type FileDraftPreviewDbShape = Pick<
 
 export function toDbPayload(value: FileDraftViewModel): 沐茵丝假发成品稿提交 {
   const { _id: _ignored, ...rest } = value;
-  const payload: 沐茵丝假发成品稿提交 = JSON.parse(JSON.stringify(rest));
+  const payload: 沐茵丝假发成品稿提交 = structuredClone(rest);
   return payload;
 }
 

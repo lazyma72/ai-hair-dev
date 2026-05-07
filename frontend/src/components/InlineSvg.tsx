@@ -15,9 +15,15 @@ type Props = {
   svg: string;
   className?: string;
   height?: number | string;
+  style?: React.CSSProperties;
 };
 
-export default function InlineSvg({ svg, className, height = 200 }: Props) {
+export default function InlineSvg({
+  svg,
+  className,
+  height = 200,
+  style,
+}: Props) {
   // DOMPurify's SVG profile is conservative and may drop some SVG text layout
   // attributes (e.g. `dominant-baseline`) which are needed to keep label
   // alignment consistent with exported SVGs.
@@ -39,7 +45,7 @@ export default function InlineSvg({ svg, className, height = 200 }: Props) {
   return (
     <div
       className={className}
-      style={{ height, overflow: "visible" }}
+      style={{ height, overflow: "visible", ...style }}
       // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: clean }}
     />

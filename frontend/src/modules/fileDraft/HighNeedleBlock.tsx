@@ -143,31 +143,15 @@ export default function HighNeedleBlock({
             </div>
           </div>
 
-          {value.高针图?.svg?.trim() ? (
-            <HighNeedlePreview value={value.高针图} />
-          ) : (
-            <div className="rounded border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-              请先在放大标注中导入高针图 SVG。
-            </div>
-          )}
-
-          <div className={expanded ? "fixed inset-0 z-[90] bg-white" : "hidden"}>
+          {/* 单实例编辑器：通过 CSS 切换展开/收起，避免条件渲染引起的重挂载和 SVG 重导入 */}
+          <div className={expanded ? "fixed inset-0 z-[90] bg-white" : ""}>
             <EmbeddedHighNeedleEditor
-              heightClassName="h-full min-h-0"
+              heightClassName={
+                expanded ? "h-full min-h-0" : "h-[60vh] min-h-[520px]"
+              }
               value={value.高针图}
               onChange={(v) => onChange?.({ ...value, 高针图: v })}
               fileName={fileName}
-              headerRight={
-                expanded ? (
-                  <button
-                    type="button"
-                    className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-                    onClick={() => setExpanded(false)}
-                  >
-                    退出放大
-                  </button>
-                ) : undefined
-              }
             />
           </div>
         </div>

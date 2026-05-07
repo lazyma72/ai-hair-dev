@@ -4,8 +4,10 @@ import type { FileDraftViewModel } from "../model";
 export function fromDbToFileDraftViewModel(
   value: 沐茵丝假发成品稿,
 ): FileDraftViewModel {
+  const { _id, ...rest } = value;
+
   return {
-    ...(JSON.parse(JSON.stringify(value)) as Omit<FileDraftViewModel, "_id">),
-    _id: String((value as any)?._id?.toHexString?.() ?? value._id ?? ""),
+    ...structuredClone(rest),
+    _id: String(_id ?? ""),
   };
 }

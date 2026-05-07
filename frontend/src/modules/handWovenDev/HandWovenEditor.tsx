@@ -21,7 +21,6 @@ import {
   get有效排序,
 } from "./svgBuilder";
 import EmbeddedHighNeedleEditor from "../../pages/editor/EmbeddedHighNeedleEditor";
-import HandWovenSvgPreviewCard from "./HandWovenSvgPreviewCard";
 
 const 比例键列表: 手织图比例键[] = ["D", "M", "L"];
 const 比例组合列表 = ["D:M", "D:L", "D:M:L"] as const;
@@ -767,46 +766,40 @@ export default function HandWovenEditor({
               </div>
             </div>
 
-            {!expanded ? (
-              <HandWovenSvgPreviewCard
-                svg={data.svg}
-                emptyText="请先在放大标注中导入手织图 SVG。"
-              />
-            ) : null}
-
+            {/* 单实例编辑器：通过 CSS 切换展开/收起，避免双实例并存导致 SVG 重导入 */}
             <div
               className={
-                expanded
-                  ? "fixed inset-0 z-[90] bg-slate-100"
-                  : embed
-                    ? "hidden"
-                    : ""
+                expanded ? "fixed inset-0 z-[90] bg-white flex flex-col" : ""
               }
             >
-              {expanded ? (
-                <div className="h-full min-w-0 bg-white">
-                  <EmbeddedHighNeedleEditor
-                    heightClassName="h-full min-h-0"
-                    value={toHandWovenSvgEditorValue(data)}
-                    onChange={(nextValue) => {
-                      if (!data.svg.trim() && nextValue.svg.trim()) {
-                        message.success("已导入手织图 SVG");
-                      }
-                      syncSvg(nextValue.svg, { silent: true });
-                    }}
-                    fileName={fileName ?? "手织图"}
-                    headerRight={
-                      <button
-                        type="button"
-                        className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-                        onClick={() => setExpanded(false)}
-                      >
-                        退出放大
-                      </button>
-                    }
-                  />
-                </div>
-              ) : null}
+              <EmbeddedHighNeedleEditor
+                heightClassName={
+                  expanded
+                    ? "h-full min-h-0"
+                    : embed
+                      ? (heightClassName ?? "h-[60vh] min-h-[520px]")
+                      : "h-[70vh] min-h-[560px]"
+                }
+                value={toHandWovenSvgEditorValue(data)}
+                onChange={(nextValue) => {
+                  if (!data.svg.trim() && nextValue.svg.trim()) {
+                    message.success("已导入手织图 SVG");
+                  }
+                  syncSvg(nextValue.svg, { silent: true });
+                }}
+                fileName={fileName ?? "手织图"}
+                headerRight={
+                  expanded ? (
+                    <button
+                      type="button"
+                      className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+                      onClick={() => setExpanded(false)}
+                    >
+                      退出放大
+                    </button>
+                  ) : undefined
+                }
+              />
             </div>
           </div>
         </Section>

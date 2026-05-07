@@ -1,6 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import "./src/App.css";
-import "./EmbeddedHighNeedleEditor.css";
 import { EditorProvider } from "./src/app/EditorContext";
 import { EditorShell } from "./src/layers/view/EditorShell";
 import { createEditor, type Editor } from "./src/kernel/createEditor";
@@ -149,7 +147,7 @@ export default function EmbeddedHighNeedleEditor({
   }, [fileName, sourceFingerprint]);
 
   return (
-    <div className={`embeddedEditorScope overflow-hidden bg-white ${heightClassName}`}>
+    <div className={`overflow-hidden bg-white ${heightClassName}`}>
       {importError ? (
         <div className="border-b border-rose-100 bg-rose-50 px-5 py-3 text-sm text-rose-700">
           导入失败：{importError}
