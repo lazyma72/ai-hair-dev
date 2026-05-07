@@ -101,6 +101,7 @@ export default function HandWovenBlock({
                     svg={previewSvg}
                     className="min-h-[200px] w-full overflow-auto bg-white p-3"
                     height="auto"
+                    fitWidth
                   />
                 </div>
               </div>
@@ -116,6 +117,7 @@ export default function HandWovenBlock({
                     svg={ratioPreviewSvg}
                     className="min-h-[180px] w-full overflow-auto bg-white p-3"
                     height="auto"
+                    fitWidth
                   />
                 </div>
               </div>
@@ -186,6 +188,7 @@ export default function HandWovenBlock({
                   svg={previewSvg}
                   className="min-h-[200px] w-full overflow-auto bg-white p-3"
                   height="auto"
+                  fitWidth
                 />
               </div>
             </div>

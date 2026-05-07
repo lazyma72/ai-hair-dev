@@ -11,7 +11,8 @@ function normalizeDmlValue(raw: unknown): 高针图["车线"][number]["DML"] {
 function clamp01(raw: unknown): number {
   const n = typeof raw === "number" ? raw : Number(raw)
   if (!Number.isFinite(n)) return 0
-  return Math.max(0, Math.min(1, n))
+  const normalized = Math.abs(n) > 1 ? n / 100 : n
+  return Math.max(0, Math.min(1, normalized))
 }
 
 function normalize标注NodeId(raw: unknown): 高针图["车线"][number]["标注NodeId"] {

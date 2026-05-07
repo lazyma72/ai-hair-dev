@@ -93,6 +93,7 @@ const DyeItemSchema = z
   })
 
 const 高针图Schema = z.object({
+  json: z.string(),
   svg: z.string(),
   车线: z.array(
     z
@@ -157,6 +158,7 @@ const 手织图比例项Schema = z.object({
 })
 
 const 手织图Schema = z.object({
+  json: z.string(),
   svg: z.string(),
   间色比例: z.discriminatedUnion("type", [
     z.object({

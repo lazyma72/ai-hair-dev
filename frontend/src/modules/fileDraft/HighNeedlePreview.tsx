@@ -95,7 +95,12 @@ export default function HighNeedlePreview({ value }: Props) {
       </div>
 
       <div className="overflow-hidden rounded border border-slate-100 bg-white">
-        <InlineSvg svg={previewSvg} className="w-full" height="auto" />
+        <InlineSvg
+          svg={previewSvg}
+          className="w-full"
+          height="auto"
+          fitWidth
+        />
       </div>
     </div>
   );

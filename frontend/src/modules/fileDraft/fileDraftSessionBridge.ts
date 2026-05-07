@@ -1,4 +1,7 @@
 import type { FileDraftViewModel } from "../../shared/fileDraft/model";
+import { serializeDocument } from "../../../../../../personal_test/svg_editor/edit/exported-react-component/layers/data/serialization";
+import { loadHandWovenEditorDocument } from "../svgEditor/handWovenEditorSessionBridge";
+import { loadHighNeedleEditorDocument } from "../svgEditor/highNeedleEditorSessionBridge";
 
 const FILE_DRAFT_SESSION_PREFIX = "ai-hair:file-draft:";
 const FILE_DRAFT_SNAPSHOT_SUFFIX = ":snapshot";
@@ -7,6 +10,96 @@ type FileDraftSessionPayload = {
   updatedAt: number;
   form: FileDraftViewModel;
 };
+
+function stripHeavySvgEditorFields(
+  form: FileDraftViewModel,
+): FileDraftViewModel {
+  const handWovenSvg = form.手织指示单.手织图.svg.trim();
+  const highNeedleSvg = form.高针指示单.高针图.svg.trim();
+  return {
+    ...form,
+    手织指示单: {
+      ...form.手织指示单,
+      手织图: {
+        ...form.手织指示单.手织图,
+        // 编辑器文档已单独存一份，这里保留 svg 供预览/提交使用即可。
+        json: handWovenSvg ? "" : form.手织指示单.手织图.json,
+      },
+    },
+    高针指示单: {
+      ...form.高针指示单,
+      高针图: {
+        ...form.高针指示单.高针图,
+        // 避免在草稿会话里重复存储整份 DocumentState。
+        json: highNeedleSvg ? "" : form.高针指示单.高针图.json,
+      },
+    },
+  };
+}
+
+function hydrateSvgEditorJson(
+  draftKey: string,
+  form: FileDraftViewModel | null,
+): FileDraftViewModel | null {
+  if (!draftKey || !form) return form;
+
+  const handWovenDocument = loadHandWovenEditorDocument(draftKey);
+  const highNeedleDocument = loadHighNeedleEditorDocument(draftKey);
+
+  return {
+    ...form,
+    手织指示单: {
+      ...form.手织指示单,
+      手织图: {
+        ...form.手织指示单.手织图,
+        json:
+          handWovenDocument != null
+            ? serializeDocument(handWovenDocument)
+            : form.手织指示单.手织图.json,
+      },
+    },
+    高针指示单: {
+      ...form.高针指示单,
+      高针图: {
+        ...form.高针指示单.高针图,
+        json:
+          highNeedleDocument != null
+            ? serializeDocument(highNeedleDocument)
+            : form.高针指示单.高针图.json,
+      },
+    },
+  };
+}
+
+function isQuotaExceededError(error: unknown) {
+  return error instanceof DOMException && error.name === "QuotaExceededError";
+}
+
+function safeSetSessionStorage(
+  key: string,
+  value: string,
+  fallbackCleanupKey?: string,
+) {
+  try {
+    window.sessionStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    if (!isQuotaExceededError(error)) throw error;
+    if (fallbackCleanupKey) {
+      window.sessionStorage.removeItem(fallbackCleanupKey);
+      try {
+        window.sessionStorage.setItem(key, value);
+        return true;
+      } catch (retryError) {
+        if (!isQuotaExceededError(retryError)) throw retryError;
+      }
+    }
+    console.warn("sessionStorage quota exceeded, skip saving draft session", {
+      key,
+    });
+    return false;
+  }
+}
 
 function getStorageKey(draftKey: string) {
   return `${FILE_DRAFT_SESSION_PREFIX}${draftKey}`;
@@ -29,11 +122,12 @@ export function saveFileDraftSession(
   if (!draftKey) return;
   const payload: FileDraftSessionPayload = {
     updatedAt: Date.now(),
-    form,
+    form: stripHeavySvgEditorFields(form),
   };
-  window.sessionStorage.setItem(
+  safeSetSessionStorage(
     getStorageKey(draftKey),
     JSON.stringify(payload),
+    getSnapshotStorageKey(draftKey),
   );
 }
 
@@ -45,7 +139,10 @@ export function loadFileDraftSession(
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<FileDraftSessionPayload>;
-    return (parsed.form ?? null) as FileDraftViewModel | null;
+    return hydrateSvgEditorJson(
+      draftKey,
+      (parsed.form ?? null) as FileDraftViewModel | null,
+    );
   } catch {
     return null;
   }
@@ -63,9 +160,9 @@ export function saveFileDraftSessionSnapshot(
   if (!draftKey) return;
   const payload: FileDraftSessionPayload = {
     updatedAt: Date.now(),
-    form,
+    form: stripHeavySvgEditorFields(form),
   };
-  window.sessionStorage.setItem(
+  safeSetSessionStorage(
     getSnapshotStorageKey(draftKey),
     JSON.stringify(payload),
   );
@@ -79,7 +176,10 @@ export function loadFileDraftSessionSnapshot(
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<FileDraftSessionPayload>;
-    return (parsed.form ?? null) as FileDraftViewModel | null;
+    return hydrateSvgEditorJson(
+      draftKey,
+      (parsed.form ?? null) as FileDraftViewModel | null,
+    );
   } catch {
     return null;
   }

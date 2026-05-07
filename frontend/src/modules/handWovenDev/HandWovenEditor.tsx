@@ -721,6 +721,7 @@ export default function HandWovenEditor({
                     svg={间色比例预览Svg}
                     className="min-h-[220px] w-full overflow-auto bg-white"
                     height="auto"
+                    fitWidth
                   />
                 </div>
               ) : (
@@ -783,6 +784,7 @@ export default function HandWovenEditor({
                     svg={data.svg}
                     className="w-full overflow-auto bg-white"
                     height="auto"
+                    fitWidth
                   />
                 </div>
               ) : (

@@ -16,18 +16,32 @@ type Props = {
   className?: string;
   height?: number | string;
   style?: React.CSSProperties;
+  fitWidth?: boolean;
 };
+
+function normalizeSvgForFitWidth(svg: string): string {
+  if (!svg.trim()) return svg;
+  return svg.replace(/<svg\b([^>]*)>/i, (_, attrs: string) => {
+    const cleaned = attrs
+      .replace(/\swidth=["'][^"']*["']/gi, "")
+      .replace(/\sheight=["'][^"']*["']/gi, "")
+      .replace(/\spreserveAspectRatio=["'][^"']*["']/gi, "");
+    return `<svg${cleaned} width="100%" preserveAspectRatio="xMidYMid meet">`;
+  });
+}
 
 export default function InlineSvg({
   svg,
   className,
   height = 200,
   style,
+  fitWidth = false,
 }: Props) {
   // DOMPurify's SVG profile is conservative and may drop some SVG text layout
   // attributes (e.g. `dominant-baseline`) which are needed to keep label
   // alignment consistent with exported SVGs.
-  const clean = DOMPurify.sanitize(svg, {
+  const source = fitWidth ? normalizeSvgForFitWidth(svg) : svg;
+  const clean = DOMPurify.sanitize(source, {
     USE_PROFILES: { svg: true },
     ADD_ATTR: [
       // text layout
@@ -45,7 +59,7 @@ export default function InlineSvg({
   return (
     <div
       className={className}
-      style={{ height, overflow: "visible", ...style }}
+      style={{ height, overflow: "visible", width: "100%", ...style }}
       // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: clean }}
     />

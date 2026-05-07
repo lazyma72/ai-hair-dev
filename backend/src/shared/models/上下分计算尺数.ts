@@ -16,7 +16,8 @@ function normalizeLevelName(name: string): string {
 function clampRatio(value: unknown): number {
   const num = typeof value === "number" ? value : Number(value)
   if (!Number.isFinite(num)) return 0
-  return Math.max(0, Math.min(1, num))
+  const normalized = Math.abs(num) > 1 ? num / 100 : num
+  return Math.max(0, Math.min(1, normalized))
 }
 
 function isValidDmlValue(value: unknown): value is DML值 {
@@ -57,15 +58,22 @@ function buildRegionOrderHint(graph: 高针图): string[] {
   return [...preset, ...extra]
 }
 
-function selectByPercent<T>(items: T[], start: unknown, end: unknown): T[] {
+function selectByPercent<T extends { 编号: number }>(
+  items: T[],
+  start: unknown,
+  end: unknown
+): T[] {
   if (items.length === 0) return []
   const from = Math.min(clampRatio(start), clampRatio(end))
   const to = Math.max(clampRatio(start), clampRatio(end))
-
-  return items.filter((_, index) => {
-    const bucketEnd = (index + 1) / items.length
-    return bucketEnd > from && bucketEnd <= to
-  })
+  const numbers = items.map(item => item.编号).filter(value => Number.isFinite(value))
+  if (numbers.length === 0) return []
+  const minNumber = Math.min(...numbers)
+  const maxNumber = Math.max(...numbers)
+  if (maxNumber <= minNumber) return items
+  const startNumber = minNumber + (maxNumber - minNumber) * from
+  const endNumber = minNumber + (maxNumber - minNumber) * to
+  return items.filter(item => item.编号 >= startNumber && item.编号 <= endNumber)
 }
 
 function orderCarlinesByRegionAndNumber(graph: 高针图): 高针图["车线"] {
