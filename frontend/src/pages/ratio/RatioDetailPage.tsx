@@ -42,6 +42,8 @@ const 配比列: Column<KLS胶丝比例>[] = [
   },
 ]
 
+const 胶丝配比分组键 = ["D", "M", "L", "VL"] as const
+
 type HatMakingOption = Db制帽
 
 type EditableOverride = {
@@ -424,33 +426,19 @@ export default function RatioDetailPage() {
               </div>
             </Section>
 
-            <Section title="D 色配比">
-              <DataTable
-                columns={配比列}
-                rows={ratio.D}
-                rowKey={r => `${r.发丝}-${r.色号}`}
-              />
-            </Section>
-
-            {ratio.M && ratio.M.length > 0 && (
-              <Section title="M 色配比">
-                <DataTable
-                  columns={配比列}
-                  rows={ratio.M}
-                  rowKey={r => `${r.发丝}-${r.色号}`}
-                />
-              </Section>
-            )}
-
-            {ratio.L && ratio.L.length > 0 && (
-              <Section title="L 色配比">
-                <DataTable
-                  columns={配比列}
-                  rows={ratio.L}
-                  rowKey={r => `${r.发丝}-${r.色号}`}
-                />
-              </Section>
-            )}
+            {胶丝配比分组键.map(key => {
+              const rows = ratio[key]
+              if (!rows || rows.length === 0) return null
+              return (
+                <Section key={key} title={`${key} 色配比`}>
+                  <DataTable
+                    columns={配比列}
+                    rows={rows}
+                    rowKey={r => `${key}-${r.发丝}-${r.色号}`}
+                  />
+                </Section>
+              )
+            })}
           </div>
         )}
       </StatusView>

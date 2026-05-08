@@ -43,6 +43,8 @@ function getHatMakingIdFromCAP(cap: string): string {
   return cap.trim().match(/^[^（(\s]+/)?.[0] ?? "";
 }
 
+const 胶丝配比分组键 = ["D", "M", "L", "VL"] as const;
+
 function buildCapValue(item: HatMakingOption): string {
   const name = item.名称?.trim();
   return name ? `${item._id}(${name})` : item._id;
@@ -227,36 +229,20 @@ function RatioDetailInline({
           </div>
         ) : null}
       </div>
-      {ratio.D.length > 0 ? (
-        <div className="space-y-1.5">
-          <div className="text-xs font-medium text-slate-600">D 色配比</div>
-          <DataTable
-            columns={胶丝比例列}
-            rows={ratio.D}
-            rowKey={(r) => `inline-D-${r.发丝}-${r.色号}`}
-          />
-        </div>
-      ) : null}
-      {ratio.M && ratio.M.length > 0 ? (
-        <div className="space-y-1.5">
-          <div className="text-xs font-medium text-slate-600">M 色配比</div>
-          <DataTable
-            columns={胶丝比例列}
-            rows={ratio.M}
-            rowKey={(r) => `inline-M-${r.发丝}-${r.色号}`}
-          />
-        </div>
-      ) : null}
-      {ratio.L && ratio.L.length > 0 ? (
-        <div className="space-y-1.5">
-          <div className="text-xs font-medium text-slate-600">L 色配比</div>
-          <DataTable
-            columns={胶丝比例列}
-            rows={ratio.L}
-            rowKey={(r) => `inline-L-${r.发丝}-${r.色号}`}
-          />
-        </div>
-      ) : null}
+      {胶丝配比分组键.map((key) => {
+        const rows = ratio[key];
+        if (!rows || rows.length === 0) return null;
+        return (
+          <div key={key} className="space-y-1.5">
+            <div className="text-xs font-medium text-slate-600">{key} 色配比</div>
+            <DataTable
+              columns={胶丝比例列}
+              rows={rows}
+              rowKey={(r) => `inline-${key}-${r.发丝}-${r.色号}`}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -400,42 +386,22 @@ function FileDraftReadonlySections({
                 <ReadonlyRow label="线色" value={胶丝比例.线色 || "—"} />
                 <ReadonlyRow label="备注" value={胶丝比例.备注 || "—"} />
               </div>
-              {胶丝比例.D.length > 0 ? (
-                <div className="space-y-1.5">
-                  <div className="text-xs font-medium text-slate-600">
-                    D = {胶丝比例.D.map((item) => `${item.发丝}/${item.色号} ${item.比例}%`).join("，")}
+              {胶丝配比分组键.map((key) => {
+                const rows = 胶丝比例[key];
+                if (!rows || rows.length === 0) return null;
+                return (
+                  <div key={key} className="space-y-1.5">
+                    <div className="text-xs font-medium text-slate-600">
+                      {key} = {rows.map((item) => `${item.发丝}/${item.色号} ${item.比例}%`).join("，")}
+                    </div>
+                    <DataTable
+                      columns={胶丝比例列}
+                      rows={rows}
+                      rowKey={(r) => `${key}-${r.发丝}-${r.色号}`}
+                    />
                   </div>
-                  <DataTable
-                    columns={胶丝比例列}
-                    rows={胶丝比例.D}
-                    rowKey={(r) => `D-${r.发丝}-${r.色号}`}
-                  />
-                </div>
-              ) : null}
-              {胶丝比例.M && 胶丝比例.M.length > 0 ? (
-                <div className="space-y-1.5">
-                  <div className="text-xs font-medium text-slate-600">
-                    M = {胶丝比例.M.map((item) => `${item.发丝}/${item.色号} ${item.比例}%`).join("，")}
-                  </div>
-                  <DataTable
-                    columns={胶丝比例列}
-                    rows={胶丝比例.M}
-                    rowKey={(r) => `M-${r.发丝}-${r.色号}`}
-                  />
-                </div>
-              ) : null}
-              {胶丝比例.L && 胶丝比例.L.length > 0 ? (
-                <div className="space-y-1.5">
-                  <div className="text-xs font-medium text-slate-600">
-                    L = {胶丝比例.L.map((item) => `${item.发丝}/${item.色号} ${item.比例}%`).join("，")}
-                  </div>
-                  <DataTable
-                    columns={胶丝比例列}
-                    rows={胶丝比例.L}
-                    rowKey={(r) => `L-${r.发丝}-${r.色号}`}
-                  />
-                </div>
-              ) : null}
+                );
+              })}
             </div>
           ) : (
             <div>

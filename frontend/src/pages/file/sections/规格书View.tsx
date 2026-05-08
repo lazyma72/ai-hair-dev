@@ -45,6 +45,8 @@ const 配比列: Column<KLS胶丝比例>[] = [
   },
 ];
 
+const 胶丝配比分组键 = ["D", "M", "L", "VL"] as const;
+
 function 染色档位卡片({ item, index }: { item: 染色档位; index: number }) {
   const previewSvg = buildPreviewSvg(item);
 
@@ -165,24 +167,20 @@ export default function 规格书View({ data }: Props) {
               {胶丝比例.备注 ? <Row label="备注" value={胶丝比例.备注} /> : null}
             </div>
             <div className="space-y-2 px-4">
-              {胶丝比例.D.length > 0 && (
-                <div>
-                  <div className="mb-1 text-xs font-medium text-slate-500">D</div>
-                  <DataTable columns={配比列} rows={胶丝比例.D} rowKey={(r) => `${r.发丝}-${r.色号}`} />
-                </div>
-              )}
-              {胶丝比例.M && 胶丝比例.M.length > 0 && (
-                <div>
-                  <div className="mb-1 text-xs font-medium text-slate-500">M</div>
-                  <DataTable columns={配比列} rows={胶丝比例.M} rowKey={(r) => `${r.发丝}-${r.色号}`} />
-                </div>
-              )}
-              {胶丝比例.L && 胶丝比例.L.length > 0 && (
-                <div>
-                  <div className="mb-1 text-xs font-medium text-slate-500">L</div>
-                  <DataTable columns={配比列} rows={胶丝比例.L} rowKey={(r) => `${r.发丝}-${r.色号}`} />
-                </div>
-              )}
+              {胶丝配比分组键.map((key) => {
+                const rows = 胶丝比例[key];
+                if (!rows || rows.length === 0) return null;
+                return (
+                  <div key={key}>
+                    <div className="mb-1 text-xs font-medium text-slate-500">{key}</div>
+                    <DataTable
+                      columns={配比列}
+                      rows={rows}
+                      rowKey={(r) => `${key}-${r.发丝}-${r.色号}`}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
         </Section>

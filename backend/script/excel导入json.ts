@@ -1,7 +1,6 @@
 import path from "path"
+import { promises as fs } from "fs"
 import * as XLSX from "xlsx"
-import "../src/models/backConfig"
-import { Global } from "../src/models/Global"
 import type { Db胶丝比例, KLS胶丝比例 } from "../src/shared/db/Db胶丝比例"
 
 // Excel 源文件
@@ -17,12 +16,18 @@ type HeaderInfo = {
   备注?: number
 }
 
+type SheetParseStats = {
+  rawDetailRows: number
+  mergedColorRows: number
+  usedFallbackColorRows: number
+}
+
 function normalizeText(value: unknown): string {
   return String(value ?? "").trim()
 }
 
 function normalizeHeader(value: unknown): string {
-  return normalizeText(value).replace(/\s+/g, "")
+  return normalizeText(value).replace(/\s+/g, "").toUpperCase()
 }
 
 function encodeCell(r: number, c: number): string {
@@ -46,6 +51,13 @@ function getCellObject(
 
 function getCellText(sheet: XLSX.WorkSheet, row: number, col: number): string {
   const cell = getCellObject(sheet, row, col)
+  if (!cell) return ""
+  if (typeof cell.w === "string" && cell.w.trim()) return cell.w.trim()
+  return normalizeText(cell.v)
+}
+
+function getRawCellText(sheet: XLSX.WorkSheet, row: number, col: number): string {
+  const cell = sheet[encodeCell(row, col)] as XLSX.CellObject | undefined
   if (!cell) return ""
   if (typeof cell.w === "string" && cell.w.trim()) return cell.w.trim()
   return normalizeText(cell.v)
@@ -89,6 +101,11 @@ function parseColorTriplet(
   }
 }
 
+function sanitizeFileName(name: string): string {
+  const safe = name.replace(/[\\/:*?"<>|]/g, "_").trim()
+  return safe || "未命名Sheet"
+}
+
 function findHeader(sheet: XLSX.WorkSheet): HeaderInfo | null {
   const ref = sheet["!ref"]
   if (!ref) return null
@@ -106,10 +123,10 @@ function findHeader(sheet: XLSX.WorkSheet): HeaderInfo | null {
       const text = normalizeHeader(getCellText(sheet, r, c))
       if (text === "颜色" && 颜色 < 0) 颜色 = c
       else if (text === "线色" && 线色 < 0) 线色 = c
-      else if (text === "D色" && D < 0) D = c
-      else if (text === "M色" && M < 0) M = c
-      else if (text === "L色" && L < 0) L = c
-      else if (text === "备注" && 备注 < 0) 备注 = c
+      else if ((text === "D色" || text === "D") && D < 0) D = c
+      else if ((text === "M色" || text === "M") && M < 0) M = c
+      else if ((text === "L色" || text === "L") && L < 0) L = c
+      else if (text.includes("备注") && 备注 < 0) 备注 = c
     }
 
     if (颜色 >= 0 && 线色 >= 0 && D >= 0 && M >= 0 && L >= 0) {
@@ -128,22 +145,44 @@ function findHeader(sheet: XLSX.WorkSheet): HeaderInfo | null {
   return null
 }
 
-function parseSheet(sheetName: string, sheet: XLSX.WorkSheet): Db胶丝比例[] {
+function parseSheet(
+  sheetName: string,
+  sheet: XLSX.WorkSheet
+): { records: Db胶丝比例[]; stats: SheetParseStats } {
   const header = findHeader(sheet)
   if (!header) {
     console.warn(`[跳过] Sheet「${sheetName}」未找到有效表头`)
-    return []
+    return {
+      records: [],
+      stats: {
+        rawDetailRows: 0,
+        mergedColorRows: 0,
+        usedFallbackColorRows: 0,
+      },
+    }
   }
 
   const ref = sheet["!ref"]
-  if (!ref) return []
+  if (!ref) {
+    return {
+      records: [],
+      stats: {
+        rawDetailRows: 0,
+        mergedColorRows: 0,
+        usedFallbackColorRows: 0,
+      },
+    }
+  }
   const range = XLSX.utils.decode_range(ref)
   const 发丝种类 = normalizeText(sheetName)
 
   const map = new Map<string, Db胶丝比例>()
+  let lastColorCode = ""
+  let usedFallbackColorRows = 0
+  let rawDetailRows = 0
 
   for (let r = header.row + 1; r <= range.e.r; r++) {
-    const 颜色编号 = getCellText(sheet, r, header.颜色)
+    const 原始颜色编号 = getCellText(sheet, r, header.颜色)
     const 线色 = getCellText(sheet, r, header.线色)
     const 备注 = header.备注 != null ? getCellText(sheet, r, header.备注) : ""
     const D项 = parseColorTriplet(sheet, r, header.D)
@@ -151,8 +190,19 @@ function parseSheet(sheetName: string, sheet: XLSX.WorkSheet): Db胶丝比例[] 
     const L项 = parseColorTriplet(sheet, r, header.L)
 
     const hasGroupData = Boolean(D项 || M项 || L项)
-    if (!颜色编号 && !线色 && !备注 && !hasGroupData) continue
-    if (!颜色编号 || !hasGroupData) continue
+    if (!原始颜色编号 && !线色 && !备注 && !hasGroupData) continue
+    if (!hasGroupData) continue
+
+    let 颜色编号 = 原始颜色编号
+    if (原始颜色编号) {
+      lastColorCode = 原始颜色编号
+    } else if (lastColorCode) {
+      颜色编号 = lastColorCode
+      usedFallbackColorRows += 1
+    }
+    if (!颜色编号) continue
+
+    rawDetailRows += 1
 
     const key = `${发丝种类}__${颜色编号}`
     const existing =
@@ -180,27 +230,15 @@ function parseSheet(sheetName: string, sheet: XLSX.WorkSheet): Db胶丝比例[] 
     map.set(key, existing)
   }
 
-  return Array.from(map.values()).filter(item => item.D.length > 0)
-}
-
-function countValidDetailRows(sheet: XLSX.WorkSheet, header: HeaderInfo): number {
-  const ref = sheet["!ref"]
-  if (!ref) return 0
-  const range = XLSX.utils.decode_range(ref)
-  let count = 0
-  for (let r = header.row + 1; r <= range.e.r; r++) {
-    const 颜色编号 = getCellText(sheet, r, header.颜色)
-    const 线色 = getCellText(sheet, r, header.线色)
-    const 备注 = header.备注 != null ? getCellText(sheet, r, header.备注) : ""
-    const D项 = parseColorTriplet(sheet, r, header.D)
-    const M项 = parseColorTriplet(sheet, r, header.M)
-    const L项 = parseColorTriplet(sheet, r, header.L)
-    const hasGroupData = Boolean(D项 || M项 || L项)
-    if (!颜色编号 && !线色 && !备注 && !hasGroupData) continue
-    if (!颜色编号 || !hasGroupData) continue
-    count += 1
+  const records = Array.from(map.values()).filter(item => item.D.length > 0)
+  return {
+    records,
+    stats: {
+      rawDetailRows,
+      mergedColorRows: records.length,
+      usedFallbackColorRows,
+    },
   }
-  return count
 }
 
 function collectMergedColorLogs(
@@ -213,7 +251,7 @@ function collectMergedColorLogs(
   const rowIndexesByColor = new Map<string, number[]>()
 
   for (let r = header.row + 1; r <= range.e.r; r++) {
-    const 颜色编号 = getCellText(sheet, r, header.颜色)
+    const 颜色编号 = getRawCellText(sheet, r, header.颜色)
     const 线色 = getCellText(sheet, r, header.线色)
     const 备注 = header.备注 != null ? getCellText(sheet, r, header.备注) : ""
     const D项 = parseColorTriplet(sheet, r, header.D)
@@ -236,26 +274,31 @@ function collectMergedColorLogs(
 }
 
 async function main() {
-  await Global.init()
-
   const workbook = XLSX.readFile(path.resolve(excelPath), {
     cellStyles: true,
     cellText: true,
   })
-  const col = Global.getCollection("胶丝比例")
+  const outputDir = path.resolve(__dirname, "胶丝比例json")
+  await fs.mkdir(outputDir, { recursive: true })
 
-  let total = 0
-  let inserted = 0
-  let modified = 0
+  let totalSheets = 0
+  let totalRecords = 0
+  let totalFallbackRows = 0
 
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName]
     if (!sheet) continue
 
     const header = findHeader(sheet)
-    const records = parseSheet(sheetName, sheet)
-    const detailRowCount = header ? countValidDetailRows(sheet, header) : 0
-    console.log(`\n[${sheetName}] 有效明细行 ${detailRowCount} 条，合并后颜色 ${records.length} 条`)
+    const { records, stats } = parseSheet(sheetName, sheet)
+    console.log(
+      `\n[${sheetName}] 有效明细行 ${stats.rawDetailRows} 条，合并后颜色 ${stats.mergedColorRows} 条`
+    )
+    if (stats.usedFallbackColorRows > 0) {
+      console.log(
+        `[${sheetName}] 使用“上方颜色编号”补全 ${stats.usedFallbackColorRows} 行（兼容有空行/无空行混排）`
+      )
+    }
     if (header) {
       const mergedLogs = collectMergedColorLogs(sheet, header)
       if (mergedLogs.length > 0) {
@@ -263,20 +306,29 @@ async function main() {
         console.log(
           `[${sheetName}] 存在相同颜色编号的行数 ${duplicatedRowCount} 条，共 ${mergedLogs.length} 组`
         )
+        console.log(
+          `[${sheetName}] 重复颜色明细：${mergedLogs
+            .map(item => `${item.颜色编号}(${item.行数}行@${item.行号.join(",")})`)
+            .join("；")}`
+        )
       }
     }
 
-    for (const record of records) {
-      const res = await col.replaceOne({ _id: record._id }, record, {
-        upsert: true,
-      })
-      total += 1
-      if (res.upsertedCount > 0) inserted += 1
-      else if (res.modifiedCount > 0) modified += 1
-    }
+    const outputBaseName = sheetName.replace(/胶丝比例/g, "").trim()
+    const outputFileName = `${sanitizeFileName(outputBaseName)}.json`
+    const outputFilePath = path.join(outputDir, outputFileName)
+    await fs.writeFile(outputFilePath, JSON.stringify(records, null, 2), "utf-8")
+    console.log(`[${sheetName}] 已写入 ${outputFileName}，共 ${records.length} 条`)
+
+    totalSheets += 1
+    totalRecords += records.length
+    totalFallbackRows += stats.usedFallbackColorRows
   }
 
-  console.log(`\n✅ 导入完成：总处理 ${total} 条，新增 ${inserted} 条，更新 ${modified} 条`)
+  console.log(
+    `\n✅ 导出完成：共 ${totalSheets} 个 Sheet，输出 ${totalRecords} 条记录，补全颜色编号 ${totalFallbackRows} 行`
+  )
+  console.log(`📁 输出目录：${outputDir}`)
 }
 
 main().catch(e => {

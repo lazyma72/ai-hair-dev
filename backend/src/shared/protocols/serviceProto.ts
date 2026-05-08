@@ -124,7 +124,7 @@ export interface ServiceType {
 }
 
 export const serviceProto: ServiceProto<ServiceType> = {
-    "version": 41,
+    "version": 42,
     "services": [
         {
             "id": 9,
@@ -1692,6 +1692,18 @@ export const serviceProto: ServiceProto<ServiceType> = {
                 {
                     "id": 4,
                     "name": "L",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../db/Db胶丝比例/KLS胶丝比例"
+                        }
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 7,
+                    "name": "VL",
                     "type": {
                         "type": "Array",
                         "elementType": {
