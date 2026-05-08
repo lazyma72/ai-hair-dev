@@ -12,6 +12,7 @@ import { ReqGetDetail as ReqGetDetail_1, ResGetDetail as ResGetDetail_1 } from '
 import { ReqGetList as ReqGetList_2, ResGetList as ResGetList_2 } from './admin/hatMaking/PtlGetList';
 import { ReqGetPreview, ResGetPreview } from './admin/PtlGetPreview';
 import { ReqGetDetail as ReqGetDetail_2, ResGetDetail as ResGetDetail_2 } from './admin/ratio/PtlGetDetail';
+import { ReqGetHairTypes, ResGetHairTypes } from './admin/ratio/PtlGetHairTypes';
 import { ReqGetList as ReqGetList_3, ResGetList as ResGetList_3 } from './admin/ratio/PtlGetList';
 import { ReqUpdate as ReqUpdate_1, ResUpdate as ResUpdate_1 } from './admin/ratio/PtlUpdate';
 import { ReqAdd as ReqAdd_3, ResAdd as ResAdd_3 } from './admin/user/PtlAdd';
@@ -75,6 +76,10 @@ export interface ServiceType {
         "admin/ratio/GetDetail": {
             req: ReqGetDetail_2,
             res: ResGetDetail_2
+        },
+        "admin/ratio/GetHairTypes": {
+            req: ReqGetHairTypes,
+            res: ResGetHairTypes
         },
         "admin/ratio/GetList": {
             req: ReqGetList_3,
@@ -196,6 +201,12 @@ export const serviceProto: ServiceProto<ServiceType> = {
         {
             "id": 4,
             "name": "admin/ratio/GetDetail",
+            "type": "api",
+            "conf": {}
+        },
+        {
+            "id": 26,
+            "name": "admin/ratio/GetHairTypes",
             "type": "api",
             "conf": {}
         },
@@ -4096,6 +4107,88 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "String"
                     },
                     "optional": true
+                },
+                {
+                    "id": 1,
+                    "name": "制帽线色列表",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "../frontend/model/model/制帽线色关联FrontendItem"
+                        }
+                    }
+                }
+            ]
+        },
+        "../frontend/model/model/制帽线色关联FrontendItem": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "制帽id",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "制帽名称",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 2,
+                    "name": "线色",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 3,
+                    "name": "备注",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                }
+            ]
+        },
+        "admin/ratio/PtlGetHairTypes/ReqGetHairTypes": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseRequest"
+                    }
+                }
+            ]
+        },
+        "admin/ratio/PtlGetHairTypes/ResGetHairTypes": {
+            "type": "Interface",
+            "extends": [
+                {
+                    "id": 0,
+                    "type": {
+                        "type": "Reference",
+                        "target": "base/BaseResponse"
+                    }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "list",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
+                        }
+                    }
                 }
             ]
         },
@@ -4292,6 +4385,16 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "String"
                     },
                     "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "制帽对应线色",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "String"
+                        }
+                    }
                 }
             ]
         },
@@ -4304,6 +4407,76 @@ export const serviceProto: ServiceProto<ServiceType> = {
                         "type": "Reference",
                         "target": "base/BaseRequest"
                     }
+                }
+            ],
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "颜色编号",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "发丝种类",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "默认线色",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 3,
+                    "name": "备注",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
+                },
+                {
+                    "id": 4,
+                    "name": "制帽线色列表",
+                    "type": {
+                        "type": "Array",
+                        "elementType": {
+                            "type": "Reference",
+                            "target": "admin/ratio/PtlUpdate/制帽线色输入"
+                        }
+                    }
+                }
+            ]
+        },
+        "admin/ratio/PtlUpdate/制帽线色输入": {
+            "type": "Interface",
+            "properties": [
+                {
+                    "id": 0,
+                    "name": "制帽id",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 1,
+                    "name": "线色",
+                    "type": {
+                        "type": "String"
+                    }
+                },
+                {
+                    "id": 2,
+                    "name": "备注",
+                    "type": {
+                        "type": "String"
+                    },
+                    "optional": true
                 }
             ]
         },

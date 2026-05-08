@@ -12,10 +12,19 @@ export interface 胶丝比例ListItem {
   _id: string
   发丝种类: string
   线色?: string
+  制帽对应线色: string[]
+}
+
+export interface 制帽线色关联FrontendItem {
+  制帽id: string
+  制帽名称?: string
+  线色: string
+  备注?: string
 }
 
 export interface 胶丝比例Frontend extends Omit<Db胶丝比例, "颜色图片参考"> {
   颜色图片参考?: string // base64 encoded image string
+  制帽线色列表: 制帽线色关联FrontendItem[]
 }
 
 // ==============================

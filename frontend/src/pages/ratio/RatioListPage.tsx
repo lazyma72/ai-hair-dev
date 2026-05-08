@@ -48,18 +48,15 @@ export default function RatioListPage() {
 
   const list = useMemo<胶丝比例ListItem[]>(() => data?.list ?? [], [data]);
 
-  const { data: typeData } = useApi(() =>
-    callApi("admin/ratio/GetList", {
-      pageNum: 1,
-      pageSize: 1000,
-      orderSort: "asc",
-    }),
+  const { data: typeData } = useApi<{ list: string[] }>(() =>
+    callApi("admin/ratio/GetHairTypes" as never, {} as never) as Promise<
+      | { isSucc: true; res: { list: string[] } }
+      | { isSucc: false; err: { message: string } }
+    >,
   );
 
   const types = useMemo(() => {
-    const baseList = typeData?.list ?? [];
-    const set = new Set(baseList.map((x) => x.发丝种类).filter(Boolean));
-    return ["全部", ...Array.from(set).sort()];
+    return ["全部", ...(typeData?.list ?? [])];
   }, [typeData]);
   const total = data?.total ?? 0;
 
@@ -78,8 +75,29 @@ export default function RatioListPage() {
     },
     {
       key: "线色",
-      title: "线色",
+      title: "默认线色",
       render: (r) => r.线色 ?? <span className="text-slate-300">—</span>,
+    },
+    {
+      key: "制帽对应线色",
+      title: "制帽对应线色",
+      render: (r) => {
+        const 制帽对应线色 = (r as 胶丝比例ListItem & { 制帽对应线色?: string[] }).制帽对应线色 ?? [];
+        return 制帽对应线色.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {制帽对应线色.map((item: string) => (
+              <span
+                key={item}
+                className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-slate-300">—</span>
+        );
+      },
     },
     {
       key: "action",
