@@ -115,7 +115,7 @@ export default function DesignDraftListPage() {
             className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
             onClick={() => navigate("/designs/create")}
           >
-            + 新建产品规格稿
+            + 新建设计稿
           </button>
         </div>
       }

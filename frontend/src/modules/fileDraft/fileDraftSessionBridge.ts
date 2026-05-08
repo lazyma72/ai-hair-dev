@@ -1,55 +1,11 @@
 import type { FileDraftViewModel } from "../../shared/fileDraft/model";
-import { serializeDocument } from "../svgEditor/externalSvgEditor";
-import { loadHandWovenEditorDocument } from "../svgEditor/handWovenEditorSessionBridge";
-import { loadHighNeedleEditorDocument } from "../svgEditor/highNeedleEditorSessionBridge";
 
 const FILE_DRAFT_SESSION_PREFIX = "ai-hair:file-draft:";
-const FILE_DRAFT_SNAPSHOT_SUFFIX = ":snapshot";
 
 type FileDraftSessionPayload = {
   updatedAt: number;
   form: FileDraftViewModel;
 };
-
-function stripHeavySvgEditorFields(
-  form: FileDraftViewModel,
-): FileDraftViewModel {
-  return form;
-}
-
-function hydrateSvgEditorJson(
-  draftKey: string,
-  form: FileDraftViewModel | null,
-): FileDraftViewModel | null {
-  if (!draftKey || !form) return form;
-
-  const handWovenDocument = loadHandWovenEditorDocument(draftKey);
-  const highNeedleDocument = loadHighNeedleEditorDocument(draftKey);
-
-  return {
-    ...form,
-    手织指示单: {
-      ...form.手织指示单,
-      手织图: {
-        ...form.手织指示单.手织图,
-        json:
-          handWovenDocument != null
-            ? serializeDocument(handWovenDocument)
-            : form.手织指示单.手织图.json,
-      },
-    },
-    高针指示单: {
-      ...form.高针指示单,
-      高针图: {
-        ...form.高针指示单.高针图,
-        json:
-          highNeedleDocument != null
-            ? serializeDocument(highNeedleDocument)
-            : form.高针指示单.高针图.json,
-      },
-    },
-  };
-}
 
 function isQuotaExceededError(error: unknown) {
   return error instanceof DOMException && error.name === "QuotaExceededError";
@@ -85,14 +41,28 @@ function getStorageKey(draftKey: string) {
   return `${FILE_DRAFT_SESSION_PREFIX}${draftKey}`;
 }
 
-function getSnapshotStorageKey(draftKey: string) {
-  return `${getStorageKey(draftKey)}${FILE_DRAFT_SNAPSHOT_SUFFIX}`;
+function getDraftKeyFromFileDraftStorageKey(key: string): string | null {
+  const match = key.match(/^ai-hair:file-draft:(.+?)$/);
+  return match?.[1] ?? null;
 }
 
-export function createFileDraftSessionKey() {
-  return `draft_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+function clearFileDraftSessionsExcept(draftKey: string) {
+  if (!draftKey) return;
+  const keysToRemove: string[] = [];
+
+  for (let index = 0; index < window.sessionStorage.length; index += 1) {
+    const key = window.sessionStorage.key(index);
+    if (!key?.startsWith(FILE_DRAFT_SESSION_PREFIX)) continue;
+
+    const storedDraftKey = getDraftKeyFromFileDraftStorageKey(key);
+    if (storedDraftKey && storedDraftKey !== draftKey) {
+      keysToRemove.push(key);
+    }
+  }
+
+  for (const key of keysToRemove) {
+    window.sessionStorage.removeItem(key);
+  }
 }
 
 export function saveFileDraftSession(
@@ -100,15 +70,12 @@ export function saveFileDraftSession(
   form: FileDraftViewModel,
 ) {
   if (!draftKey) return;
+  clearFileDraftSessionsExcept(draftKey);
   const payload: FileDraftSessionPayload = {
     updatedAt: Date.now(),
-    form: stripHeavySvgEditorFields(form),
+    form,
   };
-  safeSetSessionStorage(
-    getStorageKey(draftKey),
-    JSON.stringify(payload),
-    getSnapshotStorageKey(draftKey),
-  );
+  safeSetSessionStorage(getStorageKey(draftKey), JSON.stringify(payload));
 }
 
 export function loadFileDraftSession(
@@ -119,10 +86,7 @@ export function loadFileDraftSession(
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<FileDraftSessionPayload>;
-    return hydrateSvgEditorJson(
-      draftKey,
-      (parsed.form ?? null) as FileDraftViewModel | null,
-    );
+    return (parsed.form ?? null) as FileDraftViewModel | null;
   } catch {
     return null;
   }
@@ -131,41 +95,4 @@ export function loadFileDraftSession(
 export function clearFileDraftSession(draftKey: string) {
   if (!draftKey) return;
   window.sessionStorage.removeItem(getStorageKey(draftKey));
-}
-
-export function saveFileDraftSessionSnapshot(
-  draftKey: string,
-  form: FileDraftViewModel,
-) {
-  if (!draftKey) return;
-  const payload: FileDraftSessionPayload = {
-    updatedAt: Date.now(),
-    form: stripHeavySvgEditorFields(form),
-  };
-  safeSetSessionStorage(
-    getSnapshotStorageKey(draftKey),
-    JSON.stringify(payload),
-  );
-}
-
-export function loadFileDraftSessionSnapshot(
-  draftKey: string,
-): FileDraftViewModel | null {
-  if (!draftKey) return null;
-  const raw = window.sessionStorage.getItem(getSnapshotStorageKey(draftKey));
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<FileDraftSessionPayload>;
-    return hydrateSvgEditorJson(
-      draftKey,
-      (parsed.form ?? null) as FileDraftViewModel | null,
-    );
-  } catch {
-    return null;
-  }
-}
-
-export function clearFileDraftSessionSnapshot(draftKey: string) {
-  if (!draftKey) return;
-  window.sessionStorage.removeItem(getSnapshotStorageKey(draftKey));
 }

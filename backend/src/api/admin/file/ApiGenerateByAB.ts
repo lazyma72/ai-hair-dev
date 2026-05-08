@@ -38,6 +38,327 @@ function 深拷贝普通对象<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+function 清空高针图编辑器JSON中的DML标注和自动化标注(json: string): string {
+  if (!String(json ?? "").trim()) return ""
+
+  try {
+    const doc = JSON.parse(json) as {
+      scene?: {
+        nodes?: Record<string, any>
+        order?: string[]
+      }
+      domain?: {
+        车线?: any[]
+        自动修改器?: any[]
+      }
+    }
+
+    const dmlNodeIds = new Set(
+      Object.entries(doc.scene?.nodes ?? {})
+        .filter(([, node]) => node?.business?.type === "标注" && node.business?.字段 === "DML")
+        .map(([nodeId]) => nodeId)
+    )
+
+    const nextNodes = Object.fromEntries(
+      Object.entries(doc.scene?.nodes ?? {})
+        .filter(([nodeId]) => !dmlNodeIds.has(nodeId))
+        .map(([nodeId, node]) => {
+          if (node?.business?.type !== "车线") return [nodeId, node]
+
+          const next标注NodeId = { ...(node.business.标注NodeId ?? {}) }
+          delete next标注NodeId.DML
+
+          const nextBusiness = {
+            ...node.business,
+            标注NodeId: next标注NodeId,
+          }
+          delete nextBusiness.DML
+
+          return [
+            nodeId,
+            {
+              ...node,
+              business: nextBusiness,
+            },
+          ]
+        })
+    )
+
+    const next车线 = (doc.domain?.车线 ?? []).map(carline => {
+      const next标注NodeId = { ...(carline?.标注NodeId ?? {}) }
+      delete next标注NodeId.DML
+
+      const nextCarline = {
+        ...carline,
+        标注NodeId: next标注NodeId,
+      }
+      delete nextCarline.DML
+      return nextCarline
+    })
+
+    return JSON.stringify({
+      ...doc,
+      scene: doc.scene
+        ? {
+            ...doc.scene,
+            nodes: nextNodes,
+            order: (doc.scene.order ?? []).filter(nodeId => !dmlNodeIds.has(nodeId)),
+          }
+        : doc.scene,
+      domain: doc.domain
+        ? {
+            ...doc.domain,
+            车线: next车线,
+            自动修改器: [],
+          }
+        : doc.domain,
+    })
+  } catch {
+    return json
+  }
+}
+
+function 清空高针图DML标注和自动化标注(
+  graph: 沐茵丝假发成品稿["高针指示单"]["高针图"]
+): 沐茵丝假发成品稿["高针指示单"]["高针图"] {
+  const nextGraph = 深拷贝普通对象(graph)
+
+  return {
+    ...nextGraph,
+    json: 清空高针图编辑器JSON中的DML标注和自动化标注(nextGraph.json),
+    车线: (nextGraph.车线 ?? []).map(carline => {
+      const next标注NodeId = { ...(carline.标注NodeId ?? {}) }
+      delete next标注NodeId.DML
+
+      const nextCarline = {
+        ...carline,
+        标注NodeId: next标注NodeId,
+      }
+      delete nextCarline.DML
+      return nextCarline
+    }),
+    自动修改器: [],
+  }
+}
+
+function resolve编辑器文本节点中心(node: {
+  fabricObject?: {
+    left?: unknown
+    top?: unknown
+    width?: unknown
+    fontSize?: unknown
+    originX?: unknown
+    originY?: unknown
+  }
+}): { x: number; y: number } {
+  const width =
+    typeof node.fabricObject?.width === "number" && Number.isFinite(node.fabricObject.width)
+      ? node.fabricObject.width
+      : 28
+  const fontSize =
+    typeof node.fabricObject?.fontSize === "number" && Number.isFinite(node.fabricObject.fontSize)
+      ? node.fabricObject.fontSize
+      : 18
+  const height = fontSize * 1.1
+  const left =
+    typeof node.fabricObject?.left === "number" && Number.isFinite(node.fabricObject.left)
+      ? node.fabricObject.left
+      : 0
+  const top =
+    typeof node.fabricObject?.top === "number" && Number.isFinite(node.fabricObject.top)
+      ? node.fabricObject.top
+      : 0
+  const originX = node.fabricObject?.originX
+  const originY = node.fabricObject?.originY
+  const originFactorX = originX === "center" ? 0.5 : originX === "right" ? 1 : 0
+  const originFactorY = originY === "center" ? 0.5 : originY === "bottom" ? 1 : 0
+
+  return {
+    x: left + width * (0.5 - originFactorX),
+    y: top + height * (0.5 - originFactorY),
+  }
+}
+
+function 创建DML标注节点(
+  nodeId: string,
+  carlineId: string,
+  dmlValue: DML值,
+  position: { x: number; y: number },
+  标注样式?: 沐茵丝假发成品稿["高针指示单"]["高针图"]["标注样式"]["DML"]
+) {
+  const fontSize =
+    typeof 标注样式?.字号 === "number" && Number.isFinite(标注样式.字号)
+      ? Math.max(4, Math.round(标注样式.字号))
+      : 18
+  const width = Math.max(28, fontSize * (String(dmlValue).length + 1))
+  const height = fontSize * 1.1
+
+  return {
+    id: nodeId,
+    name: "DML标注",
+    locked: true,
+    hidden: false,
+    zIndex: 0,
+    business: {
+      type: "标注",
+      字段: "DML",
+      归属车线Id: carlineId,
+    },
+    fabricObject: {
+      type: "textbox",
+      text: dmlValue,
+      fontFamily: 标注样式?.字体 || "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+      fill: 标注样式?.字色 || "#111111",
+      left: position.x - width / 2,
+      top: position.y - height / 2,
+      width,
+      fontSize,
+      textAlign: "center",
+      originX: "left",
+      originY: "top",
+      selectable: false,
+      evented: false,
+    },
+  }
+}
+
+function 在高针图编辑器JSON中重建DML标注和自动化标注(graph: 高针图): string {
+  if (!String(graph.json ?? "").trim()) return graph.json
+
+  try {
+    const doc = JSON.parse(graph.json) as {
+      scene?: {
+        nodes?: Record<string, any>
+        order?: string[]
+      }
+      domain?: {
+        车线?: any[]
+        标注样式?: any
+        自动修改器?: any[]
+      }
+    }
+
+    const dmlNodeIds = new Set(
+      Object.entries(doc.scene?.nodes ?? {})
+        .filter(([, node]) => node?.business?.type === "标注" && node.business?.字段 === "DML")
+        .map(([nodeId]) => nodeId)
+    )
+    const nextNodes = Object.fromEntries(
+      Object.entries(doc.scene?.nodes ?? {})
+        .filter(([nodeId]) => !dmlNodeIds.has(nodeId))
+        .map(([nodeId, node]) => {
+          if (node?.business?.type !== "车线") return [nodeId, node]
+          const next标注NodeId = { ...(node.business.标注NodeId ?? {}) }
+          delete next标注NodeId.DML
+          const nextBusiness = {
+            ...node.business,
+            标注NodeId: next标注NodeId,
+          }
+          delete nextBusiness.DML
+          return [nodeId, { ...node, business: nextBusiness }]
+        })
+    )
+    const nextOrder = (doc.scene?.order ?? []).filter(nodeId => !dmlNodeIds.has(nodeId))
+
+    const sceneCarlineNodeIdByBusinessId = new Map<string, string>()
+    Object.entries(nextNodes).forEach(([nodeId, node]) => {
+      if (node?.business?.type !== "车线") return
+      const businessId = String(node.business.id ?? "").trim()
+      if (!businessId) return
+      sceneCarlineNodeIdByBusinessId.set(businessId, nodeId)
+    })
+
+    const usedNodeIds = new Set([...Object.keys(nextNodes), ...nextOrder])
+    const createDmlNodeId = (carlineId: string) => {
+      const base = `dml-${carlineId || "carline"}`
+      if (!usedNodeIds.has(base)) {
+        usedNodeIds.add(base)
+        return base
+      }
+      let index = 2
+      while (usedNodeIds.has(`${base}-${index}`)) {
+        index++
+      }
+      const nodeId = `${base}-${index}`
+      usedNodeIds.add(nodeId)
+      return nodeId
+    }
+
+    const next车线 = graph.车线.map(carline => {
+      const dml = isValidDmlValue(carline.DML) ? carline.DML : undefined
+      const next标注NodeId = { ...(carline.标注NodeId ?? {}) }
+      delete next标注NodeId.DML
+
+      const sceneCarlineNodeId = sceneCarlineNodeIdByBusinessId.get(carline.id)
+      const sceneCarlineNode = sceneCarlineNodeId ? nextNodes[sceneCarlineNodeId] : undefined
+      if (!dml || !sceneCarlineNodeId || !sceneCarlineNode) {
+        return {
+          ...carline,
+          标注NodeId: next标注NodeId,
+        }
+      }
+
+      const codeLabelNode = Object.values(nextNodes).find(
+        node =>
+          node?.business?.type === "标注" &&
+          node.business?.字段 === "车线编号" &&
+          node.business?.归属车线Id === carline.id
+      )
+      const position = codeLabelNode
+        ? resolve编辑器文本节点中心(codeLabelNode)
+        : resolve编辑器文本节点中心(sceneCarlineNode)
+      const dmlNodeId = createDmlNodeId(carline.id)
+
+      nextNodes[sceneCarlineNodeId] = {
+        ...sceneCarlineNode,
+        business: {
+          ...sceneCarlineNode.business,
+          DML: dml,
+          标注NodeId: {
+            ...(sceneCarlineNode.business?.标注NodeId ?? {}),
+            DML: dmlNodeId,
+          },
+        },
+      }
+      nextNodes[dmlNodeId] = 创建DML标注节点(
+        dmlNodeId,
+        carline.id,
+        dml,
+        position,
+        graph.标注样式?.DML
+      )
+      nextOrder.push(dmlNodeId)
+
+      return {
+        ...carline,
+        标注NodeId: {
+          ...next标注NodeId,
+          DML: dmlNodeId,
+        },
+      }
+    })
+
+    return JSON.stringify({
+      ...doc,
+      scene: doc.scene
+        ? {
+            ...doc.scene,
+            nodes: nextNodes,
+            order: nextOrder,
+          }
+        : doc.scene,
+      domain: {
+        ...(doc.domain ?? {}),
+        车线: next车线,
+        标注样式: graph.标注样式 ?? doc.domain?.标注样式 ?? {},
+        自动修改器: graph.自动修改器 ?? [],
+      },
+    })
+  } catch {
+    return graph.json
+  }
+}
+
 function normalize手织图类型(type: unknown): "横排" | "方形" | "特殊" | "" {
   if (type === "横排" || type === "方形" || type === "特殊") return type
   return ""
@@ -133,6 +454,80 @@ function merge覆盖段列表(segments: 区域覆盖段[]): 区域覆盖段[] {
     merged.push({ ...current })
   }
   return merged
+}
+
+function normalizeDmlPatternKey(pattern: DML值[]): string {
+  return pattern.join("|")
+}
+
+function 归并按区域自动修改器(
+  modifiers: 高针图["自动修改器"],
+  regionOrderHint: string[]
+): 高针图["自动修改器"] {
+  const grouped = new Map<
+    string,
+    {
+      pattern: DML值[]
+      regionMap: Map<string, 区域覆盖段[]>
+    }
+  >()
+
+  modifiers.forEach(mod => {
+    if (!mod || mod.type !== "按区域自动标注DML") return
+    const pattern = normalizePattern(mod.规律)
+    if (pattern.length === 0) return
+
+    const key = normalizeDmlPatternKey(pattern)
+    const current = grouped.get(key) ?? {
+      pattern,
+      regionMap: new Map<string, 区域覆盖段[]>(),
+    }
+
+    ;(mod.范围 ?? []).forEach(seg => {
+      const region = String(seg.区域 ?? "").trim()
+      if (!region) return
+      const next = [
+        ...(current.regionMap.get(region) ?? []),
+        {
+          start: clamp01(seg.开始),
+          end: clamp01(seg.结束),
+        },
+      ]
+      current.regionMap.set(region, merge覆盖段列表(next))
+    })
+
+    grouped.set(key, current)
+  })
+
+  const regionRank = new Map<string, number>(regionOrderHint.map((name, index) => [name, index]))
+  const result: 高针图["自动修改器"] = []
+
+  Array.from(grouped.values()).forEach(item => {
+    const 范围 = Array.from(item.regionMap.entries())
+      .sort(([regionA], [regionB]) => {
+        const rankA = regionRank.get(regionA) ?? 9999
+        const rankB = regionRank.get(regionB) ?? 9999
+        if (rankA !== rankB) return rankA - rankB
+        return regionA.localeCompare(regionB, undefined, { numeric: true, sensitivity: "base" })
+      })
+      .flatMap(([region, segments]) =>
+        merge覆盖段列表(segments).map(seg => ({
+          区域: region,
+          开始: seg.start,
+          结束: seg.end,
+        }))
+      )
+
+    if (范围.length === 0) return
+    result.push({
+      type: "按区域自动标注DML",
+      id: createRuleId("ab_auto"),
+      规律: [...item.pattern],
+      范围,
+    })
+  })
+
+  return result
 }
 
 function buildRegionOrderHint(graph: 高针图): string[] {
@@ -348,29 +743,43 @@ function compileDmlAssignments(graph: 高针图): Map<string, DML值> {
 
 function 将DML标记写回高针图数据(graph: 高针图, 记录日志?: 调试日志函数): 高针图 {
   const dmlAssignments = compileDmlAssignments(graph)
-  let written = 0
-  let skippedNoNodeId = 0
+  let assigned = 0
 
-  const 车线 = graph.车线.map(carline => {
-    const dml = dmlAssignments.get(carline.id) ?? (isValidDmlValue(carline.DML) ? carline.DML : "D")
-    if (String(carline.标注NodeId?.DML ?? "").trim()) {
-      written++
-    } else {
-      skippedNoNodeId++
-    }
-    return {
-      ...carline,
-      DML: dml,
-    }
-  })
+  const nextGraph = {
+    ...graph,
+    车线: graph.车线.map(carline => {
+      const next标注NodeId = { ...(carline.标注NodeId ?? {}) }
+      delete next标注NodeId.DML
+
+      const dml =
+        dmlAssignments.get(carline.id) ?? (isValidDmlValue(carline.DML) ? carline.DML : "D")
+      if (dmlAssignments.has(carline.id)) {
+        assigned++
+      }
+
+      return {
+        ...carline,
+        DML: dml,
+        标注NodeId: next标注NodeId,
+      }
+    }),
+  }
+  const withJson = {
+    ...nextGraph,
+    json: 在高针图编辑器JSON中重建DML标注和自动化标注(nextGraph),
+  }
+  const written = withJson.车线.filter(carline =>
+    String(carline.标注NodeId?.DML ?? "").trim()
+  ).length
 
   记录日志?.("高针图DML写回数据摘要", {
     assignmentCount: dmlAssignments.size,
+    assignedCount: assigned,
     writtenCount: written,
-    skippedNoNodeId,
+    skippedNoNodeId: withJson.车线.length - written,
   })
 
-  return { ...graph, 车线 }
+  return withJson
 }
 
 function 转换按档位范围为区域范围(
@@ -463,11 +872,14 @@ function 映射B稿自动修改器到A稿并转为按区域(
     }
   })
 
+  const merged = 归并按区域自动修改器(out, buildRegionOrderHint(targetGraph))
+
   记录日志?.("上下分自动修改器映射摘要", {
     sourceCount: sourceGraph.自动修改器?.length ?? 0,
     mappedCount: out.length,
+    mergedCount: merged.length,
   })
-  return out
+  return merged
 }
 
 function strip机器规格清单到单D尺数(
@@ -484,7 +896,7 @@ function strip机器规格清单到单D尺数(
 
 // C 稿公共底稿：以 A 为底，覆盖 B 的类型、染色图、胶丝比例。
 function 构建C稿公共底稿(fileA: 沐茵丝假发成品稿, fileB: 沐茵丝假发成品稿): 沐茵丝假发成品稿 {
-  const next高针图 = fileA.高针指示单.高针图
+  const next高针图 = 清空高针图DML标注和自动化标注(fileA.高针指示单.高针图)
   const next手织图 = 获取C稿手织图(fileA, fileB)
 
   return {
@@ -574,13 +986,57 @@ function 生成上下分图稿(
 function 按上下分图稿回算机器规格清单(
   c稿: 沐茵丝假发成品稿,
   高针图: 沐茵丝假发成品稿["高针指示单"]["高针图"],
-  splitFlags: 上下分标记
+  splitFlags: 上下分标记,
+  记录日志?: 调试日志函数
 ): 沐茵丝假发成品稿["制品规格书"]["机器规格清单"] {
-  return shared按高针图回算机器规格清单上下分尺数(
-    strip机器规格清单到单D尺数(c稿.制品规格书.机器规格清单),
-    高针图 as 高针图,
-    splitFlags
-  )
+  const baseRows = strip机器规格清单到单D尺数(c稿.制品规格书.机器规格清单)
+  const graph = 高针图 as 高针图
+  const dmlAssignments = compileDmlAssignments(graph)
+
+  baseRows.forEach(row => {
+    const normalizedSlot = normalizeLevelName(row.档位)
+    const matchedCarlines = graph.车线.filter(c => normalizeLevelName(c.档位) === normalizedSlot)
+    const contributions = matchedCarlines.map(carline => {
+      const dml =
+        dmlAssignments.get(carline.id) ?? (isValidDmlValue(carline.DML) ? carline.DML : "D")
+      const baseLength = Number.isFinite(carline.尺数) ? carline.尺数 : 0
+      const multiplier = carline.是双数 ? 2 : 1
+      const totalLength = baseLength * multiplier
+
+      return {
+        车线id: carline.id,
+        区域: carline.区域,
+        车线编号: carline.车线编号,
+        DML: dml,
+        公式: multiplier === 1 ? `${baseLength}` : `${baseLength}*${multiplier}`,
+        结果: totalLength,
+      }
+    })
+
+    const grouped = {
+      D: contributions.filter(item => item.DML === "D"),
+      M: contributions.filter(item => item.DML === "M"),
+      L: contributions.filter(item => item.DML === "L"),
+    }
+    const sumGroup = (items: typeof contributions) =>
+      items.reduce((sum, item) => sum + item.结果, 0)
+    const buildFormula = (items: typeof contributions) =>
+      items.length === 0 ? "0" : items.map(item => item.公式).join(" + ")
+
+    记录日志?.("上下分尺数计算公式", {
+      档位: row.档位,
+      参与车线数: matchedCarlines.length,
+      D公式: buildFormula(grouped.D),
+      D结果: sumGroup(grouped.D),
+      M公式: splitFlags.hasM ? buildFormula(grouped.M) : undefined,
+      M结果: splitFlags.hasM ? sumGroup(grouped.M) : undefined,
+      L公式: splitFlags.hasL ? buildFormula(grouped.L) : undefined,
+      L结果: splitFlags.hasL ? sumGroup(grouped.L) : undefined,
+      明细: contributions,
+    })
+  })
+
+  return shared按高针图回算机器规格清单上下分尺数(baseRows, graph, splitFlags)
 }
 
 function 提取图稿DML全局标记(graph: 高针图): 上下分标记 {
@@ -690,7 +1146,12 @@ function 按B稿上下分规则生成C稿(
   const fileC = 构建C稿公共底稿(fileA, fileB)
   const 图稿 = 生成上下分图稿(fileC, fileB, 记录日志)
   const splitFlags = 提取图稿DML全局标记(图稿.高针指示单.高针图 as 高针图)
-  const machineRows = 按上下分图稿回算机器规格清单(fileC, 图稿.高针指示单.高针图, splitFlags)
+  const machineRows = 按上下分图稿回算机器规格清单(
+    fileC,
+    图稿.高针指示单.高针图,
+    splitFlags,
+    记录日志
+  )
 
   // #region debug-point D:split-generate-summary
   记录日志?.("上下分生成摘要", {

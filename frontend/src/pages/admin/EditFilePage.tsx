@@ -23,7 +23,7 @@ export default function EditFilePage() {
   return (
     <FileEditorPage
       mode="edit"
-      title={form ? `编辑成品稿 · ${form.样品编号}` : "编辑成品稿"}
+      title={form ? `编辑设计稿 · ${form.样品编号}` : "编辑设计稿"}
       initialValue={form}
       loading={loading}
       error={error}

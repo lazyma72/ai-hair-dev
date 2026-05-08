@@ -39,7 +39,7 @@ export interface 沐茵丝假发成品稿 {
   createTime?: Date
   updateTime?: Date
 }
-export type 沐茵丝假发成品稿提交 = Omit<沐茵丝假发成品稿, "_id">
+export type 沐茵丝假发成品稿提交 = Omit<沐茵丝假发成品稿, "_id" | "createTime" | "updateTime">
 export type 沐茵丝假发成品稿更新提交 = Omit<沐茵丝假发成品稿提交, "createTime" | "updateTime">
 
 export interface 手织指示单 {

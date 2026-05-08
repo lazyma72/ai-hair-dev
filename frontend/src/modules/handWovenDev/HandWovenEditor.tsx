@@ -288,7 +288,7 @@ function downloadTextFile(filename: string, content: string, type: string) {
 
 function deriveSelectedType(value: 本地手织图): 手织图类型 | "" {
   const 间色比例 = get间色比例(value);
-  return 间色比例.type === "特殊" ? "" : 间色比例.type;
+  return 间色比例.type;
 }
 
 export default function HandWovenEditor({

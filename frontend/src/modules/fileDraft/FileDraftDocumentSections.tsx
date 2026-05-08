@@ -12,8 +12,7 @@ import type {
 import Section from "../../components/Section";
 import FileDraftDataSections from "./FileDraftDataSections";
 import HandWovenSection from "../../pages/admin/add-file/sections/HandWovenSection";
-import 高针指示单View from "../../pages/file/sections/高针指示单View";
-import 手织指示单View from "../../pages/file/sections/手织指示单View";
+import HandWovenBlock from "./HandWovenBlock";
 import HighNeedleBlock from "./HighNeedleBlock";
 
 type HatMakingOption = {
@@ -162,7 +161,14 @@ export default function FileDraftDocumentSections(props: Props) {
           previewData={props.高针数据}
         />
       ) : props.高针数据 ? (
-        <高针指示单View data={props.高针数据} />
+        <HighNeedleBlock
+          mode="readonly"
+          value={{
+            注意事项: props.高针数据.注意事项,
+            高针图: props.高针数据.高针图数据,
+          }}
+          previewData={props.高针数据}
+        />
       ) : null}
 
       {props.mode === "edit" ? (
@@ -175,7 +181,7 @@ export default function FileDraftDocumentSections(props: Props) {
           previewData={props.手织数据}
         />
       ) : props.手织数据 ? (
-        <手织指示单View value={props.value.手织指示单} />
+        <HandWovenBlock mode="readonly" value={props.value.手织指示单} />
       ) : null}
     </div>
   );

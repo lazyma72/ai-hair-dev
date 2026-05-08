@@ -1,6 +1,6 @@
 import { message } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { callApi } from "../../api/callApi";
 import PageShell from "../../components/PageShell";
 import StatusView from "../../components/StatusView";
@@ -26,24 +26,13 @@ import {
 } from "../../shared/models/上下分计算尺数";
 import {
   clearFileDraftSession,
-  clearFileDraftSessionSnapshot,
-  createFileDraftSessionKey,
   loadFileDraftSession,
-  saveFileDraftSession,
-  saveFileDraftSessionSnapshot,
 } from "./fileDraftSessionBridge";
-import {
-  clearHighNeedleEditorDocument,
-  clearHighNeedleEditorDocumentSnapshot,
-  loadHighNeedleEditorDocument,
-  saveHighNeedleEditorDocumentSnapshot,
-} from "../svgEditor/highNeedleEditorSessionBridge";
-import {
-  clearHandWovenEditorDocument,
-  clearHandWovenEditorDocumentSnapshot,
-  loadHandWovenEditorDocument,
-  saveHandWovenEditorDocumentSnapshot,
-} from "../svgEditor/handWovenEditorSessionBridge";
+import DraftSvgEditorModal from "../svgEditor/DraftSvgEditorModal";
+import HighNeedleEditorCanvas from "../svgEditor/HighNeedleEditorCanvas";
+import HandWovenEditorCanvas, {
+  type HandWovenSvgValue,
+} from "../svgEditor/HandWovenEditorCanvas";
 
 const MAX_CUT_WEIGHT_ITEMS = 3;
 type HatMakingOption = {
@@ -71,6 +60,8 @@ type Props = {
   enableSplitDmlSizing?: boolean;
 };
 
+type ActiveSvgEditor = "high-needle" | "hand-woven" | null;
+
 function normalizeName(s: string): string {
   return s.trim();
 }
@@ -91,7 +82,6 @@ export default function FileEditorPage({
   extraActions,
   enableSplitDmlSizing = false,
 }: Props) {
-  const navigate = useNavigate();
   const location = useLocation();
   const draftKey = useMemo(
     () => new URLSearchParams(location.search).get("draftKey")?.trim() ?? "",
@@ -110,6 +100,7 @@ export default function FileEditorPage({
   const [customerList, setCustomerList] = useState<DbCustomer[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [activeSvgEditor, setActiveSvgEditor] = useState<ActiveSvgEditor>(null);
   const loadedDraftIdRef = useRef<string | null>(
     restoredSessionDraft?._id ?? initialValue?._id ?? null,
   );
@@ -306,52 +297,12 @@ export default function FileEditorPage({
 
   function openHighNeedleSvgEditor() {
     if (!form) return;
-    const nextDraftKey = draftKey || createFileDraftSessionKey();
-    saveFileDraftSessionSnapshot(nextDraftKey, form);
-    saveFileDraftSession(nextDraftKey, form);
-    const currentEditorDocument = loadHighNeedleEditorDocument(nextDraftKey);
-    if (currentEditorDocument) {
-      saveHighNeedleEditorDocumentSnapshot(nextDraftKey, currentEditorDocument);
-    } else {
-      clearHighNeedleEditorDocumentSnapshot(nextDraftKey);
-    }
-
-    const returnParams = new URLSearchParams(location.search);
-    returnParams.set("draftKey", nextDraftKey);
-    const returnTo = `${location.pathname}${
-      returnParams.toString() ? `?${returnParams.toString()}` : ""
-    }`;
-
-    const editorParams = new URLSearchParams({
-      draftKey: nextDraftKey,
-      returnTo,
-    });
-    navigate(`/high-needle-svg-editor?${editorParams.toString()}`);
+    setActiveSvgEditor("high-needle");
   }
 
   function openHandWovenSvgEditor() {
     if (!form) return;
-    const nextDraftKey = draftKey || createFileDraftSessionKey();
-    saveFileDraftSessionSnapshot(nextDraftKey, form);
-    saveFileDraftSession(nextDraftKey, form);
-    const currentEditorDocument = loadHandWovenEditorDocument(nextDraftKey);
-    if (currentEditorDocument) {
-      saveHandWovenEditorDocumentSnapshot(nextDraftKey, currentEditorDocument);
-    } else {
-      clearHandWovenEditorDocumentSnapshot(nextDraftKey);
-    }
-
-    const returnParams = new URLSearchParams(location.search);
-    returnParams.set("draftKey", nextDraftKey);
-    const returnTo = `${location.pathname}${
-      returnParams.toString() ? `?${returnParams.toString()}` : ""
-    }`;
-
-    const editorParams = new URLSearchParams({
-      draftKey: nextDraftKey,
-      returnTo,
-    });
-    navigate(`/hand-woven-svg-editor?${editorParams.toString()}`);
+    setActiveSvgEditor("hand-woven");
   }
 
   async function handleSubmit() {
@@ -413,11 +364,6 @@ export default function FileEditorPage({
       const res = await onSubmit(form);
       if (draftKey) {
         clearFileDraftSession(draftKey);
-        clearFileDraftSessionSnapshot(draftKey);
-        clearHighNeedleEditorDocument(draftKey);
-        clearHighNeedleEditorDocumentSnapshot(draftKey);
-        clearHandWovenEditorDocument(draftKey);
-        clearHandWovenEditorDocumentSnapshot(draftKey);
       }
       message.success(mode === "add" ? "保存成功" : "更新成功");
       onSubmitted(res.id, form);
@@ -466,25 +412,63 @@ export default function FileEditorPage({
         emptyText={mode === "add" ? "暂无初始稿件数据" : "暂无稿件数据"}
       >
         {form ? (
-          <FileDraftDocumentSections
-            mode="edit"
-            value={form}
-            enableSplitDmlSizing={enableSplitDmlSizing}
-            onChange={updateForm}
-            customerList={customerList}
-            hatMakingList={hatMakingList}
-            当前胶丝比例详情={currentRatioDetail}
-            发丝种类选项={发丝种类选项}
-            颜色编号选项={当前发丝种类颜色编号列表}
-            全部档位名={全部档位名}
-            allowTestData={allowTestData}
-            onFillTestData={fillTestData}
-            onImportExcelData={importExcelData}
-            onOpenHighNeedleSvgEditor={openHighNeedleSvgEditor}
-            onOpenHandWovenSvgEditor={openHandWovenSvgEditor}
-            高针数据={高针数据}
-            手织数据={手织数据}
-          />
+          <>
+            <FileDraftDocumentSections
+              mode="edit"
+              value={form}
+              enableSplitDmlSizing={enableSplitDmlSizing}
+              onChange={updateForm}
+              customerList={customerList}
+              hatMakingList={hatMakingList}
+              当前胶丝比例详情={currentRatioDetail}
+              发丝种类选项={发丝种类选项}
+              颜色编号选项={当前发丝种类颜色编号列表}
+              全部档位名={全部档位名}
+              allowTestData={allowTestData}
+              onFillTestData={fillTestData}
+              onImportExcelData={importExcelData}
+              onOpenHighNeedleSvgEditor={openHighNeedleSvgEditor}
+              onOpenHandWovenSvgEditor={openHandWovenSvgEditor}
+              高针数据={高针数据}
+              手织数据={手织数据}
+            />
+
+            <DraftSvgEditorModal
+              open={activeSvgEditor === "high-needle"}
+              title="高针图"
+              Canvas={HighNeedleEditorCanvas}
+              value={form.高针指示单.高针图}
+              onCancel={() => setActiveSvgEditor(null)}
+              onSave={({ value }) => {
+                updateForm((prev) => ({
+                  ...prev,
+                  高针指示单: {
+                    ...prev.高针指示单,
+                    高针图: value,
+                  },
+                }));
+                setActiveSvgEditor(null);
+              }}
+            />
+
+            <DraftSvgEditorModal
+              open={activeSvgEditor === "hand-woven"}
+              title="手织图"
+              Canvas={HandWovenEditorCanvas}
+              value={form.手织指示单.手织图 as HandWovenSvgValue}
+              onCancel={() => setActiveSvgEditor(null)}
+              onSave={({ value }) => {
+                updateForm((prev) => ({
+                  ...prev,
+                  手织指示单: {
+                    ...prev.手织指示单,
+                    手织图: value,
+                  },
+                }));
+                setActiveSvgEditor(null);
+              }}
+            />
+          </>
         ) : null}
       </StatusView>
     </PageShell>

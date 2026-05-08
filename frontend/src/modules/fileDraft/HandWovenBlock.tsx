@@ -141,20 +141,6 @@ export default function HandWovenBlock({
             />
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-xs text-slate-500">
-              {fileName ? `当前：${fileName}` : "当前仅展示已导入的手织图 SVG"}
-            </div>
-            <button
-              type="button"
-              className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!onOpenSvgEditor}
-              onClick={onOpenSvgEditor}
-            >
-              {hasSvg ? "进入 SVG 编辑器" : "导入并编辑 SVG"}
-            </button>
-          </div>
-
           <HandWovenEditor
             embed
             title="手织图导入"
@@ -166,17 +152,35 @@ export default function HandWovenBlock({
             svgMode="external"
           />
 
-          {previewSvg ? (
-            <div>
-              <div className="mb-1 flex items-center justify-between gap-3">
+          <div>
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <div>
                 <div className="text-xs font-medium text-slate-700">
                   手织图 SVG
                 </div>
-                <DownloadSvgButton
-                  svg={previewSvg}
-                  filename="hand-woven.svg"
-                />
+                <div className="mt-1 text-xs text-slate-500">
+                  {fileName ? `当前：${fileName}` : "当前仅展示已导入的手织图 SVG"}
+                </div>
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!onOpenSvgEditor}
+                  onClick={onOpenSvgEditor}
+                >
+                  {hasSvg ? "进入 SVG 编辑器" : "导入并编辑 SVG"}
+                </button>
+                {previewSvg ? (
+                  <DownloadSvgButton
+                    svg={previewSvg}
+                    filename="hand-woven.svg"
+                  />
+                ) : null}
+              </div>
+            </div>
+
+            {previewSvg ? (
               <div className="overflow-hidden rounded border border-slate-100 bg-white">
                 <InlineSvg
                   svg={previewSvg}
@@ -185,12 +189,12 @@ export default function HandWovenBlock({
                   fitWidth
                 />
               </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-              暂无手织图 SVG，可进入 SVG 编辑器导入后在此预览。
-            </div>
-          )}
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                暂无手织图 SVG，可进入 SVG 编辑器导入后在此预览。
+              </div>
+            )}
+          </div>
         </div>
       </Section>
 

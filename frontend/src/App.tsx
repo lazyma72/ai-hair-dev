@@ -27,8 +27,6 @@ import WelcomePage from "./pages/home/WelcomePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import RatioDetailPage from "./pages/ratio/RatioDetailPage";
 import RatioListPage from "./pages/ratio/RatioListPage";
-import HandWovenSvgEditorPage from "./pages/svg_editor/HandWovenSvgEditorPage";
-import HighNeedleSvgEditorPage from "./pages/svg_editor/HighNeedleSvgEditorPage";
 import SvgEditorTestPage from "./pages/svg_editor/SvgEditorTestPage";
 import UserManagementPage from "./pages/users/UserManagementPage";
 import { isLoggedIn } from "./auth";
@@ -133,14 +131,6 @@ function App() {
           <Route
             path="/test/cdr-to-svg"
             element={<CdrToSvgPage />}
-          />
-          <Route
-            path="/high-needle-svg-editor"
-            element={<HighNeedleSvgEditorPage />}
-          />
-          <Route
-            path="/hand-woven-svg-editor"
-            element={<HandWovenSvgEditorPage />}
           />
           <Route path="/test/svg-demo" element={<SvgEditorTestPage />} />
 

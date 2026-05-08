@@ -663,7 +663,7 @@ function BottomSection({ data }: { data: 制品规格书Frontend }) {
     { label: "帽深", value: `${制帽.帽深} cm` },
     { label: "前后", value: `${制帽.前后} cm` },
     { label: "唛头", value: 制帽.唛头 || "—" },
-    { label: "号码", value: "—" },
+    { label: "号码", value: 制帽.id || "—" },
   ];
   const [imgStates, setImgStates] = React.useState<FloatRect[]>(() =>
     layoutFloatRects(Math.min(发型图片.length, 2), () => ({ w: 120, h: 120 })),
@@ -1623,10 +1623,7 @@ function PrintHighNeedleDoc({ data }: { data: 高针指示单Frontend }) {
           {data.注意事项 || "—"}
         </div>
       </div>
-      <PrintNeedleFigure
-        title="高针图"
-        svg={highNeedleSvg}
-      />
+      <PrintNeedleFigure title="高针图" svg={highNeedleSvg} />
     </div>
   );
 }

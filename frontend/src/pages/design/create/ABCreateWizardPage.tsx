@@ -9,6 +9,8 @@ import PageShell from "../../../components/PageShell";
 import StatusView from "../../../components/StatusView";
 import { useApi } from "../../../hooks/useApi";
 import type {
+  制品规格书Frontend,
+  胶丝比例Frontend,
   沐茵丝假发成品稿ListItem,
 } from "../../../shared/frontend/model/model";
 import FileEditorPage from "../../../modules/fileDraft/FileEditorPage";
@@ -19,23 +21,26 @@ import {
 import { fromDbToFileDraftViewModel } from "../../../shared/fileDraft/adapters/fromDbToFileDraftViewModel";
 import type { FileDraftViewModel } from "../../../shared/fileDraft/model";
 import type { 沐茵丝假发成品稿 } from "../../../shared/db/Db沐茵丝假发成品稿";
-import DocumentTabs from "../../../modules/fileDraft/DocumentTabs";
-import FileDraftDataSections from "../../../modules/fileDraft/FileDraftDataSections";
+import type { Db胶丝比例 } from "../../../shared/db/Db胶丝比例";
+import type { Db制帽 } from "../../../shared/db/Db制帽";
+import FileDraftDocumentSections from "../../../modules/fileDraft/FileDraftDocumentSections";
 import { to高针指示单Frontend } from "../../../shared/frontend/converters/to高针指示单Frontend";
+import { to手织指示单Frontend } from "../../../shared/frontend/converters/to手织指示单Frontend";
+import { to制品规格书Frontend } from "../../../shared/frontend/converters/to制品规格书Frontend";
 import type {
   ResGetList,
 } from "../../../shared/protocols/admin/file/PtlGetList";
-import 高针指示单View from "../../file/sections/高针指示单View";
-import 手织指示单View from "../../file/sections/手织指示单View";
 import { loadFileDraftSession } from "../../../modules/fileDraft/fileDraftSessionBridge";
 
 const STEPS = ["选择A稿", "选择B稿", "预览C稿"] as const;
-const PREVIEW_TABS = [
-  { key: "制品规格书", label: "制品规格书" },
-  { key: "高针指示单", label: "高针指示单" },
-  { key: "手织指示单", label: "手织指示单" },
-] as const;
-type PreviewTabKey = (typeof PREVIEW_TABS)[number]["key"];
+
+type HatMakingOption = {
+  _id: string;
+  名称?: string;
+  帽围: number;
+  帽深: number;
+  前后: number;
+};
 
 function Stepper({ step }: { step: number }) {
   return (
@@ -67,6 +72,10 @@ function withNewId(file: FileDraftViewModel, id: string): FileDraftViewModel {
   };
 }
 
+function getHatMakingIdFromCAP(cap: string): string {
+  return cap.trim().match(/^[^（(\s]+/)?.[0] ?? "";
+}
+
 function fetchFileList(req: {
   omitIdList?: string[];
   pageNum?: number;
@@ -95,14 +104,20 @@ export default function ABCreateWizardPage() {
   const [bId, setBId] = useState<string>("");
   const [aKeyword, setAKeyword] = useState("");
   const [bKeyword, setBKeyword] = useState("");
-  const [previewTab, setPreviewTab] = useState<PreviewTabKey>("制品规格书");
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-
   const [loadingC, setLoadingC] = useState(false);
   const [errorC, setErrorC] = useState("");
   const [cDraft, setCDraft] = useState<FileDraftViewModel | null>(null);
   const [restoredFromSession, setRestoredFromSession] = useState(false);
+  const [hatMakingList, setHatMakingList] = useState<HatMakingOption[]>([]);
+  const [loadingHatMakingList, setLoadingHatMakingList] = useState(false);
+  const [hatMakingError, setHatMakingError] = useState("");
+  const [currentRatioDetail, setCurrentRatioDetail] = useState<胶丝比例Frontend | null>(
+    null,
+  );
+  const [loadingRatioDetail, setLoadingRatioDetail] = useState(false);
+  const [ratioError, setRatioError] = useState("");
   const draftKey = useMemo(
     () => new URLSearchParams(location.search).get("draftKey")?.trim() ?? "",
     [location.search],
@@ -134,6 +149,83 @@ export default function ABCreateWizardPage() {
   const reloadBList = bListState.reload;
   const filteredAList = useMemo(() => filterDraftList(aList, aKeyword), [aKeyword, aList]);
   const filteredBList = useMemo(() => filterDraftList(bList, bKeyword), [bKeyword, bList]);
+  const currentHatMaking = useMemo(
+    () =>
+      cDraft
+        ? hatMakingList.find((item) => item._id === getHatMakingIdFromCAP(cDraft.CAP)) ?? null
+        : null,
+    [cDraft, hatMakingList],
+  );
+  const preview高针数据 = useMemo(
+    () => (cDraft ? to高针指示单Frontend(toPreviewDbFile(cDraft)) : null),
+    [cDraft],
+  );
+  const preview手织数据 = useMemo(
+    () => (cDraft ? to手织指示单Frontend(toPreviewDbFile(cDraft)) : null),
+    [cDraft],
+  );
+  const preview制品规格书详情 = useMemo<制品规格书Frontend | null>(() => {
+    if (!cDraft || !currentHatMaking || !currentRatioDetail) {
+      return null;
+    }
+    const previewDbFile = toDbPayload(cDraft) as unknown as 沐茵丝假发成品稿;
+    const hatMaking: Db制帽 = {
+      _id: currentHatMaking._id,
+      名称: currentHatMaking.名称 ?? "",
+      帽围: currentHatMaking.帽围,
+      帽深: currentHatMaking.帽深,
+      前后: currentHatMaking.前后,
+      帽网款式: "",
+      备注: "",
+    };
+    return to制品规格书Frontend(
+      previewDbFile,
+      currentRatioDetail as unknown as Db胶丝比例,
+      hatMaking,
+    );
+  }, [cDraft, currentHatMaking, currentRatioDetail]);
+  const previewError =
+    errorC ||
+    ratioError ||
+    hatMakingError ||
+    (cDraft && !loadingHatMakingList && !currentHatMaking ? "找不到对应的制帽规格" : "");
+  const previewLoading =
+    loadingC || loadingHatMakingList || (Boolean(cDraft) && loadingRatioDetail);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingHatMakingList(true);
+    setHatMakingError("");
+    void callApi(
+      "admin/hatMaking/GetList" as never,
+      {
+        pageNum: 1,
+        pageSize: 1000,
+        orderSort: "asc",
+      } as never,
+    )
+      .then((r) => {
+        if (cancelled) return;
+        const res = r as
+          | { isSucc: true; res: { list: HatMakingOption[] } }
+          | { isSucc: false; err: { message: string } };
+        if (!res.isSucc) {
+          setHatMakingError(res.err.message);
+          return;
+        }
+        setHatMakingList(res.res.list);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setHatMakingError(e instanceof Error ? e.message : "加载制帽规格失败");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingHatMakingList(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!draftKey) return;
@@ -150,6 +242,8 @@ export default function ABCreateWizardPage() {
     if (restoredFromSession && !aId && !bId) return;
     setCDraft(null);
     setErrorC("");
+    setCurrentRatioDetail(null);
+    setRatioError("");
     if (restoredFromSession) {
       setRestoredFromSession(false);
     }
@@ -195,6 +289,45 @@ export default function ABCreateWizardPage() {
       cancelled = true;
     };
   }, [aId, bId, cDraft, step]);
+
+  useEffect(() => {
+    const 发丝种类 = cDraft?.制品规格书.胶丝比例id.发丝种类?.trim() ?? "";
+    const 颜色编号 = cDraft?.制品规格书.胶丝比例id.颜色编号?.trim() ?? "";
+    if (!发丝种类 || !颜色编号) {
+      setCurrentRatioDetail(null);
+      setRatioError("");
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingRatioDetail(true);
+    setRatioError("");
+    void callApi("admin/ratio/GetDetail", { 发丝种类, 颜色编号 })
+      .then((r) => {
+        if (cancelled) return;
+        if (!r.isSucc) {
+          setCurrentRatioDetail(null);
+          setRatioError(r.err.message);
+          return;
+        }
+        setCurrentRatioDetail(r.res.胶丝比例);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setCurrentRatioDetail(null);
+        setRatioError(e instanceof Error ? e.message : "加载胶丝比例失败");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingRatioDetail(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    cDraft?.制品规格书.胶丝比例id.发丝种类,
+    cDraft?.制品规格书.胶丝比例id.颜色编号,
+  ]);
 
   const actions = (
     <div className="flex items-center gap-2">
@@ -259,7 +392,7 @@ export default function ABCreateWizardPage() {
 
   if (step === 2) {
     return (
-      <StatusView loading={loadingC} error={errorC}>
+      <StatusView loading={previewLoading} error={previewError}>
         {cDraft ? (
           editing ? (
             <FileEditorPage
@@ -309,22 +442,15 @@ export default function ABCreateWizardPage() {
               onBack={() => setStep(1)}
               actions={actions}
             >
-              <DocumentTabs
-                items={PREVIEW_TABS}
-                activeKey={previewTab}
-                onChange={setPreviewTab}
-              />
-
-              {previewTab === "制品规格书" ? (
-                <FileDraftDataSections mode="readonly" value={cDraft} />
-              ) : null}
-
-              {previewTab === "高针指示单" ? (
-                <高针指示单View data={to高针指示单Frontend(toPreviewDbFile(cDraft))} />
-              ) : null}
-
-              {previewTab === "手织指示单" ? (
-                <手织指示单View value={cDraft.手织指示单} />
+              {preview制品规格书详情 && preview高针数据 && preview手织数据 ? (
+                <FileDraftDocumentSections
+                  mode="readonly"
+                  value={cDraft}
+                  制品规格书详情={preview制品规格书详情}
+                  hatMakingList={hatMakingList}
+                  高针数据={preview高针数据}
+                  手织数据={preview手织数据}
+                />
               ) : null}
             </PageShell>
           )
