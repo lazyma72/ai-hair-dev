@@ -218,11 +218,24 @@ function InfoSection({ data }: { data: 制品规格书Frontend }) {
 // 机器规格清单 compact table
 // ─────────────────────────────────────────────────────────────────────────────
 function MachineTable({ rows }: { rows: MachineRow[] }) {
-  const showM = rows.some(
-    (r) =>
-      r.双针.尺数.M != null || r.裁断与重量.some((c) => c.重量g?.M != null),
-  );
+  const showWeightD = rows.some((r) => r.裁断与重量.some((c) => c.重量g?.D != null));
+  const showWeightM = rows.some((r) => r.裁断与重量.some((c) => c.重量g?.M != null));
+  const showWeightL = rows.some((r) => r.裁断与重量.some((c) => c.重量g?.L != null));
+  const showSizeD = rows.some((r) => r.双针.尺数.D != null);
+  const showSizeM = rows.some((r) => r.双针.尺数.M != null);
+  const showSizeL = rows.some((r) => r.双针.尺数.L != null);
   const show对裁 = rows.some((r) => r.整毛.对裁 != null);
+  const weightColumnCount = [showWeightD, showWeightM, showWeightL].filter(Boolean).length;
+  const sizeColumnCount = [showSizeD, showSizeM, showSizeL].filter(Boolean).length;
+  const machineEmptyColSpan =
+    1 +
+    1 +
+    (show对裁 ? 2 : 1) +
+    weightColumnCount +
+    (2 + sizeColumnCount) +
+    1 +
+    3 +
+    1;
 
   return (
     <table
@@ -237,13 +250,14 @@ function MachineTable({ rows }: { rows: MachineRow[] }) {
         <col style={{ width: "33px" }} />
         <col style={{ width: "30px" }} />
         {show对裁 && <col style={{ width: "30px" }} />}
-        <col style={{ width: "33px" }} />
-        {showM && <col style={{ width: "33px" }} />}
-        <col style={{ width: "33px" }} />
+        {showWeightD && <col style={{ width: "33px" }} />}
+        {showWeightM && <col style={{ width: "33px" }} />}
+        {showWeightL && <col style={{ width: "33px" }} />}
         <col style={{ width: "33px" }} />
         <col style={{ width: "36px" }} />
-        {showM && <col style={{ width: "36px" }} />}
-        <col style={{ width: "36px" }} />
+        {showSizeD && <col style={{ width: "36px" }} />}
+        {showSizeM && <col style={{ width: "36px" }} />}
+        {showSizeL && <col style={{ width: "36px" }} />}
         <col style={{ width: "33px" }} />
         <col style={{ width: "42px" }} />
         <col style={{ width: "28px" }} />
@@ -256,8 +270,8 @@ function MachineTable({ rows }: { rows: MachineRow[] }) {
           <TH rs={2}>档位</TH>
           <TH rs={2}>裁断</TH>
           <TH cs={show对裁 ? 2 : 1}>整毛</TH>
-          <TH cs={showM ? 3 : 2}>重量g</TH>
-          <TH cs={showM ? 5 : 4}>双针</TH>
+          {weightColumnCount > 0 && <TH cs={weightColumnCount}>重量g</TH>}
+          <TH cs={2 + sizeColumnCount}>双针</TH>
           <TH rs={2}>形态</TH>
           <TH cs={3}>美容</TH>
           <TH rs={2}>备注</TH>
@@ -265,13 +279,13 @@ function MachineTable({ rows }: { rows: MachineRow[] }) {
         <tr>
           <TH>拉尖</TH>
           {show对裁 && <TH>对裁</TH>}
-          <TH>D</TH>
-          {showM && <TH>M</TH>}
-          <TH>L</TH>
+          {showWeightD && <TH>D</TH>}
+          {showWeightM && <TH>M</TH>}
+          {showWeightL && <TH>L</TH>}
           <TH>毛长</TH>
-          <TH>尺数D</TH>
-          {showM && <TH>尺数M</TH>}
-          <TH>尺数L</TH>
+          {showSizeD && <TH>尺数D</TH>}
+          {showSizeM && <TH>尺数M</TH>}
+          {showSizeL && <TH>尺数L</TH>}
           <TH>密度</TH>
           <TH>铝管</TH>
           <TH>方向</TH>
@@ -281,7 +295,7 @@ function MachineTable({ rows }: { rows: MachineRow[] }) {
       <tbody>
         {rows.length === 0 ? (
           <tr>
-            <TD cs={17} style={{ color: "#888" }}>
+            <TD cs={machineEmptyColSpan} style={{ color: "#888" }}>
               暂无机器规格清单
             </TD>
           </tr>
@@ -305,25 +319,35 @@ function MachineTable({ rows }: { rows: MachineRow[] }) {
                     )}
                   </>
                 )}
-                <TD>{格式化可选定位小数(cut.重量g?.D, 2)}</TD>
-                {showM && <TD>{格式化可选定位小数(cut.重量g?.M, 2)}</TD>}
-                <TD>{格式化可选定位小数(cut.重量g?.L, 2)}</TD>
+                {showWeightD && (
+                  <TD>{格式化可选定位小数(cut.重量g?.D, 2)}</TD>
+                )}
+                {showWeightM && (
+                  <TD>{格式化可选定位小数(cut.重量g?.M, 2)}</TD>
+                )}
+                {showWeightL && (
+                  <TD>{格式化可选定位小数(cut.重量g?.L, 2)}</TD>
+                )}
                 {ci === 0 && (
                   <>
                     <TD rs={cuts.length}>
                       {格式化四分之一分数(row.双针.毛长)}
                     </TD>
-                    <TD rs={cuts.length}>
-                      {格式化可选定位小数(row.双针.尺数.D, 2)}
-                    </TD>
-                    {showM && (
+                    {showSizeD && (
+                      <TD rs={cuts.length}>
+                        {格式化可选定位小数(row.双针.尺数.D, 2)}
+                      </TD>
+                    )}
+                    {showSizeM && (
                       <TD rs={cuts.length}>
                         {格式化可选定位小数(row.双针.尺数.M, 2)}
                       </TD>
                     )}
-                    <TD rs={cuts.length}>
-                      {格式化可选定位小数(row.双针.尺数.L, 2)}
-                    </TD>
+                    {showSizeL && (
+                      <TD rs={cuts.length}>
+                        {格式化可选定位小数(row.双针.尺数.L, 2)}
+                      </TD>
+                    )}
                     <TD rs={cuts.length}>
                       {格式化可选定位小数(row.双针.密度, 2)}
                     </TD>
@@ -353,8 +377,13 @@ function MachineTable({ rows }: { rows: MachineRow[] }) {
 // 人工规格清单 compact table
 // ─────────────────────────────────────────────────────────────────────────────
 function ManualTable({ rows }: { rows: ManualRow[] }) {
-  const showM = rows.some((r) => r.裁断与重量.some((c) => c.重量g?.M != null));
+  const showWeightD = rows.some((r) => r.裁断与重量.some((c) => c.重量g?.D != null));
+  const showWeightM = rows.some((r) => r.裁断与重量.some((c) => c.重量g?.M != null));
+  const showWeightL = rows.some((r) => r.裁断与重量.some((c) => c.重量g?.L != null));
   const show对裁 = rows.some((r) => r.整毛.对裁 != null);
+  const weightColumnCount = [showWeightD, showWeightM, showWeightL].filter(Boolean).length;
+  const manualEmptyColSpan =
+    1 + 1 + (show对裁 ? 2 : 1) + weightColumnCount + 3 + 1 + 1 + 1 + 1;
 
   return (
     <table
@@ -369,9 +398,9 @@ function ManualTable({ rows }: { rows: ManualRow[] }) {
         <col style={{ width: "33px" }} />
         <col style={{ width: "30px" }} />
         {show对裁 && <col style={{ width: "30px" }} />}
-        <col style={{ width: "33px" }} />
-        {showM && <col style={{ width: "33px" }} />}
-        <col style={{ width: "33px" }} />
+        {showWeightD && <col style={{ width: "33px" }} />}
+        {showWeightM && <col style={{ width: "33px" }} />}
+        {showWeightL && <col style={{ width: "33px" }} />}
         <col style={{ width: "33px" }} />
         <col style={{ width: "52px" }} />
         <col style={{ width: "33px" }} />
@@ -385,7 +414,7 @@ function ManualTable({ rows }: { rows: ManualRow[] }) {
           <TH rs={2}>档位</TH>
           <TH rs={2}>裁断</TH>
           <TH cs={show对裁 ? 2 : 1}>整毛</TH>
-          <TH cs={showM ? 3 : 2}>重量g</TH>
+          {weightColumnCount > 0 && <TH cs={weightColumnCount}>重量g</TH>}
           <TH cs={3}>双针</TH>
           <TH rs={2}>形态</TH>
           <TH rs={2}>美容铝管</TH>
@@ -395,9 +424,9 @@ function ManualTable({ rows }: { rows: ManualRow[] }) {
         <tr>
           <TH>拉尖</TH>
           {show对裁 && <TH>对裁</TH>}
-          <TH>D</TH>
-          {showM && <TH>M</TH>}
-          <TH>L</TH>
+          {showWeightD && <TH>D</TH>}
+          {showWeightM && <TH>M</TH>}
+          {showWeightL && <TH>L</TH>}
           <TH>毛长</TH>
           <TH>磅发</TH>
           <TH>密度</TH>
@@ -406,7 +435,7 @@ function ManualTable({ rows }: { rows: ManualRow[] }) {
       <tbody>
         {rows.length === 0 ? (
           <tr>
-            <TD cs={14} style={{ color: "#888" }}>
+            <TD cs={manualEmptyColSpan} style={{ color: "#888" }}>
               暂无人工规格清单
             </TD>
           </tr>
@@ -430,9 +459,15 @@ function ManualTable({ rows }: { rows: ManualRow[] }) {
                     )}
                   </>
                 )}
-                <TD>{格式化可选定位小数(cut.重量g?.D, 2)}</TD>
-                {showM && <TD>{格式化可选定位小数(cut.重量g?.M, 2)}</TD>}
-                <TD>{格式化可选定位小数(cut.重量g?.L, 2)}</TD>
+                {showWeightD && (
+                  <TD>{格式化可选定位小数(cut.重量g?.D, 2)}</TD>
+                )}
+                {showWeightM && (
+                  <TD>{格式化可选定位小数(cut.重量g?.M, 2)}</TD>
+                )}
+                {showWeightL && (
+                  <TD>{格式化可选定位小数(cut.重量g?.L, 2)}</TD>
+                )}
                 {ci === 0 && (
                   <>
                     <TD rs={cuts.length}>
