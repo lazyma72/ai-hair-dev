@@ -53,6 +53,8 @@ type EditableOverride = {
   备注: string
 }
 
+
+
 function inputCls() {
   return "w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
 }
@@ -103,10 +105,6 @@ export default function RatioDetailPage() {
 
   const ratio: 胶丝比例Frontend | null = data?.胶丝比例 ?? null
   const hatOptions = useMemo(() => hatData?.list ?? [], [hatData])
-  const hatNameMap = useMemo(
-    () => new Map(hatOptions.map(item => [item._id, item.名称])),
-    [hatOptions],
-  )
 
   useEffect(() => {
     if (!ratio) return
@@ -314,7 +312,7 @@ export default function RatioDetailPage() {
                                     <option value="">请选择制帽</option>
                                     {hatOptions.map(option => (
                                       <option key={option._id} value={option._id}>
-                                        {option._id} {option.名称 ? `- ${option.名称}` : ""}
+                                        {option._id}
                                       </option>
                                     ))}
                                   </select>
@@ -397,7 +395,6 @@ export default function RatioDetailPage() {
                       <thead className="bg-slate-50 text-left text-xs font-medium text-slate-500">
                         <tr>
                           <th className="px-3 py-2">制帽编号</th>
-                          <th className="px-3 py-2">制帽名称</th>
                           <th className="px-3 py-2">对应线色</th>
                           <th className="px-3 py-2">备注</th>
                         </tr>
@@ -407,9 +404,6 @@ export default function RatioDetailPage() {
                           <tr key={item.制帽id}>
                             <td className="px-3 py-2 font-mono text-slate-900">
                               {item.制帽id}
-                            </td>
-                            <td className="px-3 py-2 text-slate-700">
-                              {item.制帽名称 ?? hatNameMap.get(item.制帽id) ?? "—"}
                             </td>
                             <td className="px-3 py-2 text-slate-900">{item.线色}</td>
                             <td className="px-3 py-2 text-slate-700">{item.备注 ?? "—"}</td>
@@ -427,7 +421,14 @@ export default function RatioDetailPage() {
             </Section>
 
             {胶丝配比分组键.map(key => {
-              const rows = ratio[key]
+              const rows =
+                key === "D"
+                  ? ratio.D
+                  : key === "M"
+                    ? ratio.M
+                    : key === "L"
+                      ? ratio.L
+                      : ratio.VL
               if (!rows || rows.length === 0) return null
               return (
                 <Section key={key} title={`${key} 色配比`}>

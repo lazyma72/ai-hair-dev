@@ -33,8 +33,6 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
   const { pageNum, pageSize, keyword, orderSort, filter } = parsed.data
   const col = Global.getCollection("胶丝比例")
   const relationCol = Global.getCollection("制帽线色关联表")
-  const hatMakingCol = Global.getCollection("制帽")
-
   const conditions: Filter<Db胶丝比例>[] = []
 
   if (filter.颜色编号) {
@@ -93,23 +91,11 @@ export default async function (call: ApiCall<ReqGetList, ResGetList>) {
       ? await relationCol.find(relationFilter).sort({ "_id.制帽id": 1 }).toArray()
       : []
 
-  const hatIds = Array.from(new Set(relations.map(item => item._id.制帽id)))
-  const hats =
-    hatIds.length > 0
-      ? await hatMakingCol
-          .find({ _id: { $in: hatIds } })
-          .project({ _id: 1, 名称: 1 })
-          .toArray()
-      : []
-  const hatMap = new Map(hats.map(item => [item._id, item.名称]))
   const relationSummaryMap = new Map<string, string[]>()
   for (const item of relations) {
     const key = `${item._id.发丝种类}__${item._id.颜色编号}`
     const current = relationSummaryMap.get(key) ?? []
-    const 名称 = hatMap.get(item._id.制帽id)
-    current.push(
-      名称 ? `${item._id.制帽id}(${名称}): ${item.线色}` : `${item._id.制帽id}: ${item.线色}`,
-    )
+    current.push(`${item._id.制帽id}: ${item.线色}`)
     relationSummaryMap.set(key, current)
   }
 

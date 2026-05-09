@@ -15,7 +15,7 @@ function getJsonPath(): string {
   if (cliPath) {
     return path.resolve(cliPath)
   }
-  return path.join(__dirname, "完整规格数据.json")
+  return path.join(__dirname, "导入json数据", "完整规格数据.json")
 }
 
 function getHatMakingIdFromCAP(cap: string): string {
@@ -50,8 +50,14 @@ function buildDefault工程重量() {
 function normalizeImportedFile(raw: any): 沐茵丝假发成品稿提交 {
   const 颜色编号 = "TT8/10613"
   const 文件名称 = String(raw?.文件名称 ?? "").trim() || undefined
+  const 客户编号 = String(raw?.客户编号 ?? "").trim() || "无"
+  const 品名 = String(raw?.品名 ?? "").trim() || "无"
+  const 原材料 = String(raw?.原材料 ?? "").trim() || "无"
   const normalizedInput = {
     ...raw,
+    客户编号,
+    品名,
+    原材料,
     文件名称,
     tag: raw?.tag ?? "成品稿",
     染色档位列表: normalize染色档位列表(raw?.染色档位列表),

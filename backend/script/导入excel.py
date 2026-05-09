@@ -6,11 +6,13 @@ from typing import Optional, Dict, Any
 
 import openpyxl
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Excel文件路径
-excel_path = '/Users/bytedance/Documents/沐茵丝/AI资料/雪花网（L)-TT6-1057#.xlsx'
+excel_path = "/Users/bytedance/Documents/ai图/13x6雪花网-TT6-1057#/13x6雪花网-TT6-1057#.xlsx"
 
 # 输出目录
-output_dir = '/Users/bytedance/code/company/hire/导入json数据'
+output_dir = os.path.join(SCRIPT_DIR, "导入json数据")
 
 # 确保目录存在
 os.makedirs(output_dir, exist_ok=True)
