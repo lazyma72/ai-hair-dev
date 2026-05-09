@@ -51,7 +51,7 @@ export default function DyeLevelsSection({
         <div className="space-y-3">
           {list.map((项, i) => (
             <div
-              key={`${项.type}-${项.染色图.染色尺寸标注.尺寸}-${项.染色图.svg.length}-${项.染色图.档位标注.textNodeId}`}
+              key={`dye-level-${i}`}
             >
               <div className="mb-1.5 flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-500">

@@ -68,25 +68,43 @@ export function NumInput({
   const fmt = (n: number) =>
     step === "1" ? String(Math.round(n)) : 格式化定位小数(n, 2);
   const [raw, setRaw] = useState(fmt(value));
+  const isFocusedRef = React.useRef(false);
 
   useEffect(() => {
-    if (parseFloat(raw) !== value) setRaw(fmt(value));
+    if (!isFocusedRef.current && parseFloat(raw) !== value) setRaw(fmt(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   return (
     <input
-      type="number"
-      step={step}
-      min="0"
+      type="text"
+      inputMode="decimal"
       placeholder={placeholder ?? "0"}
       disabled={disabled}
       className={`${numInputCls}${disabled ? " opacity-40 cursor-not-allowed" : ""}${className ? ` ${className}` : ""}`}
       value={raw}
       onChange={(e) => {
-        setRaw(e.target.value);
-        const n = parseFloat(e.target.value);
-        onChange(isNaN(n) ? 0 : Math.max(0, n));
+        const nextRaw = e.target.value;
+        if (!/^\d*\.?\d*$/.test(nextRaw)) return;
+        setRaw(nextRaw);
+        if (nextRaw === "" || nextRaw === "." || nextRaw.endsWith(".")) return;
+        const n = parseFloat(nextRaw);
+        if (isNaN(n)) return;
+        onChange(Math.max(0, n));
+      }}
+      onFocus={() => {
+        isFocusedRef.current = true;
+      }}
+      onBlur={() => {
+        isFocusedRef.current = false;
+        const n = parseFloat(raw);
+        if (isNaN(n)) {
+          setRaw(fmt(value));
+          return;
+        }
+        const normalized = Math.max(0, n);
+        setRaw(fmt(normalized));
+        onChange(normalized);
       }}
     />
   );
